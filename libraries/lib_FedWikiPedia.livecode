@@ -3,7 +3,7 @@
 -
 name: lib_FedWikiPedia
 type: script library
-version: 0.9
+version: 1.0
 copyright: David Bovill
 licence:  GPLv3
 deps: lib_MediaWiki, lib_Fedwiki
@@ -83,51 +83,6 @@ function wikimedia_FetchFileMetadata shortImageFile, pExtended
    return someJSON
 end wikimedia_FetchFileMetadata
 
--- function fedwikipedia_FetchPageJson wikipediaUrl
--- gets the apiStem from the wikipediaUrl
-put mediwiki_ExtractPageSlugFromUrl (wikipediaUrl) into pageSlug
-put fedwikipedia_FetchPageArray (pageSlug, wikipediaURL, empty, false) into fedwikiPageArray
-put json_FromArray (fedwikiPageArray) into pageJSON
-return pageJSON
-end fedwikipedia_FetchPageJson
-
--- function fedwikipedia_FetchPageArray pageTitle, pWikipediaUrl, pSectionFormat, pIntroOnly
-   -- gets the apiStem from the wikipediaUrl
-   -- bit of a mess
-   
-   put wikipedia_GetApiRoot (pWikipediaUrl) into pApiStem
-   if pSectionFormat is empty then put "wiki" into pSectionFormat
-   if pWikipediaUrl is empty then
-      put wikipedia_ConstructUrl (pageTitle) into pWikipediaUrl
-   end if
-   
-   put sandbox_ConstructPageQueryFragment (pageTitle, pSectionFormat, pIntroOnly) into sandBoxFragment
-   put mediawiki_GetSandboxArray (sandBoxFragment, pApiStem) into sandboxArray
-   if sandboxArray is not an array then return empty
-   
-   -- put fedwiki_ConstructWikipediaSummaryPageArray (sandboxArray, pWikipediaUrl) into fedwikiPageArray
-   sandbox_DeconstructPageArray sandboxArray, pageTitle, pageDescription, shortImageFile, lastRevisionID
-   put wikicommons_ConstructTwoImagePageArray (pageTitle, pageDescription, shortImageFile, wikipediaUrl) into fedwikiPageArray
-   
-   if pIntroOnly is not true then
-      put fedwikipedia_FetchWikiText (pageTitle) into wikiText
-      mediawiki_DeleteFirstSection wikiText
-      repeat 
-         put mediwiki_ExtractAndDeleteFirstSection (wikiText) into wikiSection
-         if wikiSection is empty then exit repeat
-         
-         put line 1 of wikiSection into sectionTitle
-         mediawiki_ConvertSectionTitle sectionTitle
-         fedwiki_AddMarkdownToPageArray fedwikiPageArray, sectionTitle
-         delete line 1 of wikiSection
-         put word 1 to -1 of wikiSection into wikiSection
-         fedwiki_AddWikipediaSectionToPageArray fedwikiPageArray, wikiSection, shortImageFile
-      end repeat
-   end if
-   fedwiki_CleanJournalArray fedwikiPageArray
-   return fedwikiPageArray
-end fedwikipedia_FetchPageArray
-
 
 --> Wiki Commons | Two Images
 -
@@ -201,70 +156,6 @@ command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile
          return true
    end switch
 end wikicommons_FetchAndAddTwoImages
-
-
---> FedWiki | Section | Summary
--
-function fedwiki_FetchWikipediaSummaryPageJson pageSlug, pApiStem
-   put fedwiki_FetchWikipediaSummaryPageArray (pageSlug, pApiStem) into fedwikiPageArray
-   put json_FromArray (fedwikiPageArray) into pageJSON
-   return pageJSON
-end fedwiki_FetchWikipediaSummaryPageJson
-
-function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
-   -- see also "fedwikipedia_FetchSectionSummaryPageArray"
-   -- need to make a "parse" call to get TOC
-   local pSectionNum
-   
-   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, shortImageFile, infoBoxArray, pSectionNum, pApiStem
-   put the result into sandboxArray
-   put fedwikipedia_ConstructTocArray (sandboxArray) into tocArray
-   fedwikipedia_ExtractTocLookupArray tocArray, lookUpArray, markdownTOC
-   
-   -- need to make a "query" call to get a nice clean text
-   mediawiki_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, pApiStem
-   put the result into sandboxPageArray
-      
-   -- put wikipedia_ConstructUrl (pageSlug) into wikipediaUrl
-   put sandboxPageArray ["fullurl"] into wikipediaUrl
-   put sandboxPageArray ["coordinates"] into coordArray
-   
-   put construct_SummarySourceArray (pageTitle, pageSlug, wikipediaUrl, wikipediaRevisionID, lookUpArray) into pSourceArray
-   
-   -- now let's construct the page
-   set the itemdelimiter to "."
-   if item -1 of shortImageFile is "webm" then
-      put wikicommons_ConstructVideoPageArray (pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
-   else
-      put wikicommons_ConstructTwoImagePageArray (pageTitle, simplePageDescription, shortImageFile, wikipediaUrl, pSourceArray) into fedwikiPageArray
-   end if
-   
-   if coordArray is an array then
-      -- add a map?
-   end if
-   
-   put "# See also" & CR & markdownTOC into markdownSection
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownSection
-   
-   fedwiki_CleanJournalArray fedwikiPageArray
-   return fedwikiPageArray
-end fedwiki_FetchWikipediaSummaryPageArray
-
-function wikicommons_ConstructVideoPageArray pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray
-   --need to add imagedescription
-   
-   put wikicommons_CostructBasicSummaryPageArray (pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
-   
-   put urlencode (word 1 to -1 of shortImageFile) into shortImageFile
-   put wikicommons_FetchImageSandboxArray (shortImageFile) into sandboxArray
-   put sandboxArray ["query"]["pages"] into pagesArray
-   put line 1 of keys (pagesArray) into pageID
-   put pagesArray [pageID] into pageArray
-   wikicommons_AddVideoToPageArray fedwikiPageArray, pageArray
-   -- fedwiki_AddWikipediaSectionToPageArray fedwikiPageArray, pageDescription, shortImageFile
-   -- fedwiki_PageArrayAddToEnd imageArray, fedwikiPageArray
-   return fedwikiPageArray
-end wikicommons_ConstructVideoPageArray
 
 
 --> WikiCommons | Media | PageArray
@@ -346,6 +237,70 @@ command wikicommons_DeconstructPageArray pageArray, @imageTitle, @imageURL, @des
       put imageInfoArray ["extmetadata"]["imageDescription"]["value"] into pImageCaption
    end if
 end wikicommons_DeconstructPageArray
+
+
+--> FedWiki | Section | Summary
+-
+function fedwiki_FetchWikipediaSummaryPageJson pageSlug, pApiStem
+   put fedwiki_FetchWikipediaSummaryPageArray (pageSlug, pApiStem) into fedwikiPageArray
+   put json_FromArray (fedwikiPageArray) into pageJSON
+   return pageJSON
+end fedwiki_FetchWikipediaSummaryPageJson
+
+function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
+   -- see also "fedwikipedia_FetchSectionSummaryPageArray"
+   -- need to make a "parse" call to get TOC
+   local pSectionNum
+   
+   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, shortImageFile, infoBoxArray, pSectionNum, pApiStem
+   put the result into sandboxArray
+   put fedwikipedia_ConstructTocArray (sandboxArray) into tocArray
+   fedwikipedia_ExtractTocLookupArray tocArray, lookUpArray, markdownTOC
+   
+   -- need to make a "query" call to get a nice clean text
+   mediawiki_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, pApiStem
+   put the result into sandboxPageArray
+      
+   -- put wikipedia_ConstructUrl (pageSlug) into wikipediaUrl
+   put sandboxPageArray ["fullurl"] into wikipediaUrl
+   put sandboxPageArray ["coordinates"] into coordArray
+   
+   put construct_SummarySourceArray (pageTitle, pageSlug, wikipediaUrl, wikipediaRevisionID, lookUpArray) into pSourceArray
+   
+   -- now let's construct the page
+   set the itemdelimiter to "."
+   if item -1 of shortImageFile is "webm" then
+      put wikicommons_ConstructVideoPageArray (pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
+   else
+      put wikicommons_ConstructTwoImagePageArray (pageTitle, simplePageDescription, shortImageFile, wikipediaUrl, pSourceArray) into fedwikiPageArray
+   end if
+   
+   if coordArray is an array then
+      -- add a map?
+   end if
+   
+   put "# See also" & CR & markdownTOC into markdownSection
+   fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownSection
+   
+   fedwiki_CleanJournalArray fedwikiPageArray
+   return fedwikiPageArray
+end fedwiki_FetchWikipediaSummaryPageArray
+
+function wikicommons_ConstructVideoPageArray pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray
+   --need to add imagedescription
+   
+   put wikicommons_CostructBasicSummaryPageArray (pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
+   
+   put urlencode (word 1 to -1 of shortImageFile) into shortImageFile
+   put wikicommons_FetchImageSandboxArray (shortImageFile) into sandboxArray
+   put sandboxArray ["query"]["pages"] into pagesArray
+   put line 1 of keys (pagesArray) into pageID
+   put pagesArray [pageID] into pageArray
+   wikicommons_AddVideoToPageArray fedwikiPageArray, pageArray
+   -- fedwiki_AddWikipediaSectionToPageArray fedwikiPageArray, pageDescription, shortImageFile
+   -- fedwiki_PageArrayAddToEnd imageArray, fedwikiPageArray
+   return fedwikiPageArray
+end wikicommons_ConstructVideoPageArray
 
 
 --> Fedwiki | TOC

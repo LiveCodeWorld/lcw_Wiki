@@ -11,22 +11,74 @@ licence:  GPLv3
 A library for interfacing with Federated Wiki.
 */
 
---> Fedwiki | Model | Wrappers
--
-command utopia_StoreFile fedwikiDomain, wikiPageSlug, localFile
-   put fedwiki_ConstructPath (fedwikiDomain, wikiPageSlug) into wikiPagePath
-   digitalOcean_StoreFile "Utopia", wikiPagePath, localFile
-   return the result
-end utopia_StoreFile
-
-command atopia_StoreFile fedwikiDomain, wikiPageSlug, localFile
-   put fedwiki_ConstructPath (fedwikiDomain, wikiPageSlug) into wikiPagePath
-   digitalOcean_StoreFile "Atopia", wikiPagePath, localFile
-   return the result
-end atopia_StoreFile
-
-
 --> Node
+-
+command node_OpenModulesFolder
+   put node_GetModulesFolder() into someFolder
+   if someFolder is empty then return empty
+   
+   finder_Reveal someFolder
+   return someFolder
+end node_OpenModulesFolder
+
+function node_GetModulesFolder
+   put line 1 of shell ("npm root -g") & "/" into nodeModulesFolder
+   if there is not a folder nodeModulesFolder then return empty
+   return nodeModulesFolder
+end node_GetModulesFolder
+
+function node_GetNodeBinaryPath
+   return line 1 of shell ("npm bin -g") & "/npm"
+end node_GetNodeBinaryPath
+
+
+--> Fedwiki | Owner
+-
+function fedwiki_GetOwnerEmail ownerArray
+   -- work in progress
+   
+   fedwiki_DeconstructOwnerArray ownerArray, ownerEmail, accountType, ownerID, ownerName
+   -- should also do Twitter and other schemes
+   return ownerEmail
+end fedwiki_GetOwnerEmail
+
+function fedwiki_ConstructPersonaOwnerArray personaEmail
+   -- for legacy persona sites
+   put personaEmail into ownerArray ["persona"]["emails"][1]["value"]
+   return ownerArray
+end fedwiki_ConstructPersonaOwnerArray
+
+
+--> Fedwiki | Paths
+-
+function fedwiki_ConstructPath fedwikiDomain, pPageSlug
+   -- .wiki/actual.world/pages/some-page
+   -- shell_BashParamEscape fedwikiDomain -- domain names are always bash safe
+   
+   put fedwiki_RelativeWikiRootFolder() into wikiRootFolder
+   put wikiRootFolder & fedwikiDomain & "/" into wikiPath
+   if pPageSlug is empty then return wikiPath
+   
+   put "pages/" & pPageSlug after wikiPath
+   return wikiPath
+end fedwiki_ConstructPath
+
+function fedwiki_PagesFolder fedwikiDomain
+   -- .wiki/actual.world/pages/
+   -- shell_BashParamEscape fedwikiDomain -- domain names are always bash safe
+   
+   put fedwiki_RelativeWikiRootFolder() into wikiRootFolder
+   put wikiRootFolder & fedwikiDomain & "/pages/" into wikiPageFolder
+   return wikiPageFolder
+end fedwiki_PagesFolder
+
+function fedwiki_RelativeWikiRootFolder
+   put ".wiki/" into wikiRootFolder
+   return wikiRootFolder
+end fedwiki_RelativeWikiRootFolder
+
+
+--> Fedwiki
 -
 command fedwiki_OpenModulesFolder
    put fedwiki_GetModulesFolder() into fedwikiModulesFolder
@@ -46,24 +98,6 @@ function fedwiki_GetModulesFolder
    
    return fedwikiModulesFolder
 end fedwiki_GetModulesFolder
-
-command node_OpenModulesFolder
-   put node_GetModulesFolder() into someFolder
-   if someFolder is empty then return empty
-   
-   finder_Reveal someFolder
-   return someFolder
-end node_OpenModulesFolder
-
-function node_GetModulesFolder
-   put line 1 of shell ("npm root -g") & "/" into nodeModulesFolder
-   if there is not a folder nodeModulesFolder then return empty
-   return nodeModulesFolder
-end node_GetModulesFolder
-
-function node_GetNodeBinaryPath
-   return line 1 of shell ("npm bin -g") & "/npm"
-end node_GetNodeBinaryPath
 
 
 --> Fedwiki | Sitemap
@@ -443,49 +477,49 @@ function fedwiki_GetLocalFolders
 end fedwiki_GetLocalFolders
 
 
---> Deps
+--> Private
 -
-/*
-command line_Delete someLines, @fromContainer, partLine, skipLines
-    set the wholematches to (partLine is empty)
-    repeat with ii = 1 to the number of lines of someLines
-        put line ii of someLines into someLine
-        get lineoffset(someLine, fromContainer, skipLines)
-        if it is not 0 then
-            put it + skipLines into lineNum
-            delete line lineNum of fromContainer
-        end if 
-    end repeat
-    return the number of lines of someIndex
-end line_Delete
-
-function folder_ShortFiles someFolder, pFilter, pShowInvisible
-   put the defaultFolder into oDirectory
-   set the defaultFolder to someFolder
-   put the files into shortFiles
-   set the defaultFolder to oDirectory
-   if pFilter is not empty then filter shortFiles with pFilter
-   if pShowInvisible is not true then filter shortFiles without ".*"
-   return shortFiles
-end folder_ShortFiles
-
-command folder_Format @someFolder
-   -- should be renamed "folder_Normalize"
-   if someFolder is empty then return empty
-   repeat while last char of someFolder is "/"
-      delete last char of someFolder
+private command fedwiki_DeconstructOwnerArray ownerArray, @ownerEmail, @accountType, @ownerID, @ownerName
+   put empty into ownerEmail
+   put empty into accountType
+   put empty into ownerID
+   put empty into ownerName
+   --
+   put ownerArray ["google"] into googleOwnerArray
+   put googleOwnerArray ["emails"][1]["value"] into ownerEmail
+   if ownerEmail is not empty then
+      put "google" into accountType
+      put googleOwnerArray ["id"] into ownerID
+      put googleOwnerArray ["name"] into ownerName
+      return true
+   end if
+   
+   -- for gitHub only the primary email
+   put ownerArray ["github"] into githubOwnerArray
+   put githubOwnerArray ["email"] into indexedArray
+   repeat for each key indexNum in indexedArray
+      put githubOwnerArray ["email"][indexNum]["primary"] into isPrimary
+      if isPrimary is true then
+         put githubOwnerArray ["email"][indexNum]["value"] into ownerEmail
+         if ownerEmail is empty then put "No email" into ownerEmail
+         
+         put "gitHub" into accountType
+         put githubOwnerArray ["id"] into ownerID
+         put googleOwnerArray ["name"] into ownerName
+         return true
+      else
+         -- not a primary email
+         -- beep -- assuming there should be at least one set as primary by github
+      end if
    end repeat
-   put "/" after someFolder
-end folder_Format
+   
+   get ownerArray ["persona"]["emails"][1]["value"]
+   if it is not empty then
+      put "persona" into accountType
+      put it into ownerEmail
+   end if
+   
+   -- should also do Twitter and other schemes
+   return false
+end fedwiki_DeconstructOwnerArray
 
-command folder_CreateNested @someFolder
-   folder_Format someFolder
-   if there is a folder someFolder then return empty
-   set the itemdelimiter to "/"
-   repeat with itemNum = 1 to the number of items of someFolder
-      put item 1 to itemNum of someFolder & "/" into testFolder
-      if there is a folder testFolder then next repeat
-      create folder testFolder
-   end repeat
-end folder_CreateNested
-*/

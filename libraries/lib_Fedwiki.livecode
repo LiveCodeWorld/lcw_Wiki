@@ -12,6 +12,20 @@ externals:  mergJSONEncode
 
 /*
 This script is designed to be a behavior for a Fedwiki server.
+
+/*
+rigSetHeader "Content-Type: application/json; charset=utf-8"
+rigSetHeader "Access-Control-Allow-Origin: *"
+rigSetHeader "Access-Control-Allow-Headers: Accept, Authorization, Content-Type"
+rigSetHeader "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE OPTIONS, LINK, UNLINK"
+rigSetOutput someJSON
+*/
+
+put new header "Content-Type: application/json; charset=utf-8"
+put new header "Access-Control-Allow-Origin: *"
+put new header "Access-Control-Allow-Headers: Accept, Authorization, Content-Type"
+put new header "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE OPTIONS, LINK, UNLINK"
+put someJSON
 */
 
 --> Working On
