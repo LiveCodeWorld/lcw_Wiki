@@ -4,11 +4,17 @@
 license: GPLv3
 name: lib_Citation
 type: library
-version: 0.1
+version: 0.2
 
 /*
 This library contains handlers to interface with citation services.
+
+https://www.zotero.org/support/dev/start
 */
+
+--> Varaibles
+-
+constant ZoteroBaseURL = "https://api.zotero.org"
 
 
 --> DOI
@@ -29,6 +35,20 @@ end doi_FetchCitation
 
 --> Zotero
 -
+function zotero_ListItems
+   -- https://api.zotero.org/users/475425/collections?v=3
+   -- https://api.zotero.org/users/475425/collections/9KH9TNSJ/items/top?v=3
+   -- https://api.zotero.org/users/475425/collections/9KH9TNSJ/items?format=bib
+   -- put ZoteroBaseURL & <userOrGroupPrefix> & "/items" into restURL
+   
+   put "/users/475425/collections" into restPath
+   put zotero_FetchJSON (restPath) into someJSON
+   return someJSON
+end zotero_ListItems
+
+
+--> Zotero | Cite
+-
 function zotero_CrossCite someDOI
    -- web service from crosssite.org
    put "https://citation.crosscite.org/format?doi=" & someDOI & "&style=apa&lang=en-GB" into someURL
@@ -43,3 +63,33 @@ function zotero_FetchCitationArray droppedURL
    put jsonrpc_GetArray (restURL) into arrayResult
    return arrayResult
 end zotero_FetchCitationArray
+
+
+--> Zotero | REST
+-
+-- function zotero_PostJSON restPath, someJSON
+put merge ("https://app.asana.com/api/[[ApiVersionNum]]/") & restPath into restURL
+put asana_GetAuthenticationToken() into oAuthToken
+put jsonrpc_POST (someJSON, restUrl, oAuthToken) into someJSON
+return someJSON
+end zotero_PostJSON
+
+function zotero_FetchJSON restPath
+   put ZoteroBaseURL & restPath into restURL
+   put "?v=3" after restURL
+   --
+   put zotero_GetAuthenticationToken() into oAuthToken
+   put jsonrpc_GET (restURL, oAuthToken) into someJSON
+   return someJSON
+end zotero_FetchJSON
+
+function zotero_GetAuthenticationToken
+   put secret_GetCached ("ZoteroAuthenticationToken", "zotero") into oAuthToken
+   return oAuthToken
+end zotero_GetAuthenticationToken
+
+command zotero_SetAuthenticationToken oAuthToken
+   secret_Set "ZoteroAuthenticationToken", "zotero", oAuthToken
+   put the result into modelDataFile
+   return modelDataFile
+end zotero_SetAuthenticationToken

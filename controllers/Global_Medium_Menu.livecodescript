@@ -13,7 +13,7 @@ local oAuthToken = "2126a02d2a3c3926b28eeb982c4fd83ba61470b3e19bed064a0ff0efe700
 -
 on menu_FetchAuthenticatedUser mTarget
    put apiStem & "me" into restURL
-   put rest_GET (restURL, oAuthToken) into resultJSON
+   put jsonrpc_GET (restURL, oAuthToken) into resultJSON
    --
    display_Json resultJSON
 end menu_FetchAuthenticatedUser
@@ -22,7 +22,7 @@ on menu_FetchPublications
    put "1c3f0e7d6ac495d0b686ca47ff35ba60373b6185ac23ea1af3dffef86d6dbf5bb" into userId
    --
    put apiStem & "users/" & userId & "/publications" into restURL
-   put rest_GET (restURL, oAuthToken) into resultJSON
+   put jsonrpc_GET (restURL, oAuthToken) into resultJSON
    --
    display_Json resultJSON
 end menu_FetchPublications
@@ -31,7 +31,7 @@ on menu_FetchContributors
    put "f63c83f44e1d" into publicationId
    --
    put apiStem & "publications/" & publicationId & "/contributors" into restURL
-   put rest_GET (restURL, oAuthToken) into resultJSON
+   put jsonrpc_GET (restURL, oAuthToken) into resultJSON
    --
    display_Json resultJSON
 end menu_FetchContributors
@@ -57,7 +57,7 @@ on menu_TestPost
    put "1c3f0e7d6ac495d0b686ca47ff35ba60373b6185ac23ea1af3dffef86d6dbf5bb" into authorID
    --
    put apiStem & "users/" & authorID & "/posts" into restURL
-   put rest_POST (someJSON, restUrl, oAuthToken) into resultJSON
+   put jsonrpc_POST (someJSON, restUrl, oAuthToken) into resultJSON
    --
    display_Json resultJSON
 end menu_TestPost

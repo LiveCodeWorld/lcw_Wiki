@@ -34,24 +34,6 @@ command graph_LinkArray linkArray, pOverlayStyle, pOverlayFolder, pDotHeaderArra
    overlayArray_CreateAndDisplayGraph overlayArray, pOverlayStyle, pOverlayFolder
 end graph_LinkArray
 
-command linkArray_RemoveSelfLinks @linkArray, pIsNested
-   if pIsNested is empty then
-      put linkArray_IsNested (linkArray) into pIsNested
-   end if
-   
-   if pIsNested is not true then
-      repeat for each key someKey in linkArray
-         put linkArray [someKey] into someLinks
-         line_Delete someKey, someLinks
-         put someLinks into linkArray [someKey]
-      end repeat
-   else
-      repeat for each key someKey in linkArray
-         delete variable linkArray [someKey][someKey]
-      end repeat
-   end if
-end linkArray_RemoveSelfLinks
-
 command graph_CreateDotFiles linkArray, pGraphStyle, pDotFile
    -- simplified version of "overlayArray_CreateAndDisplayGraph"
    -- creates all the dot and PNG and SVG files
@@ -130,12 +112,6 @@ function graph_ConstructDefSection nodeIdArray
    return defSection
 end graph_ConstructDefSection
 
-function dot_RandomColour
-   put colour_GetRandom() into rColour
-   put colour_RgbToHex (rColour) into hColour
-   return hColour
-end dot_RandomColour
-
 function graph_ConstructGroupStyleArray nodeIdArray
    local dotGroupStyleArray
    
@@ -172,20 +148,6 @@ function graph_ConstructGroupStyleArray nodeIdArray
    
    return dotGroupStyleArray
 end graph_ConstructGroupStyleArray
-
-command linkarray_ExtractRandomNodes @nodeIdArray, someNumber
-   repeat someNumber
-      if nodeIdArray is not an array then exit repeat
-      put keys (nodeIdArray) into nodeKeys
-      put the number of lines of nodeKeys into maxNum
-      put random (maxNum) into lineNum
-      put line lineNum of nodeKeys into nodeID
-      put nodeID & comma after nodeIDs
-      delete variable nodeIdArray [nodeID]
-   end repeat
-   delete char -1 of nodeIDs
-   return nodeIDs
-end linkarray_ExtractRandomNodes
 
 command graph_AddToGroupStyleArray @dotGroupStyleArray, nodeType, nodeIDs, someColour, someFillcolor, nodeUrl, nodeIdArray
    put nodeIDs into dotGroupStyleArray [nodeType]["nodeIDs"]
@@ -236,6 +198,15 @@ end graph_ConstructCluster
 -- not nested
 -- put overlayArray_ConstructFlatSubCluster dotClusterArray, someObject, idArray
 end graph_ConstructDotClusters
+
+
+--> Dot
+-
+function dot_RandomColour
+   put colour_GetRandom() into rColour
+   put colour_RgbToHex (rColour) into hColour
+   return hColour
+end dot_RandomColour
 
 command dot_Flatten dotFile, overlayFlattenNum
    put dot_UnFlatten (dotFile, overlayFlattenNum) into unFlatDotText

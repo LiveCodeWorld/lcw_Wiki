@@ -11,58 +11,43 @@ licence:  GPLv3
 A library for interfacing with Federated Wiki.
 */
 
---> Node
--
-command node_OpenModulesFolder
-   put node_GetModulesFolder() into someFolder
-   if someFolder is empty then return empty
-   
-   finder_Reveal someFolder
-   return someFolder
-end node_OpenModulesFolder
-
-function node_GetModulesFolder
-   put line 1 of shell ("npm root -g") & "/" into nodeModulesFolder
-   if there is not a folder nodeModulesFolder then return empty
-   return nodeModulesFolder
-end node_GetModulesFolder
-
-function node_GetNodeBinaryPath
-   return line 1 of shell ("npm bin -g") & "/npm"
-end node_GetNodeBinaryPath
-
-
---> Fedwiki | Owner
--
-function fedwiki_GetOwnerEmail ownerArray
-   -- work in progress
-   
-   fedwiki_DeconstructOwnerArray ownerArray, ownerEmail, accountType, ownerID, ownerName
-   -- should also do Twitter and other schemes
-   return ownerEmail
-end fedwiki_GetOwnerEmail
-
-function fedwiki_ConstructPersonaOwnerArray personaEmail
-   -- for legacy persona sites
-   put personaEmail into ownerArray ["persona"]["emails"][1]["value"]
-   return ownerArray
-end fedwiki_ConstructPersonaOwnerArray
-
-
 --> Fedwiki | Paths
 -
 function fedwiki_ConstructPath fedwikiDomain, pPageSlug
-   -- .wiki/actual.world/pages/some-page
-   -- shell_BashParamEscape fedwikiDomain -- domain names are always bash safe
-   
+   -- .wiki/actual.world/pages/some-page   
    put fedwiki_RelativeWikiRootFolder() into wikiRootFolder
    put wikiRootFolder & fedwikiDomain & "/" into wikiPath
    if pPageSlug is empty then return wikiPath
-   
    put "pages/" & pPageSlug after wikiPath
    return wikiPath
 end fedwiki_ConstructPath
 
+function fedwiki_ConstructSitemapPath fedwikiDomain
+   -- .wiki/actual.world/pages/some-page   
+   put fedwiki_RelativeWikiRootFolder() into siteMapFile
+   put fedwiki_JsonSiteMapPathBit (fedwikiDomain) after siteMapFile
+   return siteMapFile
+end fedwiki_ConstructSitemapPath
+   
+function fedwiki_LocalSiteMapFile pFedwikiDomain
+   put fedwiki_GetLocalWikiRoot() into siteMapFile
+   put fedwiki_JsonSiteMapPathBit (pFedwikiDomain) after siteMapFile
+   return siteMapFile
+end fedwiki_LocalSiteMapFile
+
+function fedwiki_JsonSiteMapPathBit pFedwikiDomain
+   --   .wiki/audio.commons.academy/status/sitemap.json
+   if pFedwikiDomain is empty then
+      return "status/sitemap.json"
+   else
+      put pFedwikiDomain & "/status/sitemap.json" into pathBit
+      return pathBit
+   end if
+end fedwiki_JsonSiteMapPathBit
+
+
+--> Fedwiki | Folders
+-
 function fedwiki_PagesFolder fedwikiDomain
    -- .wiki/actual.world/pages/
    -- shell_BashParamEscape fedwikiDomain -- domain names are always bash safe
@@ -409,22 +394,6 @@ command fedwiki_SetLocalSitemapJson pageSlug, pageJSON, pFedwikiDomain
    return someFile
 end fedwiki_SetLocalSitemapJson
 
-function fedwiki_LocalSiteMapFile pFedwikiDomain
-   put fedwiki_GetLocalWikiRoot() into localWikiFolder
-   put localWikiFolder & fedwiki_JsonSiteMapPathBit (pFedwikiDomain) into siteMapFile
-   return siteMapFile
-end fedwiki_LocalSiteMapFile
-
-function fedwiki_JsonSiteMapPathBit pFedwikiDomain
-   --   .wiki/audio.commons.academy/status/sitemap.json
-   if pFedwikiDomain is empty then
-      return "status/sitemap.json"
-   else
-      put pFedwikiDomain & "/status/sitemap.json" into pathBit
-      return pathBit
-   end if
-end fedwiki_JsonSiteMapPathBit
-
 
 --> FedWiki | Local | Folders
 -
@@ -475,51 +444,3 @@ function fedwiki_GetLocalFolders
    line_Delete "status", fedwikiFolders
    return fedwikiFolders
 end fedwiki_GetLocalFolders
-
-
---> Private
--
-private command fedwiki_DeconstructOwnerArray ownerArray, @ownerEmail, @accountType, @ownerID, @ownerName
-   put empty into ownerEmail
-   put empty into accountType
-   put empty into ownerID
-   put empty into ownerName
-   --
-   put ownerArray ["google"] into googleOwnerArray
-   put googleOwnerArray ["emails"][1]["value"] into ownerEmail
-   if ownerEmail is not empty then
-      put "google" into accountType
-      put googleOwnerArray ["id"] into ownerID
-      put googleOwnerArray ["name"] into ownerName
-      return true
-   end if
-   
-   -- for gitHub only the primary email
-   put ownerArray ["github"] into githubOwnerArray
-   put githubOwnerArray ["email"] into indexedArray
-   repeat for each key indexNum in indexedArray
-      put githubOwnerArray ["email"][indexNum]["primary"] into isPrimary
-      if isPrimary is true then
-         put githubOwnerArray ["email"][indexNum]["value"] into ownerEmail
-         if ownerEmail is empty then put "No email" into ownerEmail
-         
-         put "gitHub" into accountType
-         put githubOwnerArray ["id"] into ownerID
-         put googleOwnerArray ["name"] into ownerName
-         return true
-      else
-         -- not a primary email
-         -- beep -- assuming there should be at least one set as primary by github
-      end if
-   end repeat
-   
-   get ownerArray ["persona"]["emails"][1]["value"]
-   if it is not empty then
-      put "persona" into accountType
-      put it into ownerEmail
-   end if
-   
-   -- should also do Twitter and other schemes
-   return false
-end fedwiki_DeconstructOwnerArray
-
