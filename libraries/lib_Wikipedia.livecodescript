@@ -80,19 +80,3 @@ function wikipedia_ExtractInfo someTitles
    put url someURL into someValue
    return someValue
 end wikipedia_ExtractInfo
-
-
---> Wikipedia | Rest
--
-function wikipedia_ConstructApiStem wikipediaURL
-   -- was "wikipedia_GetApiRoot"
-   if wikipediaURL is empty then
-      return "https://en.wikipedia.org/w/api.php"
-   else
-      -- https://de.wikipedia.org/wiki/Jo_Fabian
-      set the itemdelimiter to "/"
-      put item 1 to 3 of wikipediaURL into apiRoot
-      put "/w/api.php" after apiRoot
-      return apiRoot
-   end if
-end wikipedia_ConstructApiStem

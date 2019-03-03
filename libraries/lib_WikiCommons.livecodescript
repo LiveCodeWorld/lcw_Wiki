@@ -78,14 +78,26 @@ function wikicommons_GetApiStem
    return apiRoot
 end wikicommons_GetApiStem
 
-command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile, pApiRoot
-   put urlencode (word 1 to -1 of shortImageFile) into shortImageFile
+command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile
+   -- put urlencode (word 1 to -1 of shortImageFile) into shortImageFile
    if shortImageFile is among the items of mediawiki_ListBuiltInImages() then
       return false
    end if
    
-   put wikicommons_FetchImageSandboxArray (shortImageFile, pApiRoot) into sandboxArray
-   sandbox_ArrayDeconstructImage sandboxArray, imageTitle, imageURL, imageDescription, imageCaption, descriptionURL, imageCategoryIndex
+   -- could work out from wikipediaURL
+   put wikicommons_GetApiStem() into apiStem
+   
+   -- fetch and deconstruct
+   put wikicommons_FetchImageSandboxArray (shortImageFile, apiStem) into sandboxArray
+   _DeconstructSandboxImageArray sandboxArray, imageTitle, imageURL, imageDescription, imageCaption, descriptionURL, imageMime, thumbURL, thumbWidth, thumbMime
+   switch
+      case imageMime = "image/svg+xml"
+         -- don't use thumb
+         break
+      case thumbWidth > 400
+         put thumbURL into imageURL
+         break
+   end switch
    
    set the itemdelimiter to "."
    switch 
@@ -96,20 +108,21 @@ command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile, pApi
          return false
          break
       default
-         mediawiki_SetUserAgent
-         put url imageURL into someImage
-         if someImage is empty then return ("Error, image" && imageURL && "is empty")
-         
-         set the itemdelimiter to "."
-         put item -1 of imageURL into imageType -- bit of a hack
+         -- construct description
          put html_StripTags (imageCaption) into plainCaption
-         put " - [" & descriptionURL && "wikimedia]" after plainCaption
+         --  " - [" & descriptionURL && "wikimedia]" after plainCaption
          
+         -- create html image
          put fedwiki_ConstructImageHtml (imageURL, plainCaption, descriptionURL, false) into imageHTML
-         
          fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
          
+         -- create encoded image
+         put url thumbURL into someImage
+         
+         set the itemdelimiter to slash
+         put item -1 of thumbMime into imageType -- png
          put fedwiki_ConstructEncodedImageArray (someImage, imageType, plainCaption) into imageArray
+         
          fedwiki_AddItemArrayToStoryEnd imageArray, fedwikiPageArray
          return true
    end switch
@@ -204,95 +217,33 @@ function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL,
    fedwiki_AddExternalLinkToFirstSection fedwikiPageArray, wikipediaURL
    
    -- strip journal
-   fedwiki_StripJournalToCreate fedwikiPageArray
+   fedwiki_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end wikicommons_ConstructSectionPageArray
 
-command wikicommons_AddSectionToPageArray @fedwikiPageArray, wikiText, pFirstSectionOnly
-   -- don't like this way of doing it
-   -- structure data first then write it out logically instead of looping and writing
+command wikicommons_MoveImage @fedwikiPageArray, pToItemNum
+   -- moves image or media item
+   -- fedwiki_MakeTextParagraphFirst fedwikiPageArray
    
-   local firstSection
-   fedwikipedia_CleanWikiText wikiText
+   if pToItemNum is empty then put 2 into pToItemNum -- move image to item 2
    
-   put empty into markDownBulletSection
-   put 0 into lineNum
-   repeat for each line wikisectionLine in wikiText
-      add 1 to lineNum
-      put word 1 to - 1 of wikisectionLine into wikisectionLine
-      switch
-         case wikisectionLine is empty
-            next repeat
-         case char 1 to 8 of wikisectionLine = "[[Image:"
-            _AddImageToPageArray fedwikiPageArray, wikisectionLine
-            put the result into shortImageFile
-            
-            put shortImageFile & CR after addedImages
-            break
-         case char 1 to 7 of wikisectionLine = "[[File:"
-            put wikicommons_FindFileTag (wikisectionLine) into fileTag
-            wikicommons_DeconstructFileWikiText fileTag, shortImageFile, captionBit
-            
-            -- put wikicommons_FetchImageHtml (shortImageFile, captionBit) into imageHTML
-            wikicomons_FetchImageUrls shortImageFile, imageURL, descriptionURL, captionBit
-            put wikicommons_ConstructImageOrVideoHtml (imageURL, captionBit, descriptionURL) into imageHTML
-            fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
-            
-            put shortImageFile & CR after addedImages
-            break
-         case char 1 to 2 of wikisectionLine = "* "
-            put "-" into char 1 of wikisectionLine
-            put wikisectionLine & CR after markDownBulletSection
-            next repeat
-         case markDownBulletSection is not empty
-            delete char -1 of markDownBulletSection
-            fedwiki_AddMarkdownToPageArray fedwikiPageArray, markDownBulletSection
-            put empty into markDownBulletSection
-            break
-         case char 1 of wikisectionLine = "<"
-            fedwikipedia_CleanInternalLinks wikiSectionLine
-            fedwiki_AddHtmlToPageArray fedwikiPageArray, wikisectionLine
-            break
-         case char 1 of wikisectionLine = "=" and char -1 of wikisectionLine = "="
-            if pFirstSectionOnly is true then
-               -- put line 1 to (lineNum-1) of wikiText into firstSection -- not needed
-               exit repeat
-            end if
-            mediawiki_ConvertSectionTitle wikisectionLine
-            fedwiki_AddMarkdownToPageArray fedwikiPageArray, wikisectionLine
-            break
-         default
-            -- we use markdown now instead of text
-            fedwikipedia_CleanInternalLinks wikiSectionLine
-            
-            -- fedwiki_AddParagraphToPageArray fedwikiPageArray, wikisectionLine
-            fedwiki_AddMarkdownToPageArray fedwikiPageArray, wikisectionLine
-            break
-      end switch
-   end repeat
-   
-   if markDownBulletSection is not empty then
-      -- exitted without adding markDownBulletSection
-      delete char -1 of markDownBulletSection
-      fedwiki_AddMarkdownToPageArray fedwikiPageArray, markDownBulletSection
-      -- put empty into markDownBulletSection
-   end if
-   
-   delete char -1 of addedImages
-   return addedImages
-end wikicommons_AddSectionToPageArray
+   put fedwiki_FindFirstPicture (fedwikiPageArray) into foundItemNum
+   pageArray_MoveStoryItem fedwikiPageArray, foundItemNum, pToItemNum
+   put the result into moveBoolean
+   return moveBoolean
+end wikicommons_MoveImage
 
-function wikicommons_ConstructTwoImagePageArray pageTitle, pageDescription, shortImageFile, wikipediaUrl, pSourceArray, pApiRoot
+function wikicommons_ConstructTwoImagePageArray pageTitle, pageDescription, shortImageFile, wikipediaUrl, pSourceArray
    put wikicommons_ConstructBasicSummaryPageArray (pageTitle, pageDescription, wikipediaUrl, pSourceArray) into fedwikiPageArray
    
    if shortImageFile is an array then
       put shortImageFile into imageArray
       repeat for each key imageNum in imageArray
          put imageArray [imageNum] into shortImageFile
-         wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile, pApiRoot
+         wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile
       end repeat
    else
-      wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile, pApiRoot
+      wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile
    end if
    
    -- add the other lines
@@ -393,192 +344,6 @@ function wikicommons_FetchTocArray pageTitle
    put metadataArray ["toc"]["entries"] into tocArray
    return tocArray
 end wikicommons_FetchTocArray
-
-
---> Wikicommons | Image
-   
-command wikicommons_MoveImage @fedwikiPageArray, pToItemNum
-   -- moves image or media item
-   -- fedwiki_MakeTextParagraphFirst fedwikiPageArray
-   
-   if pToItemNum is empty then put 2 into pToItemNum -- move image to item 2
-   
-   put fedwiki_FindFirstPicture (fedwikiPageArray) into foundItemNum
-   fedwiki_MoveStoryItem fedwikiPageArray, foundItemNum, pToItemNum
-   put the result into moveBoolean
-   return moveBoolean
-end wikicommons_MoveImage
-
-function wikicommons_ConstructImageOrVideoHtml imageURL, pImageCaption, pDescriptionURL, pPosterImageFile
-   set the itemdelimiter to "."
-   if item -1 of imageURL is "webm" then
-      put fedwiki_ConstructVideoHtml (imageURL, pImageCaption, pDescriptionURL, pPosterImageFile) into someHTML
-   else
-      put fedwiki_ConstructImageHtml (imageURL, pImageCaption, pDescriptionURL, false) into someHTML
-   end if
-   return someHTML
-end wikicommons_ConstructImageOrVideoHtml
-
-function wikicommons_FindImageTag wikiText
-   -- put "[[Image:Scheme ant worker anatomy-en.svg|thumb|450px|left|Diagram of a worker ant (''Pachycondyla verenae'')]]" into wikiText
-   
-   _SetImageTagOffsets wikiText, tagStart, tagEnd
-   if the result is true then
-      put char tagStart to tagEnd of wikiText into imageTag
-      return imageTag
-   else
-      return empty
-   end if
-end wikicommons_FindImageTag
-
-function wikicommons_FindFileTag wikiText
-   -- put "lafsjdl [[File:Bullant head detail.jpg|thumb|[[Bull ant]] showing the powerful mandibles and the relatively large compound eyes that provide excellent vision]] jlkj" into wikiText
-   -- put "[[File:Thefalloftheberlinwall1989.JPG|thumb|left|The [[Berlin Wall#The Fall|fall of the Berlin Wall]] on 9 November 1989. On [[German Unity Day|3 October 1990]], the [[German reunification]] process was formally finished.]]" into wikiText
-   
-   _SetFileTagOffsets wikiText, tagStart, tagEnd
-   if the result is true then
-      put char tagStart to tagEnd of wikiText into fileTag
-      return fileTag
-   else
-      return empty
-   end if
-end wikicommons_FindFileTag
-
-command wikicomons_FetchImageUrls shortImageFile, @imageURL, @descriptionURL, @pImageCaption
-   put wikicommons_FetchImageSandboxArray (shortImageFile) into sandboxArray
-   --
-   put sandboxArray ["query"]["pages"] into pagesArray
-   put line 1 of the keys of pagesArray into pageID
-   put pagesArray [pageID] into pageArray
-   -- put wikicommons_ConstructImageHtml (pageArray, pImageCaption) into imageHTML
-   wikicommons_DeconstructPageArray pageArray, pageTitle, imageURL, descriptionURL, pImageCaption
-   return pageArray
-end wikicomons_FetchImageUrls
-
-command wikicommons_DeconstructFileWikiText imageWikiText, @shortImageFile, @captionBit
-   -- [[File:Bullant head detail.jpg|thumb|[[Bull ant]] showing the powerful mandibles and the relatively large compound eyes that provide excellent vision]]
-   -- [[File:Thefalloftheberlinwall1989.JPG|thumb|left|The [[Berlin Wall#The Fall|fall of the Berlin Wall]] on 9 November 1989. On [[German Unity Day|3 October 1990]], the [[German reunification]] process was formally finished.]]
-   
-   delete char 1 to 2 of imageWikiText
-   delete char -2 to -1 of imageWikiText
-   
-   set the itemdelimiter to "|"
-   put item -1 of imageWikiText into captionBit
-   delete item -1 of imageWikiText
-   
-   put item 1 of imageWikiText into shortFileBit
-   put item 2 of imageWikiText into thumbBit
-   put item 3 of imageWikiText into directionBit
-   
-   set the itemdelimiter to ":"
-   put item 2 of shortFileBit into shortImageFile
-   
-   -- hack
-   replace space with "_" in shortImageFile
-   --
-   return shortFileBit & CR & thumbBit & CR & directionBit
-end wikicommons_DeconstructFileWikiText
-
-command wikicommons_DeconstructImageWikiText imageWikiText, @shortImageFile, @captionBit
-   -- [[Image:Scheme ant worker anatomy-en.svg|thumb|450px|left|Diagram of a worker ant (''Pachycondyla verenae'')]]
-   
-   delete char 1 to 2 of imageWikiText
-   delete char -2 to -1 of imageWikiText
-   
-   set the itemdelimiter to "|"
-   put item -1 of imageWikiText into captionBit
-   delete item -1 of imageWikiText
-   
-   put item 1 of imageWikiText into shortFileBit
-   put item 2 of imageWikiText into thumbBit
-   put item 3 of imageWikiText into imageWidth
-   put item 4 of imageWikiText into directionBit
-   
-   set the itemdelimiter to ":"
-   put item 2 of shortFileBit into shortImageFile
-   
-   -- hack
-   replace space with "_" in shortImageFile
-   --
-   return shortFileBit & CR & thumbBit & CR & directionBit
-end wikicommons_DeconstructImageWikiText
-
-function wikicommons_FetchImageHtml shortImageFile, pImageCaption
-   wikicomons_FetchImageUrls shortImageFile, imageURL, descriptionURL, pImageCaption
-   put fedwiki_ConstructImageHtml (imageURL, pImageCaption, descriptionURL, false) into imageHTML
-   return imageHTML
-end wikicommons_FetchImageHtml
-
-private command wikicommons_AddSandboxToPageArray @fedwikiPageArray, sandboxArray
-   put sandboxArray ["query"]["pages"] into pagesArray
-   put line 1 of keys (pagesArray) into pageID
-   put pagesArray [pageID] into sandPageArray
-   
-   put sandPageArray ["imageinfo"]["1"]["mime"] into someMime
-   wikicommons_AddMediaToPageArray fedwikiPageArray, sandPageArray
-   return someMime
-end wikicommons_AddSandboxToPageArray
-
-command wikicommons_AddMediaToPageArray @fedwikiPageArray, sandPageArray
-   set the itemdelimiter to slash
-   switch item 1 of someMime
-      case "video"
-         wikicommons_AddVideoToPageArray fedwikiPageArray, sandPageArray
-         break
-      default
-         wikicommons_AddImageToPageArray fedwikiPageArray, sandPageArray
-   end switch
-end wikicommons_AddMediaToPageArray
-
-function wikicommons_ConstructVideoPageArray pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray
-   --need to add imagedescription
-   put wikicommons_ConstructBasicSummaryPageArray (pageTitle, simplePageDescription, wikipediaUrl, pSourceArray) into fedwikiPageArray
-   
-   put urlencode (word 1 to -1 of shortImageFile) into shortImageFile
-   put wikicommons_FetchImageSandboxArray (shortImageFile) into sandboxArray
-   put sandboxArray ["query"]["pages"] into pagesArray
-   put line 1 of keys (pagesArray) into pageID
-   put pagesArray [pageID] into pageArray
-   wikicommons_AddVideoToPageArray fedwikiPageArray, pageArray
-   return fedwikiPageArray
-end wikicommons_ConstructVideoPageArray
-
-command wikicommons_AddVideoToPageArray @fedwikiPageArray, sandPageArray
-   _DeconstructSandVideoArray sandPageArray, videoURL, videoCaption, descriptionURL, thumbURL
-   --
-   put fedwiki_ConstructVideoHtml (videoURL, videoCaption, descriptionURL, thumbURL) into videoHTML
-   fedwiki_AddHtmlToPageArray fedwikiPageArray, videoHTML
-end wikicommons_AddVideoToPageArray
-
-command wikicommons_DeconstructPageArray sandPageArray, @imageTitle, @imageURL, @descriptionURL, @pImageCaption
-   put pageArray ["title"] into imageTitle
-   
-   put sandPageArray ["imageinfo"]["1"] into imageInfoArray  -- if there is only one
-   put imageInfoArray ["descriptionURL"] into descriptionURL
-   put imageInfoArray ["width"] into imageWidth
-   put imageInfoArray ["height"] into imageHeight
-   put imageInfoArray ["url"] into imageURL
-   put imageInfoArray ["mime"] into imageMime
-   
-   -- let's use thumbURL for embeding fedwiki images
-   put imageInfoArray ["thumburl"] into thumbURL
-   put imageInfoArray ["thumbwidth"] into thumbWidth
-   -- put imageInfoArray ["thumbheight"] into thumbHeight
-   -- put imageInfoArray ["thumbmime"] into thumbMime
-   if thumbWidth > 400 and imageMime is not "video/webm" then
-      put thumbURL into imageURL
-   end if
-   
-   if pImageCaption is empty then
-      put imageInfoArray ["extmetadata"]["imageDescription"]["value"] into pImageCaption
-   end if
-end wikicommons_DeconstructPageArray
-
-function wikicommons_ConstructVideoCaption pageTitle, descriptionURL   
-   put "<br></br>" into someHTML
-   put html_ConstructRefLink (pageTitle, descriptionURL, "_blank") after someHTML 
-   return someHTML
-end wikicommons_ConstructVideoCaption
 
 
 --> Wikicommons | File
@@ -703,76 +468,22 @@ command wikicommons_AddAllImages @fedwikiPageArray, mwPageTitle, pLimitNum
 end wikicommons_AddAllImages
 
 
---> Fedwiki | Mediawiki | Image
--
-function wikicommons_FetchImagePageJson shortImageFile
-   -- just HTML version
-   put wikicommons_FetchImagePageArray (shortImageFile, true) into pageArray
-   put json_FromArray (pageArray) into pageJSON
-   return pageJSON
-end wikicommons_FetchImagePageJson
-
-function wikicommons_FetchImagePageArray shortImageFile, pApiStem 
-   put wikicommons_FetchImageSandboxArray (shortImageFile) into sandboxArray
-   put wikicommons_ConstructImagePageArray (sandboxArray) into pageArray
-   return pageArray
-end wikicommons_FetchImagePageArray
-
-private function wikicommons_ConstructImagePageArray sandboxArray, pPageTitle, pPageComment
-   if pPageTitle is empty then put "Wikpedia Image Import" into pageTitle
-   
-   put sandboxArray ["query"]["pages"] into pagesArray
-   put line 1 of keys (pagesArray) into pageID
-   put pagesArray [pageID] into pageArray
-   
-   put pageArray ["imageinfo"]["1"]["mime"] into someMime
-   set the itemdelimiter to slash
-   switch item 1 of someMime
-      case "video"
-         if pPageComment is empty then put "Here is an video from Wikipedia ready to drag onto your page..." into pPageComment
-         put fedwiki_ConstructNewPageArray (pageTitle, pPageComment) into fedwikiPageArray
-         break
-      default
-         -- we assume it is an image
-         if pPageComment is empty then put "Here is an image from Wikipedia ready to drag onto your page..." into pPageComment
-         put fedwiki_ConstructNewPageArray (pageTitle, pPageComment) into fedwikiPageArray
-   end switch
-   
-   wikicommons_AddSandboxToPageArray fedwikiPageArray, sandboxArray
-   return fedwikiPageArray
-end wikicommons_ConstructImagePageArray
-
-
 --> Wiki Commons | Two Images
 -
-function wikicommons_FetchBasicTwoImagePageArray shortImageFile, pPageTitle, pSomeText, pApiRoot
+function wikicommons_FetchBasicTwoImagePageArray shortImageFile, pPageTitle, pSomeText, pWikipediaUrl
    if pPageTitle is empty then put "Wikimedia Image" into pPageTitle
    if pSomeText is empty then put "Drag these images to your source page..." into pSomeText
    
    put fedwiki_ConstructPageArray (pPageTitle, pSomeText) into fedwikiPageArray   
    set the itemdelimiter to "."
    if item -1 of shortImageFile is "webm" then
-      put wikicommons_ConstructVideoPageArray (pPageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
+      put wikicommons_ConstructVideoPageArray (pPageTitle, pSomeText, pWikipediaUrl, shortImageFile) into fedwikiPageArray
    else
-      wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile, pApiRoot
+      wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile
    end if
-   fedwiki_StripJournalToCreate fedwikiPageArray
+   fedwiki_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end wikicommons_FetchBasicTwoImagePageArray
-
-
---> WikiCommons | Media | PageArray
--
-command wikicommons_AddImageToPageArray @fedwikiPageArray, sandPageArray
-   put wikicommons_ConstructImageHtml (sandPageArray) into imageHTML
-   fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
-end wikicommons_AddImageToPageArray
-
-function wikicommons_ConstructImageHtml pageArray, pImageCaption, pWikimediaLink
-   wikicommons_DeconstructPageArray pageArray, pageTitle, imageURL, descriptionURL, pImageCaption
-   put fedwiki_ConstructImageHtml (imageURL, pImageCaption, descriptionURL, false) into imageHTML
-   return imageHTML
-end wikicommons_ConstructImageHtml
 
 
 --> WikiCommons | REST
@@ -795,6 +506,37 @@ end wikicommons_FetchImageJson
 
 --> Private
 -
+private command _DeconstructSandboxImageArray sandboxArray, @imageTitle, @imageURL, @imageDescription, @imageCaption, @descriptionURL, @imageMime, @thumbURL, @thumbWidth, @thumbMime
+   -- let's deconstruct information about the file
+   put sandboxArray ["query"]["pages"] into pageArray
+   
+   put line 1 of keys (pageArray) into pageID -- should only be one line
+   put pageArray [pageID]["title"] into imageTitle -- same as shortImageFile
+   put pageArray [pageID]["imageinfo"][1] into imageInfoArray
+   
+   put imageInfoArray ["descriptionurl"] into descriptionURL
+   put imageInfoArray ["url"] into imageURL
+   put imageInfoArray ["thumburl"] into thumburl
+   put imageInfoArray ["thumbwidth"] into thumbwidth -- 420
+   put imageInfoArray ["mime"] into imageMime
+   put imageInfoArray ["thumbmime"] into thumbMime
+   
+   put imageInfoArray ["extmetadata"] into extmetArray
+   put extmetArray ["Categories"]["value"] into imageCategoryIndex
+   replace "|" with CR in imageCategoryIndex
+   put extmetArray ["ImageDescription"]["value"] into imageDescription
+   put extmetArray ["LicenseShortName"]["value"] into licenseDescription
+   
+   put imageDescription into imageCaption
+   put word 1 to -1 of imageCaption into imageCaption
+   if char 1 to 3 of imageCaption = "<p>" then
+      delete char 1 to 3 of imageCaption
+      if char -4 to -1 of imageCaption = "</p>" then
+         delete char -4 to -1 of imageCaption
+      end if
+   end if
+end _DeconstructSandboxImageArray
+
 private function _ConstructWikipediaURL pageSlug, sectionTitle, apiStem
    -- an ugly hack that seems to work?
    
@@ -806,33 +548,6 @@ private function _ConstructWikipediaURL pageSlug, sectionTitle, apiStem
    put apiStem & "/wiki/" & pageSlug & "#" & sectionTitleSlug after wikipediaURL
    return wikipediaURL
 end _ConstructWikipediaURL
-
-private command _AddImageToPageArray @fedwikiPageArray, wikisectionLine
-   put wikicommons_FindImageTag (wikisectionLine) into imageTag
-   wikicommons_DeconstructImageWikiText imageTag, shortImageFile, captionBit
-   
-   _AddMediaToPageArray fedwikiPageArray, shortImageFile, captionBit
-   return shortImageFile
-end _AddImageToPageArray
-
-private command _AddMediaToPageArray @fedwikiPageArray, shortImageFile, pCaptionBit
-   wikicomons_FetchImageUrls shortImageFile, imageURL, descriptionURL, pCaptionBit
-   put wikicommons_ConstructImageOrVideoHtml (imageURL, pCaptionBit, descriptionURL) into imageHTML
-   fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
-   return imageHTML
-end _AddMediaToPageArray
-
-private command _SetImageTagOffsets wikiText, @tagStart, @tagEnd
-   put "(\[\[Image:.+\]\])" into someReg -- let's be greedy
-   put matchchunk (wikiText, someReg, tagStart, tagEnd) into someBoolean
-   return someBoolean
-end _SetImageTagOffsets
-
-private command _SetFileTagOffsets wikiText, @tagStart, @tagEnd
-   put "(\[\[File:.+\]\])" into someReg -- let's be greedy
-   put matchchunk (wikiText, someReg, tagStart, tagEnd) into someBoolean
-   return someBoolean
-end _SetFileTagOffsets
 
 command _AddTocFromSectionTitle @fedwikiPageArray, pageSlug, sectionTitle
    local subsectionInfoArray, subsectionArray
@@ -866,89 +581,3 @@ command _DeconstructSectionInfoArray sectionInfoArray, @sectionTitle, @pageSlug,
    put sectionInfoArray ["number"] into dotNumber
    put sectionInfoArray ["level"] into sectionLevel
 end _DeconstructSectionInfoArray
-
-private command _DeconstructSandVideoArray sandPageArray, @videoURL, @videoCaption, @descriptionURL, @thumbURL
-   put sandPageArray ["imageinfo"]["1"] into imageInfoArray  -- assume there is only one
-   --
-   put imageInfoArray ["mime"] into imageMime
-   if imageMime is not "video/webm" then
-      return false
-   end if
-   
-   put imageInfoArray ["url"] into videoURL
-   put imageInfoArray ["thumburl"] into thumbURL
-   put imageInfoArray ["extmetadata"]["imageDescription"]["value"] into videoCaption
-   
-   put imageInfoArray ["descriptionURL"] into descriptionURL
-   
-   /*
-   put imageInfoArray ["width"] into imageWidth
-   put imageInfoArray ["height"] into imageHeight
-   put imageInfoArray ["thumbwidth"] into thumbWidth
-   put imageInfoArray ["thumbheight"] into thumbHeight
-   put imageInfoArray ["thumbmime"] into thumbMime
-   */
-   return true
-end _DeconstructSandVideoArray
-
-function fedwiki_ConstructVideoHtml webmURL, videoCaption, pDescriptionURL, pPosterImageFile
-   -- put "MP4 (HD),mp4,WEBM (HD),webm" into videoTypes
-   if pDescriptionURL is empty then put webmURL into pDescriptionURL
-   put html_ConstructVideoTag (webmURL, "webm", 420, true, pPosterImageFile) into videoHTML
-   put wikicommons_ConstructVideoCaption (videoCaption, pDescriptionURL) after videoHTML
-   return videoHTML
-end fedwiki_ConstructVideoHtml
-
-function html_ConstructVideoTag videoURL, pMediaType, pVideoWidth, pShowControls, pPosterImageFile, pFallbackHtml
-   -- this is a single source video tag
-   if pFallbackHtml is empty then put "This is fallback content to display for user agents that do not support the video tag." into pFallbackHtml
-   
-   put "<video" into someHTML
-   put space & "src=" & quote & videoURL & quote after someHTML
-   switch word 1 of pMediaType
-      case "webm"
-         put space & "type='video/webm'" after someHTML
-         break
-      case "mp4"
-         put  space & "type='video/mp4'" after someHTML
-   end switch
-   
-   if pVideoWidth is not empty then put space & "width=" & quote & pVideoWidth & quote after someHTML
-   if pShowControls is not false then put space & "controls" after someHTML
-   if pPosterImageFile is not empty then put space & "poster=" & quote & pPosterImageFile & quote after someHTML
-   put ">" after someHTML
-   
-   put pFallbackHtml after someHTML
-   put "</video>" after someHTML
-   
-   return someHTML
-end html_ConstructVideoTag
-
-
---> Deps
--
-function html_ConstructOpenVideoTag pVideoWidth, pShowControls, pPosterImageFile
-   -- this constructs an opening video tag
-   put "<video" into someHTML
-   if pPosterImageFile is not empty then put space & "poster=" & quote & pPosterImageFile & quote after someHTML
-   if pVideoWidth is not empty then put space & "width=" & quote & pVideoWidth & quote after someHTML
-   if pShowControls is not false then put space & "controls" after someHTML
-   put ">" after someHTML
-   return someHTML
-end html_ConstructOpenVideoTag
-
-function html_ConstructVideoSourceTag videoURL, pMediaType
-   -- multiple source video tag
-   -- should enhance to extract pMediaType from file extension
-   put "<source src=" & quote & videoURL & quote into someHTML
-   switch pMediaType
-      case "webm"
-         put space & "type='video/webm" after someHTML
-         break
-      case "mp4"
-         put  space & "type='video/mp4" after someHTML
-   end switch
-   -- maybe add codecs?
-   put ">" after someHTML
-   return someHTML
-end html_ConstructVideoSourceTag

@@ -11,55 +11,19 @@ This menu is used to control a Livecode wiki browser.
 */
 
 
---> Global | Wiki | Tree | Menu
+--> Global | Wiki | Menu
 -
-on menu_DisplayWikiBrowser displayView
+on menu_DisplayJellyBrowser displayView
    go to stack "Fedwiki Editor"
-end menu_DisplayWikiBrowser
+end menu_DisplayJellyBrowser
 
-on menu_RevealStackFolder
-   -- just for fun
-   -- lcw_Wiki/stacks/Fedwiki Editor.livecode
-   put the project_Folder ["stacks"] of stack "lcw_Wiki" into projectStackFolder
-   put projectStackFolder & "Fedwiki Editor.livecode" into stackPath
-end menu_RevealStackFolder
+on menu_DisplayWikiBrowser displayView
+   go to stack "Wiki"
+end menu_DisplayWikiBrowser
 
 on _
 end _
 
-on menu_DisplayWiki arrayView, dreamDomain
-   put fedwiki_FetchPageListArray (dreamDomain) into pageListArray
-   
-   display_Array pageListArray, dreamDomain, "Global | Wiki | Tree | Menu", "Global | Wiki | Tree | Line | Menu"
-   
-   -- put fedwiki_ListPageSlugs (dreamDomain)
-end menu_DisplayWiki
-
-
---> Global | Wiki | Tree | Line | Menu
--
-on menu_UploadPageJson arrayView, dreamDomain
-   put the title_Text of arrayView into fedwikiDomain
-   put the top_Array of arrayView into itemArray
-   put itemArray ["slug"] into pageSlug
-   
-   put fedwiki_FetchPageJson (fedwikiDomain, pageSlug) into pageJSON
-   fedwiki_StorePage pageSlug, dreamDomain, pageJSON
-   put merge ("http://hosting.permanent.wiki/view/welcome-visitors/[[dreamDomain]]/[[pageSlug]]") into pageURL
-   launch url pageURL
-end menu_UploadPageJson
-
-on menu_DisplayPageArray arrayView
-   put the title_Text of arrayView into fedwikiDomain
-   put the top_Array of arrayView into itemArray
-   put itemArray ["slug"] into pageSlug
-   
-   display_WikiPageArray
-end menu_DisplayPageArray
-
-
---> Global | Wiki | Menu
--
 on menu_StartWiki
    set the cursor to watch
    open process wiki for update
@@ -84,17 +48,20 @@ on _
 end _
 
 on menu_DisplayPages mTarget, topDomain
+   put _GetWikiView (mTarget) into wikiView
+   --
    switch topDomain
       case "Worldscape"
          put "http://space.thought.garden/view/welcome-visitors/view/changes-to-this-site/view/worldscape/video.livecode.world/projection-mapping/view/funkhaus" into someURL
-         set the displayed_Domain of mTarget to someURL
+         set the browser_URL of wikiView to someURL
          break
       case "Jelly Fish"
          put "http://arodic.github.io/p/jellyfish/" into someURL
-         set the displayed_Domain of mTarget to someURL
+         set the browser_URL of wikiView to someURL
          break
       default
-         set the displayed_Domain of mTarget to topDomain
+         put "http://" & topDomain into someURL
+         set the browser_URL of wikiView to someURL
          --
          put fedwiki_FetchSitemapArray (topDomain) into sitemapArray
          put fedwiki_ConstructSiteMapTitleArray (sitemapArray) into sitemapTitleArray
@@ -105,7 +72,8 @@ on menu_DisplayPages mTarget, topDomain
 end menu_DisplayPages
 
 on menu_SetBrowserRect mTarget, whichRect
-   put the browser_View of mTarget into browserView
+   put _GetWikiView (mTarget) into wikiView
+   --
    switch whichRect
       case "Left"
          put "24,23,536,1183" into someRect
@@ -121,18 +89,8 @@ on menu_SetBrowserRect mTarget, whichRect
    end switch
    
    -- put the rect of browserView
-   set the rect of browserView to someRect
+   set the rect of wikiView to someRect
 end menu_SetBrowserRect
-
-on menu_GoogleCustomSearch
-   put lcw_Ask ("What do you want to search for", "FEAST") into googleQuery
-   --
-   put "AIzaSyBzXWSK8iB1I9Vl72OwMj5RjkVfyKW23Rg" into cseApiKey
-   put merge ("https://www.googleapis.com/customsearch/v1?q=[[googleQuery]]&cx=004437460006508948617%3Axrqa9sithze&num=10&key=[[cseApiKey]]") into restURL
-   --
-   put url restURL into someJSON
-   display_JSON someJSON
-end menu_GoogleCustomSearch
 
 on menu_ImageSearch
    -- https://commons.wikimedia.org/w/api.php?action=query&generator=images&prop=imageinfo&gimlimit=500&redirects=1&titles=Cat&iiprop=timestamp|user|userid|comment|canonicaltitle|url|size|dimensions|sha1|mime|thumbmime|mediatype|bitdepth
@@ -157,6 +115,10 @@ end menu_ImageSearch
 
 on _
 end _
+
+on submenu_Story
+   return "Global | Wiki | Story | Menu"
+end submenu_Story
 
 on submenu_Medium
    return "Global | Medium | Menu"
@@ -224,6 +186,7 @@ end disabled_StopWiki
 --> Dev | Menu
 -
 on menu_UpdateWiki
+   breakpoint
    set the cursor to watch
    put shell ("npm install -g wiki")
 end menu_UpdateWiki
@@ -244,6 +207,10 @@ on menu_RevealWikiModulesFolder
 end menu_RevealWikiModulesFolder
 
 
-on relaunch pCommandLineArguments
-   
-end relaunch
+--> Deps
+-
+function _GetWikiView mTarget
+   -- "browser_View" is on card script of stack "Fedwiki Editor"
+   put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
+   return wikiView
+end _GetWikiView

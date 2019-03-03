@@ -16,64 +16,69 @@ A library for interfacing with MediaWiki instances.
 
 --> Working on
 -
-command xkcd_DeconstructArray xkcdArray, @imageURL, @imageDescription, @xkcdTranscript
-   put xkcdArray ["img"] into imageURL
-   put xkcdArray ["alt"] into imageDescription
-   put xkcdArray ["transcript"] into xkcdTranscript
-end xkcd_DeconstructArray
 
-function xkcd_FetchPageArray xkcdWikiUrl
-   put empty into pSourceArray
-   get matchText (xkcdWikiUrl, "https://www.explainxkcd.com/wiki/index.php/(.+)", wikiSlug) 
-   if it is false then return empty
-   --
-   put mediawiki_FetchParseArray (wikiSlug, 1, "https://www.explainxkcd.com/wiki/api.php?") into parseArray
-   _DeconstructParseArray parseArray, pageTitle, pageDescription, sectionArray, imageArray
-   delete line 1 of pageDescription -- "==Explanation=="
-   --
-   set the itemdelimiter to ":"
-   delete item 1 of pageTitle
-   put wikicommons_ConstructBasicSummaryPageArray (pageTitle, pageDescription, xkcdWikiUrl, pSourceArray) into fedwikiPageArray
-   --
-   put xkcd_FetchArray (wikiSlug) into xkcdArray
-   xkcd_DeconstructArray xkcdArray, imageURL, imageDescription, xkcdTranscript
-   if imageURL is not empty then
-      put fedwiki_ConstructImageHtml (imageURL, imageDescription, xkcdWikiUrl, false) into imageHTML
-      fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
-   end if
-   --
-   delete line 1 of pageDescription -- was added already with "wikicommons_ConstructBasicSummaryPageArray"
-   wikicommons_AddSectionToPageArray fedwikiPageArray, pageDescription, true
-   --
-   fedwiki_StripJournalToCreate fedwikiPageArray
-   return fedwikiPageArray
-end xkcd_FetchPageArray
-
-function xkcd_FetchArray comicNum
-   put xkcd_FetchJson (comicNum) into someJSON
-   put json_ToArray (someJSON) into someArray
-   return someArray
-end xkcd_FetchArray
-
-function xkcd_FetchJson comicNum
-   -- in case comicNum is a title like "927:_Standards"
-   set the itemdelimiter to ":"
-   put item 1 of comicNum into comicNum
-   --
-   put merge ("http://xkcd.com/[[comicNum]]/info.0.json") into someURL
-   put url someURL into someJSON
-   return someJSON
-end xkcd_FetchJson
-
-
---> Mediawiki | Sandbox
+--> Sandbox | REST
 -
-function mediawiki_ListPageImages pageTitle, pApiStem
-   put mediawiki_FetchListImagesArray (pageTitle, pApiStem) into pagesArray
-   put mediawiki_ExtractImagesFromArray (pagesArray) into shortFileBits
-   return shortFileBits
-end mediawiki_ListPageImages
+function sandbox_FetchArray sandBoxFragment, pApiRoot
+   put sandbox_FetchJSON (sandBoxFragment, pApiRoot) into someJSON -- use restbase_FetchSlugJSON() if possible
+   put json_ToArray (someJSON) into someArray
+   return someArray 
+end sandbox_FetchArray
 
+function sandbox_FetchJSON sandBoxFragment, pApiRoot
+   if pApiRoot is empty then put "https://en.wikipedia.org" into pApiRoot
+   -- if pApiRoot is empty then put "https://en.wikipedia.org/w/api.php?" into pApiRoot   
+   put pApiRoot & sandBoxFragment into restURL
+   --
+   put mediawiki_FetchJSON (restURL) into someJSON
+   return someJSON
+end sandbox_FetchJSON
+
+
+--> Wikipedia | API
+-
+function wikipedia_ConstructApiStem wikipediaURL
+   -- was "wikipedia_GetApiRoot"
+   if wikipediaURL is empty then
+      return "https://en.wikipedia.org/w/api.php"
+   else
+      -- https://de.wikipedia.org/wiki/Jo_Fabian
+      set the itemdelimiter to "/"
+      put item 1 to 3 of wikipediaURL into apiRoot
+      put "/w/api.php" after apiRoot
+      return apiRoot
+   end if
+end wikipedia_ConstructApiStem
+
+function wikipedia_GetApiRoot pLang
+   -- was "wikipedia_ConstructApiStem"
+   -- https://de.wikipedia.org/wiki/Jo_Fabian
+   if pLang is empty then put "en" into pLang
+   put "https://" & pLang & ".wikipedia.org" into apiRoot
+   return apiRoot
+end wikipedia_GetApiRoot
+
+
+--> Wikipedia | REST
+-
+function mediawiki_FetchJSON restURL
+   -- libURLFollowHttpRedirects true -- redirect does not seem to work, and not available on server
+   
+   mediawiki_SetUserAgent
+   set the httpheaders to "Accept: application/json"
+   put url restURL into someJSON
+   return someJSON
+end mediawiki_FetchJSON
+
+command mediawiki_SetUserAgent
+   -- https://www.mediawiki.org/wiki/API:Main_page#Identifying_your_client
+   put "User-Agent: WikiApp/0.1 (http://fedwiki.org; david.bovill@gmail.com) MacOS Livecode/9.03" into userHeader
+   set the httpheaders to userHeader
+end mediawiki_SetUserAgent
+
+
+--> Mediawiki | Fetch
+-
 function mediawiki_FetchPageImage pageTitle, pApiStem
    -- does not seem to work with some wiki's
    -- works for wikipedia
@@ -91,21 +96,6 @@ function mediawiki_FetchPageImage pageTitle, pApiStem
    return imageURL
 end mediawiki_FetchPageImage
 
-function mediawiki_ExtractImagesFromArray pagesArray
-   set the itemdelimiter to ":"
-   repeat for each key pageID in pagesArray
-      put pagesArray [pageID]["images"] into imagesArray
-      put the number of lines of keys(imagesArray) into maxNum
-      repeat with imageNum = 1 to maxNum
-         put imagesArray [imageNum]["title"] into shortFileBit
-         delete item 1 of shortFileBit -- what if it si not an image file???
-         put shortFileBit & CR after shortFileBits
-      end repeat
-   end repeat
-   delete char -1 of shortFileBits
-   return shortFileBits
-end mediawiki_ExtractImagesFromArray
-
 function mediawiki_FetchListImagesArray pageTitle, pApiStem
    if pApiStem is empty then put wikicommons_GetApiStem() into pApiStem
    --
@@ -115,31 +105,6 @@ function mediawiki_FetchListImagesArray pageTitle, pApiStem
    put sandboxArray ["query"]["pages"] into pagesArray
    return pagesArray
 end mediawiki_FetchListImagesArray
-
-function mediawiki_FetchPageArrayWithParse wikiSlug, pSectionNum, pApiRoot, pWikiUrl
-   put mediawiki_FetchParseArray (wikiSlug, pSectionNum, pApiRoot) into parseArray
-   _DeconstructParseArray parseArray, pageTitle, pageDescription, sectionArray, imageArray
-   --
-   put empty into pSourceArray
-   put wikicommons_ConstructBasicSummaryPageArray (pageTitle, pageDescription, pWikiUrl, pSourceArray) into fedwikiPageArray
-   put mediawiki_ExtractFirstInterestingImage (imageArray) into shortImageFile
-   if shortImageFile is not empty then
-      -- put wikicommons_FetchImageSandboxArray (shortImageFile, pApiRoot) into imageSandboxArray
-      wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile, pApiRoot
-   end if
-   --
-   delete line 1 of pageDescription -- was added already with "wikicommons_ConstructBasicSummaryPageArray"
-   wikicommons_AddSectionToPageArray fedwikiPageArray, pageDescription
-   --
-   return fedwikiPageArray
-end mediawiki_FetchPageArrayWithParse
-
-function mediawiki_FetchParseArray wikiSlug, pSectionNum, pApiRoot
-   put sandbox_AddSectionFragment (wikiSlug, pSectionNum, "action=parse&format=json&page=") into sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiRoot) into sandboxArray
-   put sandboxArray ["parse"] into parseArray
-   return parseArray
-end mediawiki_FetchParseArray
 
 function mediawiki_FetchWikiText pageTitle, pApiStem
    -- see also "mediawiki_FetchSummaryDescription" for plain
@@ -165,27 +130,6 @@ function mediawiki_FetchWikiText pageTitle, pApiStem
    return wikiText
 end mediawiki_FetchWikiText
 
-
---> Wikipedia | REST
--
-function mediawiki_FetchJSON restURL
-   -- libURLFollowHttpRedirects true -- redirect does not seem to work, and not available on server
-   
-   mediawiki_SetUserAgent
-   set the httpheaders to "Accept: application/json"
-   put url restURL into someJSON
-   return someJSON
-end mediawiki_FetchJSON
-
-command mediawiki_SetUserAgent
-   -- https://www.mediawiki.org/wiki/API:Main_page#Identifying_your_client
-   put "User-Agent: WikiApp/0.1 (http://fedwiki.org; david.bovill@gmail.com) MacOS Livecode/9.03" into userHeader
-   set the httpheaders to userHeader
-end mediawiki_SetUserAgent
-
-
---> mediawiki | Fetch
--
 function mediawiki_FetchSummaryDescription pageSlug, pIntroOnly, pPlain
    put wikipedia_ConstructApiStem() into pApiStem
    
@@ -231,6 +175,45 @@ command mediawiki_FetchPageQueryInfo pageSlug, @pageDescription, @pageTitle, @sh
    return sandboxPageArray
 end mediawiki_FetchPageQueryInfo
 
+function mediawiki_FetchPageBits pageTitle, pProps, pOtherBits, pApiStem, pFormat
+   if pProps is empty then put "revisions" into pProps
+   if pFormat is empty then put "json" into pFormat
+   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem -- wikpedia
+   
+   put urlencode(pageTitle) into pageTitle
+   put merge("[[pApiStem]]?action=query&prop=[[pProps]]&titles=[[pageTitle]]&format=[[pFormat]]") into someURL
+   if pOtherBits is not empty then put "&" &  pOtherBits after someURL
+   put url someUrl into someResult
+   return someResult
+end mediawiki_FetchPageBits
+
+
+--> Mediawiki | List
+-
+function mediawiki_ListPageImages pageTitle, pApiStem
+   put mediawiki_FetchListImagesArray (pageTitle, pApiStem) into pagesArray
+   put mediawiki_ExtractImagesFromArray (pagesArray) into shortFileBits
+   return shortFileBits
+end mediawiki_ListPageImages
+
+
+--> Mediawiki
+-
+function mediawiki_ExtractImagesFromArray pagesArray
+   set the itemdelimiter to ":"
+   repeat for each key pageID in pagesArray
+      put pagesArray [pageID]["images"] into imagesArray
+      put the number of lines of keys(imagesArray) into maxNum
+      repeat with imageNum = 1 to maxNum
+         put imagesArray [imageNum]["title"] into shortFileBit
+         delete item 1 of shortFileBit -- what if it si not an image file???
+         put shortFileBit & CR after shortFileBits
+      end repeat
+   end repeat
+   delete char -1 of shortFileBits
+   return shortFileBits
+end mediawiki_ExtractImagesFromArray
+
 command mediawiki_CleanPageDescription @pageDescription, @infoBoxArray
    put mediawikia_ExtractInfobox (pageDescription) into infoBox
    put mediawiki_ConvertInfoBox (infoBox) into infoBoxArray
@@ -271,18 +254,6 @@ function mediawikia_ExtractInfobox wikiText
    put mediawikia_ExtractTemplate ("Infobox", wikiText) into foundTemplate
    return foundTemplate
 end mediawikia_ExtractInfobox
-
-function mediawiki_FetchPageBits pageTitle, pProps, pOtherBits, pApiStem, pFormat
-   if pProps is empty then put "revisions" into pProps
-   if pFormat is empty then put "json" into pFormat
-   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem -- wikpedia
-   
-   put urlencode(pageTitle) into pageTitle
-   put merge("[[pApiStem]]?action=query&prop=[[pProps]]&titles=[[pageTitle]]&format=[[pFormat]]") into someURL
-   if pOtherBits is not empty then put "&" &  pOtherBits after someURL
-   put url someUrl into someResult
-   return someResult
-end mediawiki_FetchPageBits
 
 
 --> Mediawiki | Image

@@ -6,20 +6,32 @@ name: Global_Wiki_Story_Menu
 type: controller
 version: 0.2
 
+--> Objects
+-
+function _WikiView mTarget
+   -- "browser_View" is on card script of stack "Fedwiki Editor"
+   put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
+   return wikiView
+end _WikiView
+
 
 --> Global | Wiki | Story | Menu
 -
-on insert_Wikimenu
-   return "Global | Wiki | Menu"
-end insert_Wikimenu
-
-on _
-end _
-
 on menu_GoToLink mTarget
-   put javascript_ConstructInternalLink ("Federated Wiki") into someJavascript
-   set the wiki_Javascript of mTarget to someJavascript
+   put _WikiView() into wikiView
+   --
+   put wiki_InternalLinkJavascript ("Federated Wiki") into someJavascript
+   set the browser_Javascript of wikiView to someJavascript
 end menu_GoToLink
+
+on menu_CreateFederationRoster
+   set the cursor to watch 
+   put fedray_FetchTopFederationDomains() into rosterDomainText
+   put fedwiki_UpdateRosterPageArray ("sites.fedwiki.org", "visible-federation", "741a0fcdd3ff76b2", rosterDomainText) into pageArray
+   --
+   set the ghost_PageArray of _WikiView() to pageArray
+   put the result into browserWidget
+end menu_CreateFederationRoster
 
 on _
 end _
@@ -33,8 +45,10 @@ on menu_CytoAnimate mTarget
    duration: 1000
    });
    */
+   put _WikiView() into wikiView
+   --
    put script_GetCommentAboveMe() into someJavascript
-   set the wiki_Javascript of mTarget to someJavascript
+   set the browser_Javascript of wikiView to someJavascript
 end menu_CytoAnimate
 
 on menu_CytoZoom mTarget
@@ -45,19 +59,21 @@ on menu_CytoZoom mTarget
    position: pos
    });
    */
+   put _WikiView() into wikiView
+   --
    put script_GetCommentAboveMe() into someJavascript
-   set the wiki_Javascript of mTarget to someJavascript
+   set the browser_Javascript of wikiView to someJavascript
 end menu_CytoZoom
 
 on _
 end _
 
 on menu_AddBrowserMenu mTarget
-   put the browser_Widget of mTarget into browserWidget
-   
+   put _WikiView() into wikiView
+   --  
    -- Set up the browser javascript handler list
    -- This code goes in a suitable setup handler
-   set the javascriptHandlers of browserWidget to "myJSHandler"
+   set the browser_JavascriptHandlers of wikiView to "myJSHandler"
    
    /*
    We need to disable event propogation
@@ -70,30 +86,33 @@ on menu_AddBrowserMenu mTarget
    
    // Calling the handler from JavaScript within the browser
    put "$('.header H1 > a').click(function() { liveCode.myJSHandler('myMessage', 12345) });" into someJavascript
-   do someJavascript in browserWidget
+   set the browser_Javascript of wikiView to someJavascript
 end menu_AddBrowserMenu
 
 on menu_HideSiteOwner mTarget
-   put javascript_ConstructHideSiteOwner() into someJavascript
-   put the browser_Widget of mTarget into browserWidget
-   do someJavascript in browserWidget
+   put _WikiView() into wikiView
+   --  
+   put wiki_HideSiteOwnerJavascript() into someJavascript
+   set the browser_Javascript of wikiView to someJavascript
 end menu_HideSiteOwner
 
 on menu_HideFooter mTarget, someBoolean
-   put javascript_ConstructFooterVisibility (someBoolean) into someJavascript
+   put _WikiView() into wikiView
+   --
+   put wiki_FooterVisibleJavascript (someBoolean) into someJavascript
    if someBoolean is true then
-      put ";" & javascript_ConstructFooterHeight (18) after someJavascript
+      put ";" & wiki_FooterHeightJavascript (18) after someJavascript
    else
-      put ";" & javascript_ConstructFooterHeight (60) after someJavascript
+      put ";" & wiki_FooterHeightJavascript (60) after someJavascript
    end if
-   put the browser_Widget of mTarget into browserWidget
-   do someJavascript in browserWidget
+   set the browser_Javascript of wikiView to someJavascript
 end menu_HideFooter
 
 on menu_SetFooterHeight mTarget
-   put javascript_ConstructFooterHeight () into someJavascript
-   put the browser_Widget of mTarget into browserWidget
-   do someJavascript in browserWidget
+   put _WikiView() into wikiView
+   --
+   put wiki_FooterHeightJavascript () into someJavascript
+   set the browser_Javascript of wikiView to someJavascript
 end menu_SetFooterHeight
 
 on _
@@ -137,20 +156,23 @@ end footer_Array
 
 --> Dev | Menu
 -
-on menu_TestJavascript mTarget
+on menu_DisplayNeighborhood mTarget
+   put _WikiView() into wikiView
+   --
    -- put "$('.header H1 > a').click(function() { alert('done') });" into someJavascript
    put "wiki.neighborhood" into someJavascript
-   put the browser_Widget of mTarget into browserWidget
-   do someJavascript in browserWidget
-   
-   put it into someThing
+   set the browser_Javascript of wikiView to someJavascript
+   put the result into someThing
+   --
    put the result
-end menu_TestJavascript
+end menu_DisplayNeighborhood
 
 on menu_TryAndDisableClicks mTarget
-   put the browser_Widget of mTarget into browserWidget
+   put _WikiView() into wikiView
+   --
    put "$( 'a' ).click(function( event ) {event.preventDefault(); alert ('Hello wolrd');return false;});" into someJavascript
-   do someJavascript in browserWidget
+   --
+   set the browser_Javascript of wikiView to someJavascript
    put someJavascript
 end menu_TryAndDisableClicks
 
@@ -325,12 +347,6 @@ end _
 on menu_DisplaySites
    -- scp –P 40050 Desktop/url.txt yatri@192.168.1.50:~/Desktop/url.txt
 end menu_DisplaySites
-
--- on menu_SiteMap
-   put url "http://david.viral.academy/system/export.json" into someJSON
-   put json_ToArray (someJSON) into someArray
-   display_Array someArray
-end menu_SiteMap
 
 on menu_DoubleJson mTarget
    -- put url "http://wiki.viral.academy/teachers.json?random=22d425f7" into someJSON

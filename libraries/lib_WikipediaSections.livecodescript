@@ -74,7 +74,7 @@ function fedwikipedia_FetchSectionSummaryPageArray pageSlug, sectionNum
       end if
    end if
    
-   fedwiki_StripJournalToCreate fedwikiPageArray
+   fedwiki_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end fedwikipedia_FetchSectionSummaryPageArray
 

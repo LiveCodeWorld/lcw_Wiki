@@ -89,7 +89,7 @@ function zotero_GetAuthenticationToken
 end zotero_GetAuthenticationToken
 
 command zotero_SetAuthenticationToken oAuthToken
-   secret_Set "ZoteroAuthenticationToken", "zotero", oAuthToken
+   secret_Set "ZoteroAuthenticationToken", oAuthToken, "zotero"
    put the result into modelDataFile
    return modelDataFile
 end zotero_SetAuthenticationToken

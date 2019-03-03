@@ -16,15 +16,6 @@ and add them to a handler below in order to code simple rest calls that return a
 
 --> Working on
 -
-function sandbox_FetchJSON sandBoxFragment, pApiRoot
-   if pApiRoot is empty then put "https://en.wikipedia.org" into pApiRoot
-   -- if pApiRoot is empty then put "https://en.wikipedia.org/w/api.php?" into pApiRoot   
-   put pApiRoot & sandBoxFragment into restURL
-   --
-   put mediawiki_FetchJSON (restURL) into someJSON
-   return someJSON
-end sandbox_FetchJSON
-
 function wikpedia_FetchPageImageSandboxArray pageTitle, pApiRoot
    put "/w/api.php?action=query&format=json&uselang=de&prop=pageimages&meta=filerepoinfo%7Cwikibase&titles=" into sandBoxFragment
    put urlencode (pageTitle) after sandBoxFragment
@@ -37,6 +28,38 @@ function wikpedia_FetchPageImageSandboxArray pageTitle, pApiRoot
    return sandboxArray
 end wikpedia_FetchPageImageSandboxArray
 
+
+--> Fedwikipedia | FetchWikiText
+-
+function fedwikipedia_FetchWikiText pageTitle, pFirstOnly, pApiStem
+   put fedwikipedia_FetchWikiTextArray (pageTitle, pFirstOnly, pApiStem) into anotherArray   
+   put sandbox_GetRevision (anotherArray) into wikiText
+   return wikiText 
+end fedwikipedia_FetchWikiText
+
+function fedwikipedia_FetchWikiTextArray pageTitle, pFirstOnly, pApiStem
+   put sandbox_ConstructWikiTextFragment (pageTitle, pFirstOnly) into sandBoxFragment
+   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   return sandboxArray
+end fedwikipedia_FetchWikiTextArray
+
+--> FedWikiPedia | Fetch | Html
+-
+function fedwikipedia_FetchPageHtml pageTitle, pApiStem
+   put fedwikipedia_FetchPageHtmlArray (pageTitle, pApiStem) into sandboxArray
+   put sandbox_GetExtract (sandboxArray) into pageHTML
+   return pageHTML
+end fedwikipedia_FetchPageHtml
+
+function fedwikipedia_FetchPageHtmlArray pageTitle, pFirstOnly, pApiStem
+   put sandbox_ConstructPageHtmlFragment (pageTitle, pFirstOnly) into sandBoxFragment
+   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   return sandboxArray
+end fedwikipedia_FetchPageHtmlArray
+
+
+--> Sandbox
+-
 function sandbox_ConstructSectionFragment pageTitle, pSectionNum
    -- pSectionNum = 0 returns the summary section
    /*
@@ -61,21 +84,6 @@ function sandbox_AddSectionFragment pageTitle, pSectionNum, sandBoxFragment
    return sandBoxFragment
 end sandbox_AddSectionFragment
 
-
---> Fedwikipedia | FetchWikiText
--
-function fedwikipedia_FetchWikiText pageTitle, pFirstOnly, pApiStem
-   put fedwikipedia_FetchWikiTextArray (pageTitle, pFirstOnly, pApiStem) into anotherArray   
-   put sandbox_GetRevision (anotherArray) into wikiText
-   return wikiText 
-end fedwikipedia_FetchWikiText
-
-function fedwikipedia_FetchWikiTextArray pageTitle, pFirstOnly, pApiStem
-   put sandbox_ConstructWikiTextFragment (pageTitle, pFirstOnly) into sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   return sandboxArray
-end fedwikipedia_FetchWikiTextArray
-
 function sandbox_ConstructWikiTextFragment pageTitle, pFirstOnly
    -- use parse like "sandbox_ConstructSectionFragment" instead?
    --action=query&format=json&prop=revisions&titles=Pliocene&rvprop=content&rvexpandtemplates=1&rvsection=0
@@ -89,21 +97,6 @@ function sandbox_ConstructWikiTextFragment pageTitle, pFirstOnly
    put "&redirects" after sandBoxFragment
    return sandBoxFragment
 end sandbox_ConstructWikiTextFragment
-
-
---> FedWikiPedia | Fetch | Html
--
-function fedwikipedia_FetchPageHtml pageTitle, pApiStem
-   put fedwikipedia_FetchPageHtmlArray (pageTitle, pApiStem) into sandboxArray
-   put sandbox_GetExtract (sandboxArray) into pageHTML
-   return pageHTML
-end fedwikipedia_FetchPageHtml
-
-function fedwikipedia_FetchPageHtmlArray pageTitle, pFirstOnly, pApiStem
-   put sandbox_ConstructPageHtmlFragment (pageTitle, pFirstOnly) into sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   return sandboxArray
-end fedwikipedia_FetchPageHtmlArray
 
 
 --> Sandbox | Array
@@ -138,33 +131,6 @@ command sandbox_DeconstructPageArray sandboxArray, @pageTitle, @pageDescription,
    put sandboxPageArray ["lastrevid"] into lastRevisionID
    return sandboxPageArray
 end sandbox_DeconstructPageArray
-
-command sandbox_ArrayDeconstructImage sandboxArray, @imageTitle, @imageURL, @imageDescription, @imageCaption, @descriptionURL, @imageCategoryIndex
-   -- let's deconstruct information about the file
-   put sandboxArray ["query"]["pages"] into pageArray
-   
-   put line 1 of keys (pageArray) into pageID -- should only be one line
-   put pageArray [pageID]["title"] into imageTitle -- same as shortImageFile
-   put pageArray [pageID]["imageinfo"][1] into imageInfoArray
-   
-   put imageInfoArray ["descriptionurl"] into descriptionURL
-   put imageInfoArray ["url"] into imageURL
-   put imageInfoArray ["extmetadata"] into extmetArray
-   
-   put extmetArray ["Categories"]["value"] into imageCategoryIndex
-   replace "|" with CR in imageCategoryIndex
-   put extmetArray ["ImageDescription"]["value"] into imageDescription
-   put extmetArray ["LicenseShortName"]["value"] into licenseDescription
-   
-   put imageDescription into imageCaption
-   put word 1 to -1 of imageCaption into imageCaption
-   if char 1 to 3 of imageCaption = "<p>" then
-      delete char 1 to 3 of imageCaption
-      if char -4 to -1 of imageCaption = "</p>" then
-         delete char -4 to -1 of imageCaption
-      end if
-   end if
-end sandbox_ArrayDeconstructImage
 
 
 --> Sandbox | Construct
@@ -221,15 +187,6 @@ function sandbox_ConstructPageHtmlFragment pageTitle
    put "&redirects" after sandBoxFragment
    return sandBoxFragment
 end sandbox_ConstructPageHtmlFragment
-
-
---> Sandbox | REST
--
-function sandbox_FetchArray sandBoxFragment, pApiRoot
-   put sandbox_FetchJSON (sandBoxFragment, pApiRoot) into someJSON -- use restbase_FetchSlugJSON() if possible
-   put json_ToArray (someJSON) into someArray
-   return someArray 
-end sandbox_FetchArray
 
 
 --> Private

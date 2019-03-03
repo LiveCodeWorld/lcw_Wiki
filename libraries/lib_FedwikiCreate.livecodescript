@@ -4,53 +4,228 @@
 license: GPLv3
 name: lib_FedwikiCreate
 type: library
-version: 0.1
+version: 0.2
 
 /*
-This is a library for creating fedwiki pages and sites
+This is a library for creating fedwiki pages and sites.
+See also "lib_PageArray" and "model_PageArray"
+
+For now it contains handlers used by "roster.lc" (the Roster Transport).
+Should be called ""lib_RosterCreate""
 */
 
-
---> Fedwiki | Template
+--> Roster | Categorised
 -
-function fedwiki_GetStoryItemText @pageArray, itemID
-   put fedwiki_FindStoryItemNum (itemID, pageArray) into itemNum
-   put pageArray ["story"][itemNum]["text"] into itemText
-   return itemText
-end fedwiki_GetStoryItemText
+function roster_TidyPageFoldMaker templateDomain, templateSlug, rosterDomains
+   put pageArray_Fetch (templateDomain, templateSlug) into fromPageArray
+   put fromPageArray ["story"] into fromStoryArray
+   
+   -- lets start to build newStoryArray
+   put pageArray_GetFirstPageFold (fromPageArray) into newStoryArray
+   
+   -- add first found divider
+   put item 2 of the extents of newStoryArray into firstDividerItemNum
+   add 1 to firstDividerItemNum
+   put fromStoryArray [firstDividerItemNum] into firstDividerItemArray
+   put firstDividerItemArray into newStoryArray [firstDividerItemNum]
+   
+   -- extract refs
+   put pageArray_ExtractRefItems (fromPageArray) into refItemStoryArray
+   
+   -- filter out duplicates
+   _StripDuplicateRefStoryArray refItemStoryArray
+   
+   -- see what is missing
+   get _FindExtraMissingArray (refItemStoryArray, rosterDomains)
+   put it ["bad"] into badArray
+   put it ["missing"] into missingArray
+   
+   -- delete missingDomainsToAdd
+   _DeleteBadArray refItemStoryArray, badArray
+   
+   -- add extra
+   _AddMissingDomains refItemStoryArray, missingArray
+   
+   -- add to newStoryArray
+   fedwiki_AddToStoryArrayItems newStoryArray, refItemStoryArray
+   
+   -- add last divider
+   put storyArray_GetLastPageFold (fromStoryArray) into lastDividerItemNum
+   put fromStoryArray [lastDividerItemNum] into lastDividerItemArray
+   put item 2 of the extents of newStoryArray into nextItemNum
+   add 1 to nextItemNum
+   put lastDividerItemArray into newStoryArray [nextItemNum]
+   
+   -- add footer
+   _AddBeforePageFold fromPageArray, newStoryArray, lastDividerItemNum
+   put the result into lastDividerItemNum
+   
+   -- replace story and clean journal
+   put newStoryArray into fromPageArray ["story"]
+   fedwiki_StripJournal fromPageArray
+   
+   return fromPageArray
+end roster_TidyPageFoldMaker
 
-command fedwiki_SetStoryItemText @pageArray, itemID, itemText
-   put fedwiki_FindStoryItemNum (itemID, pageArray) into itemNum
-   put itemText into pageArray ["story"][itemNum]["text"]
-   return itemNum
-end fedwiki_SetStoryItemText
-
-function fedwiki_GetStoryItemType @pageArray, itemID
-   put fedwiki_FindStoryItemNum (itemID, pageArray) into itemNum
-   put pageArray ["story"][itemNum]["type"] into itemText
-   return itemText
-end fedwiki_GetStoryItemType
-
-command fedwiki_SetStoryItemType @pageArray, itemID, itemText
-   put fedwiki_FindStoryItemNum (itemID, pageArray) into itemNum
-   put itemText into pageArray ["story"][itemNum]["type"]
-   return itemNum
-end fedwiki_SetStoryItemType
-
-
---> Fedwiki | Template
--
-function fedwiki_FindStoryItemNum itemID, pageArray
+function roster_PagefoldConstruct pageArray
    put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into maxItem
-   repeat with itemNum = 1 to maxItem
-      put storyArray [itemNum]["id"] into testID
-      if testID = itemID then
-         return itemNum
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      switch itemArray ["type"]
+         case "pagefold"
+            get itemArray ["text"]
+            put word 1 to -1 of it into sectionTitle
+            if sectionTitle = "." then
+               put "Unclassified" into sectionTitle
+            end if
+            put CR & sectionTitle & CR & CR after rosterText
+            break
+         case "reference"
+            put itemArray ["site"] into wikiDomain            
+            put wikiDomain & CR after rosterText
+            break
+         default
+            next repeat
+      end switch
+   end repeat
+   put word 1 to -1 of rosterText into rosterText
+   if line -1 of rosterText = "Unclassified" then
+      delete line -1 of rosterText
+      put word 1 to -1 of rosterText into rosterText
+   end if
+   return rosterText
+end roster_PagefoldConstruct
+
+private command _AddBeforePageFold fromPageArray, @newStoryArray, pLastDividerItemNum
+   -- add to the end of newStoryArray
+   put item 2 of the extents of newStoryArray into nextItemNum
+   add 1 to nextItemNum
+   put fromPageArray ["story"] into fromStoryArray
+   --
+   if pLastDividerItemNum is empty then
+      -- find the last footer startItemNum
+      put storyArray_GetLastPageFold (fromStoryArray) into pLastDividerItemNum
+   end if
+   add 1 to pLastDividerItemNum
+   --
+   put item 2 of the extents of fromStoryArray into maxNum
+   repeat with itemNum = pLastDividerItemNum to maxNum
+      put fromStoryArray [itemNum] into itemArray
+      put itemArray into newStoryArray [nextItemNum]
+      add 1 to nextItemNum
+   end repeat   
+   return startItemNum
+end _AddBeforePageFold
+
+private function _CreateActivityPage wikiDomain
+   -- used by "activity"
+   
+   set the itemdelimiter to "."
+   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle
+   
+   -- put federation_FetchMyRecentOther (false) into domainNames
+   -- put federation_FetchMyRecentOther (true) into rosterDomains
+   put atopia_FetchRoster (wikiDomain, false) into domainNames
+   
+   put atopia_FetchRoster (pFilterDomain, false) into domainNames
+   put fedwiki_ConstructMarkdownIndex (rosterDomains) into markdownIndex
+   
+   put rosterTitle into curlyArray ["rosterTitle"]
+   put wikiDomain into curlyArray ["wikiDomain"]
+   put rosterDomains into curlyArray ["rosterText"]
+   put markdownIndex into curlyArray ["rosterIndex"]
+   --
+   put pageArray_FetchTemplate ("roster.fedwiki.org", "roster-template", curlyArray) into pageArray
+   put rosterTitle && "Activity" into pageTitle
+   put pageTitle into pageArray ["title"]
+   --
+   return pageArray
+end _CreateActivityPage
+
+private function _ConstructPostArray itemID, domainFilter, pageSlug, wikiDomain, minPageNum
+   put itemID into postArray ["itemID"]
+   put domainFilter into postArray ["domainFilter"]
+   put pageSlug into postArray ["pageSlug"]
+   put wikiDomain into postArray ["wikiDomain"]
+   put minPageNum into postArray ["minPageNum"]
+   return postArray
+end _ConstructPostArray
+
+private command _DeconstractPostArray postArray, @itemID, @domainFilter, @pageSlug, @wikiDomain, @minPageNum
+   put postArray ["itemID"] into itemID
+   put postArray ["domainFilter"] into domainFilter
+   put postArray ["pageSlug"] into pageSlug
+   put postArray ["wikiDomain"] into wikiDomain
+   put postArray ["minPageNum"] into minPageNum
+end _DeconstractPostArray
+
+
+--> More
+-
+private command _AddMissingDomains @refItemStoryArray, missingDomainArray
+   put item 2 of the extents of refItemStoryArray into newItemNum
+   repeat for each key missingDomain in missingDomainArray
+      add 1 to newItemNum
+      put fedwiki_ConstructStoryRefArray ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
+      put itemArray into refItemStoryArray [newItemNum]
+   end repeat
+end _AddMissingDomains
+
+private command _StripDuplicateRefStoryArray @refItemStoryArray
+   repeat with itemNum = 1 to item 2 of the extents of refItemStoryArray
+      put refItemStoryArray [itemNum] into itemArray
+      put itemArray ["site"] into refDomain
+      --
+      if doneArray [refDomain] is true then
+         
+      end if
+      --
+      add 1 to newItemNum
+      put itemArray into filteredArray [newItemNum]
+      
+   end repeat
+   put filteredArray into refItemStoryArray
+end _StripDuplicateRefStoryArray
+
+private command _DeleteBadArray @refItemStoryArray, badArray
+   put keys (badArray) into badDomainNames
+   set the wholeMatches to true
+   put 1 into newItemNum
+   repeat with itemNum = 1 to item 2 of the extents of refItemStoryArray
+      put refItemStoryArray [itemNum] into itemArray
+      put itemArray ["site"] into refDomain -- "livecode.world"
+      if refDomain is not among the lines of badDomainNames then
+         put itemArray into filteredArray [newItemNum]
+         add 1 to newItemNum
       end if
    end repeat
-   return 0
-end fedwiki_FindStoryItemNum
+   put filteredArray into refItemStoryArray
+end _DeleteBadArray
 
-
-
+private function _FindExtraMissingArray refItemStoryArray, rosterDomains
+   set the wholeMatches to true
+   put 1 into goodItemNum
+   repeat for each line rosterDomain in rosterDomains
+      put true into missingArray [rosterDomain]
+   end repeat
+   
+   repeat with itemNum = 1 to item 2 of the extents of refItemStoryArray
+      put refItemStoryArray [itemNum] into itemArray
+      put itemArray ["site"] into refDomain -- "livecode.world"
+      
+      -- remove from missing
+      delete variable missingArray [refDomain]
+      
+      -- is it good or bad?
+      put lineoffset (refDomain, rosterDomains) into lineNum
+      if lineNum = 0 then
+         -- story item is not in actual roster
+         put itemArray into extraMissingArray ["bad"][refDomain]
+      else
+         put itemArray into extraMissingArray ["good"][goodItemNum]
+         add 1 to goodItemNum
+      end if
+   end repeat
+   put missingArray into extraMissingArray ["missing"]
+   return extraMissingArray
+end _FindExtraMissingArray

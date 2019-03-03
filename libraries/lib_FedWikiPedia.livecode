@@ -139,7 +139,7 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    put "# See also" & CR & markdownTOC into markdownSection
    fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownSection
    
-   fedwiki_StripJournalToCreate fedwikiPageArray
+   fedwiki_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end fedwiki_FetchWikipediaSummaryPageArray
 

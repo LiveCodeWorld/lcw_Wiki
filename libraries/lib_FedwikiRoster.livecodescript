@@ -4,169 +4,180 @@
 license: GPLv3
 name: lib_FedwikiRoster
 type: library
-version: 0.1
+version: 0.3
 
 /*
 This library is designed to make it easy to programtically generate rosters from a Fedwiki server.
+
+Rosters are the prefered way of storing lists of domains. 
+For more complicated data for which using page-json is suitable, we can use the JSON plugin.
 */
 
 
---> Fedwiki | Roster
+--> Working on
 -
-function fedwiki_ConstructRosterPageJson topDomain
-   put atopia_FetchStoredDomains (topDomain) into refTable
-   put fedwiki_ConstructRosterPageArray (refTable) into pageArray
-   put json_FromArray (pageArray) into someJSON
-   return someJSON
-end fedwiki_ConstructRosterPageJson
 
-function fedwiki_ConstructRosterPageArray rosterText, pPageTitle
+--> Roster | Compare
+-
+function atopia_CheckMissingSiteDomains
+   put atopia_FetchRoster() into rosterDomains
+   delete line 1 to 2 of rosterDomains
+   put atopia_ListSitePages() into sitePages
+   --
+   put the number of lines of sitePages && the number of lines of rosterDomains
+   line_DeleteIndex rosterDomains, sitePages
+   return rosterDomains
+end atopia_CheckMissingSiteDomains
+
+function atopia_CheckMissingRosterDomains
+   set the cursor to watch
+   put atopia_FetchRoster() into rosterDomains
+   delete line 1 to 2 of rosterDomains
+   --
+   put atopia_FetchServerDomainArray() into atopiaServerDomainArray -- from JSON Plugin
+   repeat for each line rosterDomain in rosterDomains
+      set the cursor to busy
+      put atopiaServerDomainArray [rosterDomain] into domainPageArray
+      if domainPageArray is not an array then
+         put rosterDomain & CR after missingDomains
+      end if
+   end repeat
+   delete char -1 of missingDomains
+   return missingDomains
+end atopia_CheckMissingRosterDomains
+
+function atopia_ListSitePages
+   put fedwiki_ListSitemapPages ("sites.fedwiki.org") into domainNames
+   url_CheckDomainIndex domainNames
+   return domainNames
+end atopia_ListSitePages
+
+function atopia_FetchNewFolderList
+   put atopia_FetchRoster() into alreadyGoodDomains
+   if alreadyGoodDomains is empty then
+      breakpoint
+   end if
+   
+   put atopia_FetchFilteredFolderLsArray() into remoteFolderArray
+   if item 1 of it is "error" then return empty
+   -- remove "fedwiki_owners"
+   delete variable remoteFolderArray ["fedwiki_owners"]
+   
+   repeat for each line goodDomainName in alreadyGoodDomains
+      set the cursor to busy
+      delete variable remoteFolderArray [goodDomainName]
+   end repeat
+   
+   put keys (remoteFolderArray) into newRemoteDomains
+   url_SortDomainIndex newRemoteDomains, true
+   return newRemoteDomains
+end atopia_FetchNewFolderList
+
+
+--> Atopia | Roster | Fetch
+-
+function atopia_FetchRoster pFilterDomain, pAddTitle
+   -- fetches from roster on wiki specific page (see "atopia_FetchServerDomainJson")
+   put roster_Fetch ("server.fedwiki.org", "atopia-domain-index", "741a0fcdd3ff76b2") into atopiaDomains
+   if pFilterDomain is not empty then put roster_FilterDomains (atopiaDomains, pFilterDomain, pAddTitle) into atopiaDomains
+   if pAddTitle is not true then url_SortDomainIndex atopiaDomains
+   return word 1 to -1 of atopiaDomains
+end atopia_FetchRoster
+
+command atopia_StoreRoster rosterText
+   roster_Store
+end atopia_StoreRoster
+
+
+--> Roster | Filter
+-
+function roster_SortAndFilter domainArray, pFilterDomains, pAddTitle
+   put keys (domainArray) into domainNames
+   if pFilterDomains is not empty then put roster_FilterDomains (domainNames, pFilterDomains, pAddTitle) into domainNames
+   if pAddTitle is not true then url_SortDomainIndex domainNames
+   return domainNames
+end roster_SortAndFilter
+
+function roster_FilterDomains domainIndex, pFilterDomains, pAddTitle
+   repeat for each item topDomain in pFilterDomains
+      put domainIndex into filteredIndex
+      put "*." & topDomain into someFilter
+      --
+      set the wholematches to true
+      put topDomain is among the lines of domainIndex into topThere
+      filter filteredIndex with someFilter
+      if topThere then
+         put topDomain & CR before filteredIndex
+      end if
+      --
+      if pAddTitle is true then
+         url_SortDomainIndex filteredIndex
+         put topDomain & CR & CR after filteredDomainIndex
+         put word 1 to -1 of filteredIndex & CR & CR after filteredDomainIndex
+      else
+         put word 1 to -1 of filteredIndex & CR after filteredDomainIndex
+      end if
+   end repeat
+   delete char -1 of filteredDomainIndex
+   return word 1 to -1 of filteredDomainIndex
+end roster_FilterDomains
+
+function roster_ConstructPageArray rosterText, pPageTitle
    if pPageTitle is empty then put "Roster Page" into pPageTitle
    replace comma with CR in rosterText
-   -- replace CR with comma in rosterText
-   -- replace comma with "\n" in rosterText
-   --
    put pPageTitle into pageArray ["title"]
    fedwiki_AddRosterToPageArray pageArray, rosterText
-   fedwiki_StripJournalToCreate pageArray
+   fedwiki_StripJournal pageArray
    return pageArray
-end fedwiki_ConstructRosterPageArray
+end roster_ConstructPageArray
 
-function atopia_FilterDomain domainIndex, topDomain
-   put "*." & topDomain into someFilter
-   --
-   set the wholematches to true
-   put topDomain is among the lines of domainIndex into topThere
-   filter domainIndex with someFilter
-   if topThere then
-      put topDomain & CR before domainIndex
-      put word 1 to -1 of domainIndex into domainIndex
+
+--> Roster | Model
+-
+function roster_Fetch wikiDomain, pageSlug, pItemID
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   if pItemID is empty then
+      put fedwiki_FindItemType ("roster", pageArray) into itemNum
+      put pageArray ["story"][itemNum]["text"] into rosterDomainText
+   else
+      put fedwiki_GetStoryItemText (pageArray, pItemID) into rosterDomainText
    end if
-   return domainIndex
-end atopia_FilterDomain
+   return rosterDomainText
+end roster_Fetch
 
-
---> Atopia | JSON | Domains
--
-/*
-Let's store domain index to a wiki page
-*/
-
-function atopia_FetchStoredDomains pFilterDomain
-   put atopia_FetchServerJSON ("Atopia Domains") into someJSON
-   put _DeconstructJsonIndex (someJSON) into domainIndex
-   if pFilterDomain is not empty then
-      put atopia_FilterDomain (domainIndex, pFilterDomain) into domainIndex
+command roster_Store wikiDomain, pageSlug, rosterText, pItemID
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   if pItemID is empty then
+      put fedwiki_FindItemType ("roster", pageArray) into itemNum
+   else
+      put fedwiki_FindItemID (pItemID, pageArray) into itemNum
    end if
-   return domainIndex
-end atopia_FetchStoredDomains
-
-command atopia_SaveDomainIndex domainIndex
-   put _ConstructJsonIndex (domainIndex) into someJSON
-   --
-   atopia_StoreServerJSON "Atopia Domains", someJSON
-   put the result into putError
-   return putError
-end atopia_SaveDomainIndex
-
-
---> Atopia | JSON
--
-function atopia_FetchServerJSON whichJson
-   _SetSlugDomain whichJson, pageSlug, wikiDomain
-   put fedwiki_FetchPluginJSON (pageSlug, wikiDomain) into someJSON
-   return someJSON
-end atopia_FetchServerJSON
-
-command atopia_StoreServerJSON whichJson, someJSON
-   _SetSlugDomain whichJson, pageSlug, wikiDomain
-   put atopia_GetJsonSecret() into apiKey
-   fedwiki_PutPluginJSON someJSON, pageSlug, wikiDomain, apiKey
-   put the result into putError
-   return putError
-end atopia_StoreServerJSON
-
-
---> Fedwiki | JSON Plugin
--
-function fedwiki_FetchPluginJSON pageSlug, wikiDomain
-   put fedwiki_ConstructPluginJsonUrl (pageSlug, wikiDomain) into restURL
-   put url restURL into someJSON
-   return someJSON
-end fedwiki_FetchPluginJSON
-
-command fedwiki_PutPluginJSON someJSON, pageSlug, wikiDomain, apiKey
-   -- for http://admin.fedwiki.org/json-plugin.html
+   put rosterText into pageArray ["story"][itemNum]["text"]
    
-   put fedwiki_ConstructPluginJsonUrl (pageSlug, wikiDomain) into restURL
-   --
-   put "Content-type: application/json" into newHeaders
-   put CR & "Accept: application/json" after newHeaders
-   put CR & "Accept-Charset: utf-8" after newHeaders
-   put CR & "X-Api-Key:" && apiKey after newHeaders
-   set the httpheaders to newHeaders
-   --
-   -- replace "'" with quote in someJSON
-   --
-   put someJSON into url restURL
-   --
-   put the result into putResult
-   /*
-   -- this should return, but is returning only error msg I think
-   {
-   "status": "ok",
-   "writes": 3330,
-   "interval": 299524,
-   "length": 17736
-   }
-   */
-   return putResult
-end fedwiki_PutPluginJSON
-
-function fedwiki_ConstructPluginJsonUrl pageSlug, wikiDomain
-   -- http://admin.fedwiki.org/plugin/json/atopia-fedwiki-sites
-   put "http://" & wikiDomain & "/plugin/json/" & pageSlug into restURL
-   return restURL
-end fedwiki_ConstructPluginJsonUrl
+end roster_Store
 
 
---> Atopia | JSON | Secret
+--> Fedwiki | Roster | Merge
 -
-function atopia_GetJsonSecret
-   put secret_Get ("AtopiaJsonApiKey", "jsonApiKey") into apiKey
-   return apiKey
-end atopia_GetJsonSecret
+function roster_Subtract wikiDomain, pageSlug, plusID, minusID
+   -- was "fedwiki_SubtractRoster"
+   put roster_Fetch (wikiDomain, pageSlug, plusID) into rosterText
+   put roster_Fetch (wikiDomain, pageSlug, minusID) into minusText
+   --
+   set the wholeMatches to true
+   repeat for each line minusLine in minusText
+      put lineOffset (minusLine, rosterText) into lineNum
+      delete line lineNum of rosterText
+   end repeat
+   return rosterText
+end roster_Subtract
 
-command atopia_SetJsonSecret apiKey
-   secret_Set "AtopiaJsonApiKey", "jsonApiKey", apiKey
-   return the result
-end atopia_SetJsonSecret
-
-
---> Private
--
-private function _DeconstructJsonIndex someJSON
-   put json_ToArray (someJSON) into jsonArray
-   put jsonArray ["domains"] into domainIndex
-   replace comma with CR in domainIndex
-   return domainIndex
-end _DeconstructJsonIndex
-
-private function _ConstructJsonIndex domainIndex
-   replace CR with comma in domainIndex
-   put domainIndex into jsonArray ["domains"]
-   put json_FromArray (jsonArray) into someJSON
-   return someJSON
-end _ConstructJsonIndex
-
-private command _SetSlugDomain whichJson, @pageSlug, @wikiDomain
-   switch whichJson
-      case "Servers"
-         put "site-of-servers" into pageSlug
-         put "server.fedwiki.org" into wikiDomain
-         break
-      default -- "Atopia Domains"
-         put "atopia-domain-index" into pageSlug
-         put "sites.fedwiki.org" into wikiDomain
-   end switch
-end _SetSlugDomain
+function roster_FetchAndUpdate wikiDomain, pageSlug, itemID, rosterDomainText
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   put fedwiki_GetStoryItemText (pageArray, itemID) into oldItemText
+   put line 1 of oldItemText & CR & CR & rosterDomainText into itemText
+   --
+   fedwiki_SetStoryItemText pageArray, itemID, itemText
+   fedwiki_StripJournal pageArray
+   return pageArray
+end roster_FetchAndUpdate
