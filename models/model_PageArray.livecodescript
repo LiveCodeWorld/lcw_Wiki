@@ -28,7 +28,7 @@ We define a new concept "handerArray" to mean a "pageArray" for handlers.
 
 function lcw_FetchObjectPageArray sObject
    _ObjectDomainInfo sObject, pageTitle, pageSlug, wikiDomain
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
    return pageArray
 end lcw_FetchObjectPageArray
 
@@ -37,13 +37,6 @@ command lcw_StoreObjectPageArray sObject, pageArray
    pageArray_Store wikiDomain, pageSlug, pageArray
    return the result
 end lcw_StoreObjectPageArray
-
-private command _ObjectDomainInfo sObject, @pageTitle, @pageSlug, @wikiDomain
-   put the stack_Name of sObject into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put the script_Type of sObject into scriptType
-   put help_ConstructObjectDomain (scriptType) into wikiDomain
-end _ObjectDomainInfo
 
 function lcw_FetchHandlerArray hKey
    hkey_Deconstruct hKey, hName, hType, hObject, hNum
@@ -61,52 +54,6 @@ command lcw_StoreHandlerArray hKey, pageArray
    put the result into shellResult
    return shellResult
 end lcw_StoreHandlerArray
-
-
---> PageJson | Model
--
-function pageJson_Fetch wikiDomain, pSlug
-   put fedwiki_PageJsonUrl (wikiDomain, pSlug) into someUrl
-   put url someUrl into someJSON
-   return someJSON
-end pageJson_Fetch
-
-command pageJson_Store wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
-   put fedwiki_ConstructPath (wikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_StoreData wikiPagePath, pageJSON
-   --
-   put the result into shellResult
-   if shellResult is not empty then return shellResult
-   if pDeleteSiteMap is not false then -- deleting sitemap is the lazy way to update it
-      atopia_DeleteWikiSitemap wikiDomain
-   end if
-   return shellResult -- should be empty unless an error
-end pageJson_Store
-
-command pageJson_Delete wikiDomain, pageSlug
-   put fedwiki_ConstructPath (wikiDomain, pageSlug) into wikiPagePath
-   atopia_DeleteFile wikiPagePath
-   put the result into shellResult
-   return shellResult
-end pageJson_Delete
-
-
---> PageArray | Model
--
-function pageArray_Fetch wikiDomain, pSlug
-   -- can be any wiki (we simply get page-json)
-   put pageJson_Fetch (wikiDomain, pSlug) into pageJson
-   put json_ToArray (pageJson) into pageArray
-   return pageArray
-end pageArray_Fetch
-
-command pageArray_Store fedwikiDomain, pageSlug, pageArray
-   put json_FromArray (pageArray) into pageJSON
-   pageJson_Store fedwikiDomain, pageSlug, pageJSON
-   put the result into shellResult
-   return shellResult -- should be empty unless an error
-end pageArray_Store
 
 
 --> PageArray | Edit
@@ -180,6 +127,52 @@ command pageArray_AddDeleteAction @pageArray, deletedItemID, pMilliseconds
 end pageArray_AddDeleteAction
 
 
+--> PageArray | Model
+-
+function pageArray_Fetch wikiDomain, pSlug
+   -- can be any wiki (we simply get page-json)
+   put pageJson_Fetch (wikiDomain, pSlug) into pageJson
+   put json_ToArray (pageJson) into pageArray
+   return pageArray
+end pageArray_Fetch
+
+command pageArray_Store fedwikiDomain, pageSlug, pageArray
+   put json_FromArray (pageArray) into pageJSON
+   pageJson_Store fedwikiDomain, pageSlug, pageJSON
+   put the result into shellResult
+   return shellResult -- should be empty unless an error
+end pageArray_Store
+
+
+--> PageJson | Model
+-
+function pageJson_Fetch wikiDomain, pSlug
+   put fedwiki_PageJsonUrl (wikiDomain, pSlug) into someUrl
+   put url someUrl into someJSON
+   return someJSON
+end pageJson_Fetch
+
+command pageJson_Store wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
+   put fedwiki_ConstructPath (wikiDomain, pageSlug) into wikiPagePath
+   --
+   atopia_StoreData wikiPagePath, pageJSON
+   --
+   put the result into shellResult
+   if shellResult is not empty then return shellResult
+   if pDeleteSiteMap is not false then -- deleting sitemap is the lazy way to update it
+      atopia_DeleteWikiSitemap wikiDomain
+   end if
+   return shellResult -- should be empty unless an error
+end pageJson_Store
+
+command pageJson_Delete wikiDomain, pageSlug
+   put fedwiki_ConstructPath (wikiDomain, pageSlug) into wikiPagePath
+   atopia_DeleteFile wikiPagePath
+   put the result into shellResult
+   return shellResult
+end pageJson_Delete
+
+
 --> Private
 -
 private command storyArray_DeleteItem @storyArray, itemNumToDelete
@@ -193,3 +186,10 @@ private command storyArray_DeleteItem @storyArray, itemNumToDelete
    delete variable storyArray [maxItem]
    return deletedItemArray
 end storyArray_DeleteItem
+
+private command _ObjectDomainInfo sObject, @pageTitle, @pageSlug, @wikiDomain
+   put the stack_Name of sObject into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put the script_Type of sObject into scriptType
+   put help_ConstructObjectDomain (scriptType) into wikiDomain
+end _ObjectDomainInfo
