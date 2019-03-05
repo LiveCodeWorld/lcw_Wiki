@@ -14,7 +14,7 @@ on menu_UploadPageJson arrayView, dreamDomain
    put the top_Array of arrayView into itemArray
    put itemArray ["slug"] into pageSlug
    
-   put fedwiki_FetchPageJson (fedwikiDomain, pageSlug) into pageJSON
+   put pageJson_Fetch (fedwikiDomain, pageSlug) into pageJSON
    dreamfactory_StoreWikiPage pageSlug, dreamDomain, pageJSON
    put merge ("http://hosting.permanent.wiki/view/welcome-visitors/[[dreamDomain]]/[[pageSlug]]") into pageURL
    launch url pageURL

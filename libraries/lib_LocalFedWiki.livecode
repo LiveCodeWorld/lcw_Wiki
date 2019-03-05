@@ -136,15 +136,6 @@ end fedwiki_UpdateLocalSiteMap
 
 --> Fedwiki | Roster
 -
--- function fedwiki_ExtractReferences pageJSON
-   -- david.bovill.me/davids-sites
-   put word 2 to -1 of someLine into someRef
-   put item 1 of someRef into fedwikiDomain
-   put item 2 of someRef into pageSlug
-   put fedwiki_FetchPageJson ("david.bovill.me", "davids-sites") into pageJson
-   
-end fedwiki_ExtractReferences
-
 function fedwiki_ExtractRosterSites 
    put url "http://david.bovill.me/welcome-visitors.json" into pageJSON
    put fedwiki_ExtractRoster (pageJSON) into someRoster
@@ -160,7 +151,7 @@ function fedwiki_ExtractRosterSites
             put word 2 to -1 of someLine into someRef
             put item 1 of someRef into fedwikiDomain
             put item 2 of someRef into pageSlug
-            put fedwiki_FetchPageJson (fedwikiDomain, pageSlug) into pageJson
+            put pageJson_Fetch (fedwikiDomain, pageSlug) into pageJson
             return pageJson
             break
          default

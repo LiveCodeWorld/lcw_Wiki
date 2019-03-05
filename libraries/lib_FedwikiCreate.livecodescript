@@ -128,14 +128,22 @@ private function _CreateActivityPage wikiDomain
    put atopia_FetchRoster (wikiDomain, false) into domainNames
    
    put atopia_FetchRoster (pFilterDomain, false) into domainNames
-   put fedwiki_ConstructMarkdownIndex (rosterDomains) into markdownIndex
+   put fedwiki_MarkdownIndex (rosterDomains) into markdownIndex
    
    put rosterTitle into curlyArray ["rosterTitle"]
    put wikiDomain into curlyArray ["wikiDomain"]
    put rosterDomains into curlyArray ["rosterText"]
    put markdownIndex into curlyArray ["rosterIndex"]
    --
-   put pageArray_FetchTemplate ("roster.fedwiki.org", "roster-template", curlyArray) into pageArray
+   -- put pageArray_FetchTemplate ("roster.fedwiki.org", "roster-template", curlyArray) into pageArray
+   put pageSlug into curlyArray ["Page Slug"]
+   put fedwikiDomain into curlyArray ["Wiki Domain"]
+   put fedwiki_ConstructTitle (pageSlug) into curlyArray ["Page Title"]
+   put pageArray_Fetch ("roster.fedwiki.org", "roster-template") into pageArray
+   --
+   put curlyArray into curlyData ["all"]
+   curly_MergeAll pageArray, curlyData
+   --
    put rosterTitle && "Activity" into pageTitle
    put pageTitle into pageArray ["title"]
    --

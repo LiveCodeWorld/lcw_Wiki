@@ -2,7 +2,7 @@
 --> Metadata
 -
 name: lib_FedWikiPedia
-type: script library
+type: library
 version: 1.4
 copyright: David Bovill
 licence:  GPLv3
@@ -102,7 +102,7 @@ end fedwikipedia_CleanTable
 --> Working On
 -  
 function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
-   -- use "restbase_FetchSummaryPageArray" instead
+   -- use "mediawiki_FetchSummaryPageArray" instead
    -- see also "fedwikipedia_FetchSectionSummaryPageArray"
    -- need to make a "parse" call to get TOC
    local pSectionNum
@@ -142,6 +142,30 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    fedwiki_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end fedwiki_FetchWikipediaSummaryPageArray
+
+
+--> Mediawiki | Fetch | Alternative
+-
+function mediawiki_FetchSummaryPageArray pageSlug, pLang
+   -- was "restbase_FetchSummaryPageArray"
+   -- see also "fedwiki_FetchWikipediaSummaryPageArray"
+   -- very similar to "mediawiki_FetchPageArray"
+   
+   /*   
+   -- consider using "put mediawiki_FetchWikiText("Ant")"
+   -- also uses old "mediawiki_FetchSummaryDescription" to fetch multiple first lines
+   -- as restbase won't do that except in html
+   -- would be great to enable links in first paragraphs like "wikicommons_ConstructSectionPageArray" does
+   -- using sectionnum = 0 does not work with "wikicommons_ConstructSectionPageArray"
+   */
+   
+   put mediawiki_FetchSummaryDescription (pageSlug, true, true, pLang) into firstSection -- uses old stuff anyway to get more than one line
+   put restbase_FetchSummaryArray (pageSlug, pLang) into summaryArray -- fetch some metadata
+   put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray
+   --
+   put mediawiki_ConstructSummaryPageArray (firstSection, summaryArray, mobileSectionArray) into pageArray
+   return pageArray
+end mediawiki_FetchSummaryPageArray
 
 command mediawiki_FetchPageParseInfo pageSlug, @pageDescription, @pageTitle, @shortImageFile, @infoBoxArray, pSectionNum, pApiStem
    -- Uses "parse" to extract wiktext sections. Lot's of fiddling with text. Messy as it returns lots of page templates that need cleaning. But we get wiki links

@@ -20,6 +20,213 @@ In particular for constructing and deconstructing fedwiki json
 --> Working on
 -
 
+--> Fedwiki | Fetch | Drop
+-
+function fedwiki_FetchDroppedPageJson droppedURL, pSlug
+   set the itemdelimiter to "."
+   switch
+      case pSlug is empty and item -1 of droppedURL = "html"
+         return fedwiki_FetchDroppedFlagJson (droppedURL)
+         break
+      case pSlug is empty
+         put fedwiki_FetchLastLineUpJson (droppedURL) into pageJson
+         break
+      default
+         put pageJson_Fetch (fedwikiDomain, pSlug) into pageJson
+   end switch
+   return pageJson
+end fedwiki_FetchDroppedPageJson
+
+function fedwiki_FetchDroppedFlagJson droppedURL
+   set the itemdelimiter to slash
+   if not (the number of items of droppedURL > 3) then return empty
+   put item 3 of droppedURL into fedwikiDomain
+   put item -1 of droppedURL into pSlug
+   --
+   set the itemdelimiter to "."
+   put item 1 of pSlug into pSlug
+   --
+   put pageJson_Fetch (fedwikiDomain, pSlug) into pageJson
+   return pageJson
+end fedwiki_FetchDroppedFlagJson
+
+
+--> Fedwiki | Fetch
+-
+function fedwiki_FetchLastLineUpArray droppedURL, pNotTheseSlugs
+   put fedwiki_FetchLastLineUpJson (droppedURL, pNotTheseSlugs) into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   return pageArray
+end fedwiki_FetchLastLineUpArray
+
+function fedwiki_FetchLastLineUpJson droppedURL, pNotTheseSlugs
+   -- does not check that droppedURL is not a ".html" page
+   if pNotTheseSlugs is empty then put "journal-cleaner-transport" into pNotTheseSlugs
+   
+   put fedwiki_ConstructUrlArray (droppedURL) into urlArray
+   if urlArray is false then return false
+   
+   put item 2 of the extents of urlArray into lineUpNum
+   put urlArray [lineUpNum]["pageSlug"] into pageSlug
+   if pageSlug is among the items of pNotTheseSlugs and lineUpNum is not 1 then
+      subtract 1 from lineUpNum
+   end if
+   
+   put fedwiki_FetchLineUpJson (urlArray, lineUpNum) into pageJSON
+   return pageJSON
+end fedwiki_FetchLastLineUpJson
+
+function fedwiki_FetchLineUpJson urlArray, lineUpNum
+   if lineUpNum = -1 then put item 2 of the extents of urlArray into lineUpNum
+   
+   put urlArray [lineUpNum]["pageSlug"] into pageSlug
+   put urlArray [lineUpNum]["someDomain"] into someDomain
+   
+   -- http://forage.david.bovill.me/entry-level-browser.json?random=72428048
+   put "http://" & someDomain & "/" & pageSlug & ".json" into someUrl
+   -- put "?random=" & the milliseconds after someUrl
+   put url someUrl into someJSON
+   return someJSON
+end fedwiki_FetchLineUpJson
+
+
+--> Fedwiki | Tests
+-
+command fedwiki_SetDroppedFaviconInfo @pageSlug, @fedwikiDomain, pDoubleCheck
+   -- safe double check thing
+   put fedwiki_IsFaviconDrop() into isFavicon
+   if isFavicon is false then
+      put empty into pageSlug
+      put empty into fedwikiDomain 
+      return false
+   end if
+   
+   put fedwiki_GetDroppedUrl() into droppedURL
+   set the itemDelimiter to "/"
+   put item 3 of droppedURL into fedwikiDomain
+   put item -1 of droppedURL into pageSlug
+   replace ".html" with empty in pageSlug
+   
+   if pDoubleCheck is not true then return true
+   
+   -- let's check it is a wiki domain
+   -- pageSlug may be a ghost page so don't check that
+   put fedwiki_IsWikiPage (fedwikiDomain) into isWiki
+   if isWiki then
+      return true
+   else
+      put empty into pageSlug
+      put empty into fedwikiDomain 
+      return false
+   end if
+end fedwiki_SetDroppedFaviconInfo
+
+command fedwiki_FilterCheck @wikiDomains
+   repeat for each line wikiDomain in wikiDomains
+      set the cursor to busy
+      if fedwiki_IsWiki (wikiDomain) is true then
+         put wikiDomain & CR after goodDomains
+      else
+         put wikiDomain & CR after badDomains
+      end if
+   end repeat
+   delete char -1 of goodDomains
+   delete char -1 of badDomains
+   put goodDomains into wikiDomains
+   return badDomains
+end fedwiki_FilterCheck
+
+function fedwiki_IsFaviconDrop pDropJSON
+   -- quick check of dropped html
+   if pDropJSON is empty then put $_POST_RAW into pDropJSON
+   put fedwiki_GetDroppedArray (pDropJSON) into dropArray
+   put dropArray ["html"] into droppedHtml
+   --
+   if the environment = "server" then
+      rigLoaderLoadLibrary "Useragent"
+      put rigBrowser() into tBrowser
+   else
+      put empty into tBrowser
+   end if
+   
+   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
+   switch tBrowser
+      case "Firefox"
+         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
+         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
+         break
+      case "Safari"
+         put revXMLAttribute (treeID, "/img", "class") into favClass
+         put revXMLAttribute (treeID, "/img", "height") into favHeight
+         break
+         -- case "Chrome"
+      default
+         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
+         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
+         break
+   end switch
+   revDeleteXMLTree treeID
+   put favClass = "favicon" and favHeight = "32px" into isFavicon
+   --
+   return isFavicon
+end fedwiki_IsFaviconDrop
+
+function fedwiki_IsHtmlUrl wikiPageURL, @errorMsg
+   -- http://tools.progressivedemocracy.cc/collaborative-bookmarking.html
+   set the itemdelimiter to slash
+   if the number of items of wikiPageURL is not 4 then
+      put "Error, dropped url is not a single .html wiki page" into errorMsg
+      return false
+   end if
+   
+   set the itemdelimiter to "."
+   if item -1 of wikiPageURL is not "html" then
+      put "Error, dropped url is not a single .html wiki page" into errorMsg
+      return false
+   end if
+   
+   return true
+end fedwiki_IsHtmlUrl
+
+function fedwiki_IsWiki someDomain
+   put fedwiki_FetchSitemapArray (someDomain) into sitemapArray
+   put sitemapArray is an array into someBoolean
+   return someBoolean
+end fedwiki_IsWiki
+
+function fedwiki_IsWikiPage wikiDomain, pSlug
+   if pSlug is empty then put "welcome-visitors" into pSlug
+   put fedwiki_PageJsonUrl (wikiDomain, pSlug) into jsonURL 
+   fedwiki_TestJsonUrl jsonURL, pageTitle, storyArray, journalArray
+   return the result
+end fedwiki_IsWikiPage
+
+command fedwiki_TestJsonUrl jsonURL, @pageTitle, @storyArray, @journalArray
+   -- http://openscience.cc/maven-science.json
+   put "http://(.+)/(.+).json" into someReg
+   if matchtext (jsonURL, someReg, wikiDomain, pageSlug) is false then
+      -- if not (jsonURL ends with ".json") then
+      put empty into pageTitle
+      put empty into storyArray
+      put empty into journalArray
+      return false
+   end if
+   --
+   put url jsonURL into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   --
+   put pageArray ["title"] into pageTitle
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   if pageTitle is empty or storyArray is not an array or journalArray is not an array then
+      return false
+   else
+      return true
+   end if
+end fedwiki_TestJsonUrl
+
+
 --> Fedwiki | List
 -
 function fedwiki_ListSitemapPages wikiDomain
@@ -250,16 +457,27 @@ end fedwiki_ConstructPluginJsonUrl
 
 --> Fedwiki | Transport | Helpers
 -
-function fedwiki_ConstructMarkdownIndex someIndex
+function fedwiki_HkeyMarkdownIndex hkeyIndex
+   replace comma with CR in hkeyIndex
+   repeat for each line hkey in hkeyIndex
+      if hkey is empty then next repeat
+      hkey_Deconstruct hKey, hName, hType, hObject, hNum
+      put "- [[" & hName & "]]" & CR after markdownList
+   end repeat
+   delete char -1 of markdownList
+   return markdownList
+end fedwiki_HkeyMarkdownIndex
+
+function fedwiki_MarkdownIndex someIndex
    replace comma with CR in someIndex
    repeat for each line someLine in someIndex
       put word 1 to -1 of someLine into domainName
       if domainName is empty then next repeat
       put "- [[" & domainName & "]]" & CR after markdownList
    end repeat
-   delete char -1 of markdownIndex
+   delete char -1 of markdownList
    return markdownList
-end fedwiki_ConstructMarkdownIndex
+end fedwiki_MarkdownIndex
 
 
 --> Fedwiki | Post
@@ -406,216 +624,6 @@ function fedwiki_ItemNumToID itemNum, pageArray
 end fedwiki_ItemNumToID
 
 
---> Fedwiki | Fetch
--
-function fedwiki_FetchLastLineUpArray droppedURL, pNotTheseSlugs
-   put fedwiki_FetchLastLineUpJson (droppedURL, pNotTheseSlugs) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   return pageArray
-end fedwiki_FetchLastLineUpArray
-
-function fedwiki_FetchLastLineUpJson droppedURL, pNotTheseSlugs
-   -- does not check that droppedURL is not a ".html" page
-   if pNotTheseSlugs is empty then put "journal-cleaner-transport" into pNotTheseSlugs
-   
-   put fedwiki_ConstructUrlArray (droppedURL) into urlArray
-   if urlArray is false then return false
-   
-   put item 2 of the extents of urlArray into lineUpNum
-   put urlArray [lineUpNum]["pageSlug"] into pageSlug
-   if pageSlug is among the items of pNotTheseSlugs and lineUpNum is not 1 then
-      subtract 1 from lineUpNum
-   end if
-   
-   put fedwiki_FetchLineUpJson (urlArray, lineUpNum) into pageJSON
-   return pageJSON
-end fedwiki_FetchLastLineUpJson
-
-function fedwiki_FetchLineUpJson urlArray, lineUpNum
-   if lineUpNum = -1 then put item 2 of the extents of urlArray into lineUpNum
-   
-   put urlArray [lineUpNum]["pageSlug"] into pageSlug
-   put urlArray [lineUpNum]["someDomain"] into someDomain
-   
-   -- http://forage.david.bovill.me/entry-level-browser.json?random=72428048
-   put "http://" & someDomain & "/" & pageSlug & ".json" into someUrl
-   -- put "?random=" & the milliseconds after someUrl
-   put url someUrl into someJSON
-   return someJSON
-end fedwiki_FetchLineUpJson
-
-
---> Fedwiki | Fetch | Drop
--
-function fedwiki_FetchDroppedPageJson droppedURL, pSlug
-   set the itemdelimiter to "."
-   switch
-      case pSlug is empty and item -1 of droppedURL = "html"
-         return fedwiki_FetchDroppedFlagJson (droppedURL)
-         break
-      case pSlug is empty
-         put fedwiki_FetchLastLineUpJson (droppedURL) into pageJson
-         break
-      default
-         put fedwiki_FetchPageJson (fedwikiDomain, pSlug) into pageJson
-   end switch
-   return pageJson
-end fedwiki_FetchDroppedPageJson
-
-function fedwiki_FetchDroppedFlagJson droppedURL
-   -- http://future.fedwiki.org/wiki-domain.html
-   -- put "http://transport.fedwiki.org/view/welcome-visitors/view/federated-microservice" into droppedURL
-   
-   set the itemdelimiter to slash
-   if not (the number of items of droppedURL > 3) then return empty
-   put item 3 of droppedURL into fedwikiDomain
-   put item -1 of droppedURL into pSlug
-   --
-   set the itemdelimiter to "."
-   put item 1 of pSlug into pSlug
-   --
-   put fedwiki_FetchPageJson (fedwikiDomain, pSlug) into pageJson
-   return pageJson
-end fedwiki_FetchDroppedFlagJson
-
-
---> Fedwiki | Tests
--
-command fedwiki_SetDroppedFaviconInfo @pageSlug, @fedwikiDomain, pDoubleCheck
-   -- safe double check thing
-   put fedwiki_IsFaviconDrop() into isFavicon
-   if isFavicon is false then
-      put empty into pageSlug
-      put empty into fedwikiDomain 
-      return false
-   end if
-   
-   put fedwiki_GetDroppedUrl() into droppedURL
-   set the itemDelimiter to "/"
-   put item 3 of droppedURL into fedwikiDomain
-   put item -1 of droppedURL into pageSlug
-   replace ".html" with empty in pageSlug
-   
-   if pDoubleCheck is not true then return true
-   
-   -- let's check it is a wiki domain
-   -- pageSlug may be a ghost page so don't check that
-   put fedwiki_IsWikiPage (fedwikiDomain) into isWiki
-   if isWiki then
-      return true
-   else
-      put empty into pageSlug
-      put empty into fedwikiDomain 
-      return false
-   end if
-end fedwiki_SetDroppedFaviconInfo
-
-command fedwiki_FilterCheck @wikiDomains
-   repeat for each line wikiDomain in wikiDomains
-      set the cursor to busy
-      if fedwiki_IsWiki (wikiDomain) is true then
-         put wikiDomain & CR after goodDomains
-      else
-         put wikiDomain & CR after badDomains
-      end if
-   end repeat
-   delete char -1 of goodDomains
-   delete char -1 of badDomains
-   put goodDomains into wikiDomains
-   return badDomains
-end fedwiki_FilterCheck
-
-function fedwiki_IsFaviconDrop pDropJSON
-   -- quick check of dropped html
-   if pDropJSON is empty then put $_POST_RAW into pDropJSON
-   put fedwiki_GetDroppedArray (pDropJSON) into dropArray
-   put dropArray ["html"] into droppedHtml
-   --
-   if the environment = "server" then
-      rigLoaderLoadLibrary "Useragent"
-      put rigBrowser() into tBrowser
-   else
-      put empty into tBrowser
-   end if
-   
-   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
-   switch tBrowser
-      case "Firefox"
-         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
-         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
-         break
-      case "Safari"
-         put revXMLAttribute (treeID, "/img", "class") into favClass
-         put revXMLAttribute (treeID, "/img", "height") into favHeight
-         break
-         -- case "Chrome"
-      default
-         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
-         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
-         break
-   end switch
-   revDeleteXMLTree treeID
-   put favClass = "favicon" and favHeight = "32px" into isFavicon
-   --
-   return isFavicon
-end fedwiki_IsFaviconDrop
-
-function fedwiki_IsHtmlUrl wikiPageURL, @errorMsg
-   -- http://tools.progressivedemocracy.cc/collaborative-bookmarking.html
-   set the itemdelimiter to slash
-   if the number of items of wikiPageURL is not 4 then
-      put "Error, dropped url is not a single .html wiki page" into errorMsg
-      return false
-   end if
-   
-   set the itemdelimiter to "."
-   if item -1 of wikiPageURL is not "html" then
-      put "Error, dropped url is not a single .html wiki page" into errorMsg
-      return false
-   end if
-   
-   return true
-end fedwiki_IsHtmlUrl
-
-function fedwiki_IsWiki someDomain
-   put fedwiki_FetchSitemapArray (someDomain) into sitemapArray
-   put sitemapArray is an array into someBoolean
-   return someBoolean
-end fedwiki_IsWiki
-
-function fedwiki_IsWikiPage wikiDomain, pSlug
-   if pSlug is empty then put "welcome-visitors" into pSlug
-   put fedwiki_PageJsonUrl (wikiDomain, pSlug) into jsonURL 
-   fedwiki_TestJsonUrl jsonURL, pageTitle, storyArray, journalArray
-   return the result
-end fedwiki_IsWikiPage
-
-command fedwiki_TestJsonUrl jsonURL, @pageTitle, @storyArray, @journalArray
-   -- http://openscience.cc/maven-science.json
-   put "http://(.+)/(.+).json" into someReg
-   if matchtext (jsonURL, someReg, wikiDomain, pageSlug) is false then
-      -- if not (jsonURL ends with ".json") then
-      put empty into pageTitle
-      put empty into storyArray
-      put empty into journalArray
-      return false
-   end if
-   --
-   put url jsonURL into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   --
-   put pageArray ["title"] into pageTitle
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   if pageTitle is empty or storyArray is not an array or journalArray is not an array then
-      return false
-   else
-      return true
-   end if
-end fedwiki_TestJsonUrl
-
-
 --> Fedwiki | Create
 -
 function fedwiki_CreateMarkdownPageArray pageTitle, pageDescription
@@ -686,38 +694,6 @@ command fedwiki_ReplaceExternalLinks @wikiText
    end repeat
    return indexNum
 end fedwiki_ReplaceExternalLinks
-
-function fedwiki_ConstructPageMarkdown pageTitle, storyArray
-   put "#" && pageTitle & CR into pageMarkdown
-   --
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum]["type"] into itemType
-      put storyArray [itemNum]["text"] into itemText
-      put word 1 to -1 of itemText into itemText
-      
-      -- let's replace external wiki links with normal html links
-      fedwiki_ReplaceExternalLinks itemText
-      --
-      switch itemType
-         case "markdown"
-            if word 1 of itemText = "#" then
-               put "##" into word 1 of itemText
-               put itemText & CR after pageMarkdown
-            else
-               put itemText & CR & CR after pageMarkdown
-            end if
-            break
-         case "video"
-            _AddVideo pageMarkdown, itemText
-            break
-         case "html" -- could convert?
-         case "text"
-         default
-            put itemText & CR & CR after pageMarkdown
-      end switch
-   end repeat
-   return pageMarkdown
-end fedwiki_ConstructPageMarkdown
 
 
 --> Fedwiki | Ref Plugin
@@ -1878,37 +1854,6 @@ private command _stripEndHashFromSlug @pageSlug
    set the itemdelimiter to "#"
    put item 1 of pageSlug into pageSlug
 end _stripEndHashFromSlug
-
-private command _AddVideo @pageMarkdown, itemText
-   put word 1 of itemText into sWord
-   put word 2 of itemText into videoID
-   switch sWord
-      case "YOUTUBE"
-         put "[https://youtu.be/" & videoID & "](https://youtu.be/" & videoID & ")" & CR & CR after pageMarkdown
-         -- put youtube_ConstructWatchUrl (videoID) & CR & CR after pageMarkdown
-         break
-      case "Vimeo"
-         put vimeo_ConstructWatchUrl (videoID) & CR & CR after pageMarkdown
-         break
-      default
-         put itemText & CR & CR after pageMarkdown
-   end switch
-end _AddVideo
-
-private command _AddHtmlVideo @pageMarkdown, itemText
-   put word 1 of itemText into sWord
-   put word 2 of itemText into videoID
-   switch sWord
-      case "YOUTUBE"
-         put youtube_ConstructWatchUrl (videoID) & CR & CR after pageMarkdown
-         break
-      case "Vimeo"
-         put vimeo_ConstructWatchUrl (videoID) & CR & CR after pageMarkdown
-         break
-      default
-         put itemText & CR & CR after pageMarkdown
-   end switch
-end _AddHtmlVideo
 
 
 --> Deps

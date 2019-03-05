@@ -4,7 +4,7 @@
 license: GPLv3
 name: lib_WikiPageArray
 type: library
-version: 0.1
+version: 0.2
 also: model_PageArray
 
 /*
@@ -14,29 +14,20 @@ In this library we look to collect the key handlers we use to create wiki-page a
 This is part of the refactoring process for the various messy wikipedia and mediawiki libraries that have evolved over a long period of time.
 We take key handlers from mediawiki.lc and bring dependencies here. We choose the ones that are specific to the task,
 keeping more general, abstracted handlers in their own libraries.
+
+See also "fedwiki_FetchWikipediaSummaryPageArray of "lib_FedWikiPedia"
+There may be map and other stuff in that code that is not here?
 */
 
 
 --> Working on
 -
-function restbase_FetchSummaryPageArray pageSlug, pLang
-   -- Can't find anything that uses this - test and see what it does?
-   
-   /*   
-   -- consider using "put mediawiki_FetchWikiText("Ant")"
-   -- also uses old "mediawiki_FetchSummaryDescription" to fetch multiple first lines
-   -- as restbase won't do that except in html
-   -- would be great to enable links in first paragraphs like "wikicommons_ConstructSectionPageArray" does
-   -- using sectionnum = 0 does not work with "wikicommons_ConstructSectionPageArray"
-   */
-   
-   put mediawiki_FetchSummaryDescription (pageSlug, true, true, pLang) into firstSection -- uses old stuff anyway to get more than one line
-   put restbase_FetchSummaryArray (pageSlug, pLang) into summaryArray -- fetch some metadata
-   put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray
-   --
-   put mediawiki_ConstructSummaryPageArray (firstSection, summaryArray, mobileSectionArray) into pageArray
+function mediawiki_FetchDialoguePageArray pageSlug
+   put pageSlug into curlyData ["all"]["New Page Title"]
+   put pageArray_Fetch ("future.fedwiki.org", "future-dialogue-template") into pageArray
+   curly_MergePageArray pageArray, curlyData
    return pageArray
-end restbase_FetchSummaryPageArray
+end mediawiki_FetchDialoguePageArray
 
 
 --> Mediawiki | Fetch
@@ -106,13 +97,6 @@ function mediawiki_FetchParseArray wikiSlug, pSectionNum, pApiRoot
    put sandboxArray ["parse"] into parseArray
    return parseArray
 end mediawiki_FetchParseArray
-
-function mediawiki_FetchDialoguePageArray pageSlug
-   put pageSlug into curlyData ["all"]["New Page Title"]
-   put pageArray_Fetch ("future.fedwiki.org", "future-dialogue-template") into pageArray
-   pageArray_MergeCurly pageArray, curlyData
-   return pageArray
-end mediawiki_FetchDialoguePageArray
 
 
 --> Mediawiki | Titles
@@ -226,7 +210,7 @@ function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArra
 end mediawiki_ConstructPageArray
 
 function mediawiki_ConstructSummaryPageArray firstSection, summaryArray, mobileSectionArray
-   -- used by "restbase_FetchSummaryPageArray"
+   -- used by "mediawiki_FetchSummaryPageArray"
    
    put summaryArray ["title"] into pageTitle
    put line 1 of firstSection into firstLine

@@ -12,54 +12,24 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 */
 
 
---> Atopia | WikiPage | Model
+--> PageData
 -
-command atopia_StoreWikiPageArray fedwikiDomain, pageSlug, pageArray
-   put json_FromArray (pageArray) into pageJSON
-   atopia_StoreWikiJson fedwikiDomain, pageSlug, pageJSON
-   put the result into shellResult
-   return shellResult -- should be empty unless an error
-end atopia_StoreWikiPageArray
+/*
+PageData = pageArray + metadata
+In particular we add curlyData to allow access to tiems by name not simply id or itemNum
+*/
 
-function atopia_FetchWikiJson pageSlug, fedwikiDomain, pUseSSH
-   if pUseSSH is true then
-      put fedwiki_ConstructPath (fedwikiDomain, pageSlug) into wikiPagePath
-      put atopia_FetchData (wikiPagePath) into someJSON
-   else
-      put fedwiki_FetchPageJson (fedwikiDomain, pageSlug) into someURL
-   end if
-   return someJSON
-end atopia_FetchWikiJson
+function pageData_GetText pageData, varName
+   put pageData_GetItemArray (pageData, varName) into itemArray
+   return itemArray ["text"]
+end pageData_GetText
 
-command atopia_StoreWikiJson fedwikiDomain, pageSlug, pageJSON
-   put fedwiki_ConstructPath (fedwikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_StoreData wikiPagePath, pageJSON
-   put the result into shellResult
-   if shellResult is not empty then return shellResult
-   
-   -- now should update the sitemap
-   atopia_DeleteWikiSitemap fedwikiDomain
-   return shellResult -- should be empty unless an error
-end atopia_StoreWikiJson
-
-command atopia_DeleteWikiJSON fedwikiDomain, pageSlug
-   put fedwiki_ConstructPath (fedwikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_DeleteFile wikiPagePath
-   --
-   put the result into shellResult
-   return shellResult
-end atopia_DeleteWikiJSON
-
-command atopia_DeleteWikiSitemap fedwikiDomain
-   put fedwiki_ConstructSitemapPath (fedwikiDomain) into sitemapPath
-   --
-   atopia_DeleteFile sitemapPath
-   --
-   put the result into shellResult
-   return shellResult
-end atopia_DeleteWikiSitemap
+function pageData_GetItemArray pageData, varName
+   put pageData ["pageItem"][varName] into itemID
+   put fedwiki_FindItemID (itemID, pageData) into itemNum
+   put pageData ["story"][itemNum] into itemArray
+   return itemArray
+end pageData_GetItemArray
 
 
 --> PageArray | Video
@@ -81,44 +51,6 @@ function pageArray_ConstructVideoArray videoID, videoType, videoDescription, pID
 end pageArray_ConstructVideoArray
 
 
---> PageArray | Template | Model
--
-function pageArray_FetchTemplate fedwikiDomain, pageSlug, curlyKey, curlyValue
-   if curlyKey is an array then
-      put curlyKey into curlyArray
-   else
-      put curlyValue into curlyArray [curlyKey]
-   end if
-   -- some default values
-   put pageSlug into curlyArray ["Page Slug"]
-   put fedwikiDomain into curlyArray ["Wiki Domain"]
-   if curlyArray ["Page Title"] is empty then
-      put fedwiki_ConstructTitle (pageSlug) into curlyArray ["Page Title"]
-   end if
-   --
-   put pageArray_Fetch (fedwikiDomain, pageSlug) into pageArray
-   _MergeCurlyArray pageArray, curlyArray
-   return pageArray
-end pageArray_FetchTemplate
-
-
---> PageArray | Handler | Help | Model
--
-function pageArray_FetchHandler hKey
-   _SetHandlerDomainInfo hKey, wikiDomain, pageTitle, pageSlug
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   return pageArray
-end pageArray_FetchHandler
-
-command pageArray_StoreHandler hKey, pageArray
-   _SetHandlerDomainInfo hKey, wikiDomain, pageTitle, pageSlug
-   --
-   atopia_StoreWikiPageArray wikiDomain, pageSlug, pageArray
-   put the result into shellResult
-   return shellResult
-end pageArray_StoreHandler
-
-
 --> PageArray
 -
 command pageArray_ReplaceGraph @pageArray, dotText
@@ -128,26 +60,6 @@ command pageArray_ReplaceGraph @pageArray, dotText
       put dotText into pageArray ["story"][itemNum]["text"]
    end if
 end pageArray_ReplaceGraph
-
-
---> PageArray | Curly
--
-command pageArray_MergeCurly @pageArray, curlyData
-   -- lets merge specific item ids
-   put curlyData ["id"] into curlyIdArray
-   _MergeCurlyIDArray pageArray, curlyIdArray
-   
-   -- let's merge everything looping through every story item
-   put curlyData ["all"] into curlyArray
-   _MergeCurlyArray pageArray, curlyArray
-end pageArray_MergeCurly
-
-command pageArray_CurlyMergeItem @pageArray, itemID, curlyArray
-   -- applies curly merge to a page-item with id itemID
-   put fedwiki_GetStoryItemText (pageArray, itemID) into itemText
-   text_MergeCurly itemText, curlyArray
-   fedwiki_SetStoryItemText pageArray, itemID, itemText
-end pageArray_CurlyMergeItem
 
 function pageArray_ExtractRefItems fromPageArray
    put fromPageArray ["story"] into fromStoryArray
@@ -186,45 +98,64 @@ function storyArray_GetLastPageFold storyArray
 end storyArray_GetLastPageFold
 
 
---> Private
+--> Curly
 -
-private command _MergeCurlyArray @pageArray, curlyArray
+function curly_GetData curlyData, varName
+   put curlyData ["pageItem"][varName] into itemID
+   put curlyData ["id"][itemID] into varText
+   return varText
+end curly_GetData
+
+command curly_SetData @curlyData, varName, varText
+   -- curlyData should already have been prepped with "curly_SetPageItemArray"
+   put curlyData ["pageItem"][varName] into itemID
+   put varText into curlyData ["id"][itemID]
+end curly_SetData
+
+command curly_SetPageItemArray @curlyData, varName, pageItemID
+   put pageItemID into curlyData ["pageItem"][varName]
+end curly_SetPageItemArray
+
+command curly_MergePageArray @pageArray, curlyData
+   -- lets merge specific item ids
+   put curlyData ["id"] into curlyIdArray
+   curly_SetPageItems pageArray, curlyIdArray
+   
+   -- let's merge everything looping through every story item
+   curly_MergeAll pageArray, curlyData
+end curly_MergePageArray
+
+command curly_SetPageItems @pageArray, curlyIdArray
+   repeat for each key itemID in curlyIdArray
+      put curlyIdArray [itemID] into itemText
+      fedwiki_SetStoryItemText pageArray, itemID, itemText
+   end repeat
+end curly_SetPageItems
+
+command curly_MergeAll @pageArray, curlyData
+   put curlyData ["all"] into curlyArray
+   
    -- curly merge every story items text
    put pageArray ["story"] into storyArray
    repeat with itemNum = 1 to item 2 of the extents of storyArray
       put storyArray [itemNum]["text"] into itemText
-      text_MergeCurly itemText, curlyArray
+      curly_Merge itemText, curlyArray
       put itemText into pageArray ["story"][itemNum]["text"]
    end repeat
-end _MergeCurlyArray
+end curly_MergeAll
 
-private command _MergeCurlyIDArray @pageArray, curlyIdArray
-   repeat for each key itemID in curlyIdArray
-      put curlyIdArray [itemID] into itemText
-      -- pageArray_CurlyMergeItem pageArray, itemID, curlyArray
-      fedwiki_SetStoryItemText pageArray, itemID, itemText
-   end repeat
-end _MergeCurlyIDArray
-
-private command _SetHandlerDomainInfo hKey, @wikiDomain, @pageTitle, @pageSlug
-   hkey_Deconstruct hKey, hName, hType, hObject, hNum
-   put "handler.livecode.world" into wikiDomain
-   put text_InitialCaps (hName) into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-end _SetHandlerDomainInfo
-
-
---> Deps
--
-command text_MergeCurly @someText, curlyArray
+command curly_Merge @someText, curlyArray
    repeat for each key curlyLabel in curlyArray
       put curlyArray [curlyLabel] into curlyReplacement
       put "(\{\{\s*" & curlyLabel & "\s*\}\})" into someReg
       text_StripReg someText, someReg, curlyReplacement
    end repeat
-end text_MergeCurly
+end curly_Merge
 
-command text_StripReg @wikiText, someReg, pReplaceText
+
+--> Private | Deps
+-
+private command text_StripReg @wikiText, someReg, pReplaceText
    local refStart, refEnd
    put 0 into indexNum
    repeat
