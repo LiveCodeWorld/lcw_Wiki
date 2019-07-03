@@ -137,9 +137,9 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    end if
    
    put "# See also" & CR & markdownTOC into markdownSection
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownSection
+   pageArray_AddMarkdown fedwikiPageArray, markdownSection
    
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end fedwiki_FetchWikipediaSummaryPageArray
 
@@ -394,7 +394,7 @@ function fedwiki_ConvertWikipediaQueryArray wikipediaQueryArray
    end repeat
    
    put fedwiki_ConstructNewPageArray (pageTitle, pageDescription) into pageArray
-   fedwiki_AddHtmlToPageArray pageArray, pageExtract
+   pageArray_AddHtml pageArray, pageExtract
    
    wikicommons_AddAllImages pageArray, pageTitle
    

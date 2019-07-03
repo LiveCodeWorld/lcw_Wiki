@@ -13,6 +13,13 @@ This menu is used to control a Livecode wiki browser.
 
 --> Global | Wiki | Menu
 -
+on menu_Test
+   put the params
+end menu_Test
+
+on _
+end _
+
 on menu_DisplayJellyBrowser displayView
    go to stack "Fedwiki Editor"
 end menu_DisplayJellyBrowser
@@ -214,3 +221,4 @@ function _GetWikiView mTarget
    put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
    return wikiView
 end _GetWikiView
+

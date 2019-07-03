@@ -24,7 +24,7 @@ function wikicommons_ConstructBasicSummaryPageArray pageTitle, pageDescription, 
    local fedwikiPageArray
    
    put pageTitle into fedwikiPageArray ["title"]
-   put fedwiki_ConstructJournalArray (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
+   put pageArray_ConstructJournal (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
    
    -- let's add wikipedia url link to first line
    put word 1 to -1 of pageDescription into pageDescription
@@ -114,7 +114,7 @@ command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile
          
          -- create html image
          put fedwiki_ConstructImageHtml (imageURL, plainCaption, descriptionURL, false) into imageHTML
-         fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
+         pageArray_AddHtml fedwikiPageArray, imageHTML
          
          -- create encoded image
          put url thumbURL into someImage
@@ -123,7 +123,7 @@ command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile
          put item -1 of thumbMime into imageType -- png
          put fedwiki_ConstructEncodedImageArray (someImage, imageType, plainCaption) into imageArray
          
-         fedwiki_AddItemArrayToStoryEnd imageArray, fedwikiPageArray
+         pageArray_AddItemArray imageArray, fedwikiPageArray
          return true
    end switch
 end wikicommons_FetchAndAddTwoImages
@@ -188,7 +188,7 @@ function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL,
    
    -- Start constructing fedwikiPageArray
    put sectionTitle into fedwikiPageArray ["title"]
-   put fedwiki_ConstructJournalArray (sectionTitle, pSourceArray) into fedwikiPageArray ["journal"]
+   put pageArray_ConstructJournal (sectionTitle, pSourceArray) into fedwikiPageArray ["journal"]
    
    -- let's remove section title and put it at the end in case needed
    delete line 1 of sectionWikiText -- == sectionTitle ==
@@ -205,9 +205,9 @@ function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL,
    
    -- add draggable markDownTitles
    put "#" && sectionTitle into markDownTitle
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, markDownTitle
+   pageArray_AddMarkdown fedwikiPageArray, markDownTitle
    put "- [[" & sectionTitle & "]]" into markDownTitle
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, markDownTitle
+   pageArray_AddMarkdown fedwikiPageArray, markDownTitle
    
    -- move first image to second paragraph
    fedwiki_MakeTextParagraphFirst fedwikiPageArray -- in case image is first
@@ -217,7 +217,7 @@ function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL,
    fedwiki_AddExternalLinkToFirstSection fedwikiPageArray, wikipediaURL
    
    -- strip journal
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end wikicommons_ConstructSectionPageArray
 
@@ -228,7 +228,7 @@ command wikicommons_MoveImage @fedwikiPageArray, pToItemNum
    if pToItemNum is empty then put 2 into pToItemNum -- move image to item 2
    
    put fedwiki_FindFirstPicture (fedwikiPageArray) into foundItemNum
-   pageArray_MoveStoryItem fedwikiPageArray, foundItemNum, pToItemNum
+   pageArray_MoveItem fedwikiPageArray, foundItemNum, pToItemNum
    put the result into moveBoolean
    return moveBoolean
 end wikicommons_MoveImage
@@ -474,14 +474,14 @@ function wikicommons_FetchBasicTwoImagePageArray shortImageFile, pPageTitle, pSo
    if pPageTitle is empty then put "Wikimedia Image" into pPageTitle
    if pSomeText is empty then put "Drag these images to your source page..." into pSomeText
    
-   put fedwiki_ConstructPageArray (pPageTitle, pSomeText) into fedwikiPageArray   
+   put pageArray_Construct (pPageTitle, pSomeText) into fedwikiPageArray   
    set the itemdelimiter to "."
    if item -1 of shortImageFile is "webm" then
       put wikicommons_ConstructVideoPageArray (pPageTitle, pSomeText, pWikipediaUrl, shortImageFile) into fedwikiPageArray
    else
       wikicommons_FetchAndAddTwoImages fedwikiPageArray, shortImageFile
    end if
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end wikicommons_FetchBasicTwoImagePageArray
 
@@ -556,7 +556,7 @@ command _AddTocFromSectionTitle @fedwikiPageArray, pageSlug, sectionTitle
    wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, subsectionInfoArray, subsectionArray
    --
    if subsectionArray is an array then
-      fedwiki_AddMarkdownToPageArray fedwikiPageArray, "# Sections"
+      pageArray_AddMarkdown fedwikiPageArray, "# Sections"
       _AddTocToPageArray fedwikiPageArray, pageSlug, subsectionArray, tocArray
    end if
 end _AddTocFromSectionTitle
@@ -569,7 +569,7 @@ command _AddTocToPageArray @pageArray, pageSlug, subsectionArray, tocArray
       _DeconstructSectionInfoArray sectionInfoArray, sectionTitle, sectionSlug, sectionNum, dotNumber, sectionLevel
       
       put wikicommons_ConstructSectionForm (pageSlug, sectionNum, sectionTitle) into formHTML
-      fedwiki_AddHtmlToPageArray pageArray, formHTML
+      pageArray_AddHtml pageArray, formHTML
    end repeat
 end _AddTocToPageArray
 

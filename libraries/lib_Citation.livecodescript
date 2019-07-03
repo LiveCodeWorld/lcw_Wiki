@@ -84,7 +84,7 @@ function zotero_FetchJSON restPath
 end zotero_FetchJSON
 
 function zotero_GetAuthenticationToken
-   put secret_GetCached ("ZoteroAuthenticationToken", "zotero") into oAuthToken
+   put secret_Get ("ZoteroAuthenticationToken", "zotero") into oAuthToken
    return oAuthToken
 end zotero_GetAuthenticationToken
 

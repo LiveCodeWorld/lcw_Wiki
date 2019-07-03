@@ -20,7 +20,7 @@ command pageArray_AddMedia @pageArray, imageURL, pImageCaption, pDescriptionURL
       wikicommons_AddVideoToPageArray pageArray, shortMediaFile
    else
       put fedwiki_ConstructImageHtml (imageURL, pCaption, pCaptionLinkURL, pLinkToImage) into imageHTML
-      fedwiki_AddHtmlToPageArray pageArray, imageHTML
+      pageArray_AddHtml pageArray, imageHTML
    end if
    return someHTML
 end pageArray_AddMedia
@@ -37,7 +37,7 @@ end wikicommons_ConstructImageHtml
 function wikicommons_ConstructVideoPageArray pageTitle, simplePageDescription, wikipediaUrl, shortVideoFile, pSourceArray
    put wikicommons_ConstructBasicSummaryPageArray (pageTitle, simplePageDescription, wikipediaUrl, pSourceArray) into pageArray
    wikicommons_AddVideoToPageArray pageArray, shortVideoFile
-   fedwiki_CleanJournal pageArray
+   pageArray_CleanJournal pageArray
    return pageArray
 end wikicommons_ConstructVideoPageArray
 
@@ -45,8 +45,8 @@ function wikicommons_ConstructAudioPageArray pageTitle, simplePageDescription, w
    put wikicommons_ConstructBasicSummaryPageArray (pageTitle, simplePageDescription, wikipediaUrl, pSourceArray) into pageArray
    wikicommons_AddAudioToPageArray pageArray, shortAudioFile
    put the result into audioCaption
-   fedwiki_AddMarkdownToPageArray pageArray, audioCaption
-   fedwiki_CleanJournal pageArray
+   pageArray_AddMarkdown pageArray, audioCaption
+   pageArray_CleanJournal pageArray
    return pageArray
 end wikicommons_ConstructAudioPageArray
 
@@ -62,7 +62,7 @@ command wikicommons_AddAudioToPageArray @pageArray, shortAudioFile, pMediaCaptio
    put word 1 of the result into someCodec
    if someCodec = "ogg" then
       fedwiki_AddExternalLink pMediaCaption, descriptionURL
-      fedwiki_AddAudioToPageArray pageArray, mediaURL, pMediaCaption
+      pageArray_AddAudio pageArray, mediaURL, pMediaCaption
       return pMediaCaption
    else
       return empty
@@ -84,7 +84,7 @@ end wikicommons_AddVideoToPageArray
 
 command wikicommons_AddImageToPageArray @pageArray, sandPageArray
    put wikicommons_ConstructImageHtml (sandPageArray) into imageHTML
-   fedwiki_AddHtmlToPageArray pageArray, imageHTML
+   pageArray_AddHtml pageArray, imageHTML
 end wikicommons_AddImageToPageArray
 
 command wikicommons_AddMediaToPageArray @pageArray, shortMediaFile, pMediaCaption, pApiStem
@@ -101,7 +101,7 @@ command wikicommons_AddMediaToPageArray @pageArray, shortMediaFile, pMediaCaptio
          -- we assume it is an image
          _DeconstructSandMediaArray sandPageArray, pageTitle, mediaURL, pMediaCaption, descriptionURL, thumbURL
          put fedwiki_ConstructImageHtml (mediaURL, pMediaCaption, descriptionURL) into imageHTML
-         fedwiki_AddHtmlToPageArray pageArray, imageHTML
+         pageArray_AddHtml pageArray, imageHTML
    end switch
 end wikicommons_AddMediaToPageArray
 
@@ -184,24 +184,24 @@ command wikicommons_AddSectionToPageArray @pageArray, wikiText, pFirstSectionOnl
             next repeat
          case markDownBulletSection is not empty
             delete char -1 of markDownBulletSection
-            fedwiki_AddMarkdownToPageArray pageArray, markDownBulletSection
+            pageArray_AddMarkdown pageArray, markDownBulletSection
             put empty into markDownBulletSection
             break
          case char 1 of wikisectionLine = "<"
             fedwikipedia_CleanInternalLinks wikiSectionLine
-            fedwiki_AddHtmlToPageArray pageArray, wikisectionLine
+            pageArray_AddHtml pageArray, wikisectionLine
             break
          case char 1 of wikisectionLine = "=" and char -1 of wikisectionLine = "="
             if pFirstSectionOnly is true then
                exit repeat
             end if
             mediawiki_ConvertSectionTitle wikisectionLine
-            fedwiki_AddMarkdownToPageArray pageArray, wikisectionLine
+            pageArray_AddMarkdown pageArray, wikisectionLine
             break
          default
             -- we use markdown now instead of text
             fedwikipedia_CleanInternalLinks wikiSectionLine
-            fedwiki_AddMarkdownToPageArray pageArray, wikisectionLine
+            pageArray_AddMarkdown pageArray, wikisectionLine
             break
       end switch
    end repeat
@@ -209,7 +209,7 @@ command wikicommons_AddSectionToPageArray @pageArray, wikiText, pFirstSectionOnl
    if markDownBulletSection is not empty then
       -- exitted without adding markDownBulletSection
       delete char -1 of markDownBulletSection
-      fedwiki_AddMarkdownToPageArray pageArray, markDownBulletSection
+      pageArray_AddMarkdown pageArray, markDownBulletSection
    end if
    
    delete char -1 of addedImages

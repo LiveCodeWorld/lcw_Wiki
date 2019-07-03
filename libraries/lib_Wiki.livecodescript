@@ -18,11 +18,11 @@ function fedwiki_ConvertGitHubReadme readmeMarkdown, pageTitle
    put wiki_Merge ("On this page we describe the [[Github]] project {{githubProjectName}}.") into firstPara
    --
    put fedwiki_ConstructNewPageArray (pageTitle, firstPara) into pageArray
-   fedwiki_AddMarkdownToPageArray pageArray, readmeMarkdown
-   fedwiki_AddMarkdownToPageArray pageArray, "# See also"
-   fedwiki_AddMarkdownToPageArray pageArray, "- [[Github]]"
+   pageArray_AddMarkdown pageArray, readmeMarkdown
+   pageArray_AddMarkdown pageArray, "# See also"
+   pageArray_AddMarkdown pageArray, "- [[Github]]"
    --
-   fedwiki_CleanJournalArray pageArray
+   pageArray_CleanJournal pageArray
    return pageArray
 end fedwiki_ConvertGitHubReadme
 

@@ -48,13 +48,13 @@ function fedwikipedia_FetchSectionSummaryPageArray pageSlug, sectionNum
       *[[Etienne Chouard]]
       */
       
-      put fedwiki_ConstructPageArray (pageTitle) into fedwikiPageArray
+      put pageArray_Construct (pageTitle) into fedwikiPageArray
       --
-      fedwiki_AddMarkdownToPageArray fedwikiPageArray, "# See also"
+      pageArray_AddMarkdown fedwikiPageArray, "# See also"
       put sectionDescription into markdownSection
       delete line 1 of markdownSection
       replace "*[[" with "- [[" in markdownSection -- quick hack
-      fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownSection
+      pageArray_AddMarkdown fedwikiPageArray, markdownSection
    else
       put sectionTocArray ["index"][sectionTitle]["dot_number"] into dotNum
       toc_LookupArrayFromDotNum sectionTocArray, dotNum, lookUpArray, sectionTOC
@@ -70,11 +70,11 @@ function fedwikipedia_FetchSectionSummaryPageArray pageSlug, sectionNum
          put "# See also" into markdownSection
          -- put CR & sectionTOC after markdownSection
          put CR & sectionDescription after markdownSection
-         fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownSection
+         pageArray_AddMarkdown fedwikiPageArray, markdownSection
       end if
    end if
    
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end fedwikipedia_FetchSectionSummaryPageArray
 

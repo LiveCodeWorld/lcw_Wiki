@@ -37,13 +37,13 @@ function xkcd_FetchPageArray xkcdWikiUrl
    xkcd_DeconstructArray xkcdArray, imageURL, imageDescription, xkcdTranscript
    if imageURL is not empty then
       put fedwiki_ConstructImageHtml (imageURL, imageDescription, xkcdWikiUrl, false) into imageHTML
-      fedwiki_AddHtmlToPageArray fedwikiPageArray, imageHTML
+      pageArray_AddHtml fedwikiPageArray, imageHTML
    end if
    --
    delete line 1 of pageDescription -- was added already with "wikicommons_ConstructBasicSummaryPageArray"
    wikicommons_AddSectionToPageArray fedwikiPageArray, pageDescription, true
    --
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end xkcd_FetchPageArray
 

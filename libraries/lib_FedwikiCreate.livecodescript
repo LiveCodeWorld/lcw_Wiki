@@ -14,6 +14,9 @@ For now it contains handlers used by "roster.lc" (the Roster Transport).
 Should be called ""lib_RosterCreate""
 */
 
+--> Working on
+-
+
 --> Roster | Categorised
 -
 function roster_TidyPageFoldMaker templateDomain, templateSlug, rosterDomains
@@ -52,9 +55,7 @@ function roster_TidyPageFoldMaker templateDomain, templateSlug, rosterDomains
    -- add last divider
    put storyArray_GetLastPageFold (fromStoryArray) into lastDividerItemNum
    put fromStoryArray [lastDividerItemNum] into lastDividerItemArray
-   put item 2 of the extents of newStoryArray into nextItemNum
-   add 1 to nextItemNum
-   put lastDividerItemArray into newStoryArray [nextItemNum]
+   storyArray_AddDividerToEnd newStoryArray, lastDividerItemArray
    
    -- add footer
    _AddBeforePageFold fromPageArray, newStoryArray, lastDividerItemNum
@@ -62,7 +63,7 @@ function roster_TidyPageFoldMaker templateDomain, templateSlug, rosterDomains
    
    -- replace story and clean journal
    put newStoryArray into fromPageArray ["story"]
-   fedwiki_StripJournal fromPageArray
+   pageArray_StripJournal fromPageArray
    
    return fromPageArray
 end roster_TidyPageFoldMaker
@@ -117,39 +118,6 @@ private command _AddBeforePageFold fromPageArray, @newStoryArray, pLastDividerIt
    return startItemNum
 end _AddBeforePageFold
 
-private function _CreateActivityPage wikiDomain
-   -- used by "activity"
-   
-   set the itemdelimiter to "."
-   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle
-   
-   -- put federation_FetchMyRecentOther (false) into domainNames
-   -- put federation_FetchMyRecentOther (true) into rosterDomains
-   put atopia_FetchRoster (wikiDomain, false) into domainNames
-   
-   put atopia_FetchRoster (pFilterDomain, false) into domainNames
-   put fedwiki_MarkdownIndex (rosterDomains) into markdownIndex
-   
-   put rosterTitle into curlyArray ["rosterTitle"]
-   put wikiDomain into curlyArray ["wikiDomain"]
-   put rosterDomains into curlyArray ["rosterText"]
-   put markdownIndex into curlyArray ["rosterIndex"]
-   --
-   -- put pageArray_FetchTemplate ("roster.fedwiki.org", "roster-template", curlyArray) into pageArray
-   put pageSlug into curlyArray ["Page Slug"]
-   put fedwikiDomain into curlyArray ["Wiki Domain"]
-   put fedwiki_ConstructTitle (pageSlug) into curlyArray ["Page Title"]
-   put pageArray_Fetch ("roster.fedwiki.org", "roster-template") into pageArray
-   --
-   put curlyArray into curlyData ["all"]
-   curly_MergeAll pageArray, curlyData
-   --
-   put rosterTitle && "Activity" into pageTitle
-   put pageTitle into pageArray ["title"]
-   --
-   return pageArray
-end _CreateActivityPage
-
 private function _ConstructPostArray itemID, domainFilter, pageSlug, wikiDomain, minPageNum
    put itemID into postArray ["itemID"]
    put domainFilter into postArray ["domainFilter"]
@@ -159,14 +127,6 @@ private function _ConstructPostArray itemID, domainFilter, pageSlug, wikiDomain,
    return postArray
 end _ConstructPostArray
 
-private command _DeconstractPostArray postArray, @itemID, @domainFilter, @pageSlug, @wikiDomain, @minPageNum
-   put postArray ["itemID"] into itemID
-   put postArray ["domainFilter"] into domainFilter
-   put postArray ["pageSlug"] into pageSlug
-   put postArray ["wikiDomain"] into wikiDomain
-   put postArray ["minPageNum"] into minPageNum
-end _DeconstractPostArray
-
 
 --> More
 -
@@ -174,7 +134,7 @@ private command _AddMissingDomains @refItemStoryArray, missingDomainArray
    put item 2 of the extents of refItemStoryArray into newItemNum
    repeat for each key missingDomain in missingDomainArray
       add 1 to newItemNum
-      put fedwiki_ConstructStoryRefArray ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
+      put pageArray_ConstructReference ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
       put itemArray into refItemStoryArray [newItemNum]
    end repeat
 end _AddMissingDomains

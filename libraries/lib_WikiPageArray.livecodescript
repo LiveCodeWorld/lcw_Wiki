@@ -29,10 +29,42 @@ function mediawiki_FetchDialoguePageArray pageSlug
    return pageArray
 end mediawiki_FetchDialoguePageArray
 
+command mediawiki_DeconstructURL mediawikiURL, @pageSlug, @apiStem, @wikiLanguage
+   if mediawikiURL is empty then return false
+   put empty into wikiLanguage
+   switch
+      case matchText (mediawikiURL, "http://wiki.p2pfoundation.net/(.+)", pageSlug)
+         put "http://wiki.p2pfoundation.net/api.php?" into apiStem
+         break  
+      case matchText (mediawikiURL, "https://www.explainxkcd.com/wiki/index.php/(.+)", pageSlug)
+         put "https://www.explainxkcd.com/wiki/api.php?" into apiStem
+         break
+      case matchText (mediawikiURL, "https://rationalwiki.org/wiki/(.+)", pageSlug)
+         put "https://rationalwiki.org/w/api.php?" into apiStem
+         break
+      case matchText (mediawikiURL, "https://(.+).bitcoin.it/wiki/(.+)", wikiLanguage, pageSlug)
+         put "https://en.bitcoin.it/w/api.php?" into apiStem
+         break
+      case matchText (mediawikiURL, "https://sterbalssundrystudies.miraheze.org/wiki/(.+)", pageSlug)
+         put "https://sterbalssundrystudies.miraheze.org/w/api.php?" into apiStem
+         break
+      case matchText (mediawikiURL, "https://(.+).wikipedia.org/wiki/(.+)", wikiLanguage, pageSlug)
+         -- bug: think "wikipedia_ConstructApiStem" should return "https://en.wikipedia.org/w/api.php?" ???
+         put wikipedia_ConstructApiStem() into apiStem -- -- https://en.wikipedia.org/w/api.php
+         break
+      default
+         -- "Not a Wikipedia page!"
+         put "en" into wikiLanguage
+         put wikipedia_ConstructApiStem() into apiStem -- -- https://en.wikipedia.org/w/api.php
+         return false
+   end switch
+   return true
+end mediawiki_DeconstructURL
+
 
 --> Mediawiki | Fetch
 -
-function mediawiki_FetchPageArray pageSlug, pFirstSectionOnly, pApiStem, pLang
+function mediawiki_FetchPageArray wikipediaURL, pFirstSectionOnly
    /*
    -- was "wikicommons_ConstructPageArray"
    -- uses "wikicommons_AddSectionToPageArray" and "mediawiki_FetchWikiText" to fetch multiple first lines from wiki
@@ -46,29 +78,30 @@ function mediawiki_FetchPageArray pageSlug, pFirstSectionOnly, pApiStem, pLang
    For now you must delete the image manually.
    */
    
+   mediawiki_DeconstructURL wikipediaURL, pageSlug, apiStem, wikiLang
    put pFirstSectionOnly is not false into pFirstSectionOnly
    
    -- fetch some metadata
-   put restbase_FetchSummaryArray (pageSlug, pLang) into summaryArray -- pageSlug updated if redirect
+   put restbase_FetchSummaryArray (pageSlug, wikiLang) into summaryArray -- pageSlug updated if redirect
    if summaryArray is not an array then
       -- don't think this happens. Not found???
-      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, empty, pLang, pApiStem) into notFoundPageArray
+      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, empty, wikiLang, apiStem) into notFoundPageArray
       return notFoundPageArray
    end if
    
    put summaryArray ["content_urls"]["desktop"]["page"] into wikipediaURL
    put summaryArray ["title"] into pageTitle
    if pageTitle = "Not Found." then
-      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, wikipediaURL, pLang, pApiStem) into notFoundPageArray
+      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, wikipediaURL, wikiLang, apiStem) into notFoundPageArray
       return notFoundPageArray
    end if
    
    -- now fetch
-   put mediawiki_FetchWikiText (pageSlug, pApiStem) into wikiText -- need all of the text
+   put mediawiki_FetchWikiText (pageSlug, apiStem) into wikiText -- need all of the text
    put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray -- used for TOC
    
    -- and construct
-   put mediawiki_ConstructPageArray (pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, pWikipediaURL) into fedwikiPageArray
+   put mediawiki_ConstructPageArray (pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, wikipediaURL) into fedwikiPageArray
    return fedwikiPageArray
 end mediawiki_FetchPageArray
 
@@ -125,7 +158,7 @@ command mediawiki_NormaliseTitle searchTitleString, @pageTitle, @pageID, pLang
    put queryArray ["redirects"][1]["to"] into rTitle -- = pageTitle
    put queryArray ["redirects"][1]["from"] into oTitle
    put queryArray ["redirects"][1]["tofragment"] into toFragment
-   --
+   --   
    return batchResultArray
 end mediawiki_NormaliseTitle
 
@@ -177,7 +210,7 @@ function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArra
    -- Start constructing fedwikiPageArray
    put pageTitle into fedwikiPageArray ["title"]
    put empty into pSourceArray -- could credit wikipedia
-   put fedwiki_ConstructJournalArray (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
+   put pageArray_ConstructJournal (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
    
    -- process wikiText and add
    wikicommons_AddSectionToPageArray fedwikiPageArray, wikiText, pFirstSectionOnly
@@ -205,7 +238,7 @@ function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArra
    fedwiki_AddExternalLinkToFirstSection fedwikiPageArray, pWikipediaURL
    
    -- strip journal
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end mediawiki_ConstructPageArray
 
@@ -225,7 +258,7 @@ function mediawiki_ConstructSummaryPageArray firstSection, summaryArray, mobileS
    
    -- add rest of first section
    repeat for each line nextLine in firstSection
-      fedwiki_AddParagraphToPageArray fedwikiPageArray, nextLine
+      pageArray_AddText fedwikiPageArray, nextLine
    end repeat
    
    -- now add maps, toc, see also etc
@@ -239,7 +272,7 @@ function mediawiki_ConstructSummaryPageArray firstSection, summaryArray, mobileS
    wikicommons_Moveimage fedwikiPageArray, 2
    
    -- strip journal
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end mediawiki_ConstructSummaryPageArray
 
@@ -269,7 +302,7 @@ private command _AddPosterImage @pageArray, summaryArray, pAddedImages
       default
          put pageTitle & "." && shortDescription into imageCaption -- could get it from somewhere (it's not in mobileSectionArray)
          put fedwiki_ConstructImageHtml (thumbnailURL, imageCaption, imageURL, false) into imageHTML
-         fedwiki_AddHtmlToPageArray pageArray, imageHTML
+         pageArray_AddHtml pageArray, imageHTML
          put the result into lastitemNum
    end switch
    return shortImageFile
@@ -279,12 +312,12 @@ private command _AddTOC @fedwikiPageArray, resultArray
    put resultArray ["orderFormArray"] into orderFormArray
    
    if orderFormArray is not empty then
-      fedwiki_AddMarkdownToPageArray fedwikiPageArray, "# Sections"
+      pageArray_AddMarkdown fedwikiPageArray, "# Sections"
       --
       put item 2 of the extents of orderFormArray into maxNum
       repeat with subSectionIndexNum = 1 to maxNum
          put orderFormArray [subSectionIndexNum] into formHTML
-         fedwiki_AddHtmlToPageArray fedwikiPageArray, formHTML
+         pageArray_AddHtml fedwikiPageArray, formHTML
       end repeat
    end if
 end _AddTOC
@@ -298,8 +331,8 @@ private command _AddSeeAlsoSection @pageArray, mobileSectionArray, resultArray
    put _ExtractTocFromHtmlLines (seeAlsoHtml) into seeAlsoMarkdown
    
    if word 1 to -1 of seeAlsoMarkdown is not empty then
-      fedwiki_AddMarkdownToPageArray pageArray, "# See also"
-      fedwiki_AddMarkdownToPageArray pageArray, seeAlsoMarkdown
+      pageArray_AddMarkdown pageArray, "# See also"
+      pageArray_AddMarkdown pageArray, seeAlsoMarkdown
    end if
 end _AddSeeAlsoSection
 
@@ -316,9 +349,9 @@ private command _AddMapSection @pageArray, summaryArray
    if mapLat is not empty then
       put "[[" & pageTitle & "]]." && shortDescription into pinTitle
       put fedwiki_ConstructOpenStreetMapLink (mapLat, mapLong, mapZoom, pinTitle) into mapText
-      put fedwiki_ConstructStoryMapArray (mapLat, mapLong, mapText, mapZoom, pinTitle) into itemArray
+      put pageArray_ConstructMap (mapLat, mapLong, mapText, mapZoom, pinTitle) into itemArray
       --
-      fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
+      pageArray_AddItemArray itemArray, pageArray
    end if
 end _AddMapSection
 

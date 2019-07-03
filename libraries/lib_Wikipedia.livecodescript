@@ -10,6 +10,23 @@ version: 0.1
 In this library we keep handlers that are hard wired to wikipedia, rather than handlers that work with any general mediawiki installation.
 */
 
+
+--> Working on
+-
+function wikipedia_ConstructUrl pageTitle, pSectionTitle
+   replace "-" with space in pageTitle
+   -- with a proper pageTitle we keep capitalisation?
+   -- put text_InitialCaps (pageTitle) into pageSlug
+   replace space with "_" in pageSlug
+   put "https://en.wikipedia.org/wiki/" & pageSlug into wikipediaUrl
+   if pSectionTitle is not empty then
+      replace space with "_" in pSectionTitle
+      put "#" & pSectionTitle after wikipediaUrl
+   end if
+   return wikipediaUrl
+end wikipedia_ConstructUrl
+
+
 -- Not Working
 -
 function wikipedia_ExtractSummary someTitles
@@ -47,18 +64,6 @@ end wikipedia_FetchPageImages
 
 --> WikiPedia
 -
-function wikipedia_ConstructUrl pageTitle, pSectionTitle
-   replace "-" with space in pageTitle
-   put text_InitialCaps (pageTitle) into pageSlug
-   replace space with "_" in pageSlug
-   put "https://en.wikipedia.org/wiki/" & pageSlug into wikipediaUrl
-   if pSectionTitle is not empty then
-      replace space with "_" in pSectionTitle
-      put "#" & pSectionTitle after wikipediaUrl
-   end if
-   return wikipediaUrl
-end wikipedia_ConstructUrl
-
 function wikipedia_FetchPageExtract pageTitle, pApiStem
    put mediawiki_FetchPageBits (pageTitle, "extracts", "exintro=true", pApiStem) into someJSON
    return someJSON

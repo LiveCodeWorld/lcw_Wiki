@@ -18,6 +18,23 @@ For now this means domains on the Atopia server.
 Aim to carefully move handlers here from lib_Fedwiki. See also "model_AtopiaFiles", "lib_PageArray" and "lib_FedwikiCreate"
 */
 
+--> Working on
+-
+function pageArray_FetchDefault pageSlug
+   put atopia_DefaultWikiPagePath (pageSlug) into defaultPath
+   put atopia_FetchData (defaultPath) into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   return pageArray
+end pageArray_FetchDefault
+
+command pageArray_StoreDefault pageSlug, pageArray
+   put json_FromArray (pageArray) into pageJSON
+   put atopia_DefaultWikiPagePath (pageSlug) into defaultPath
+   atopia_StoreData defaultPath, pageJSON
+   put the result into shellResult
+   return shellResult
+end pageArray_StoreDefault
+
 
 --> LCW | Handler | Model
 -
@@ -58,7 +75,44 @@ end lcw_StoreHandlerArray
 
 --> PageArray | Edit
 -
-command pageArray_MoveStoryItem @fedwikiPageArray, fromItemNum, toItemNum
+command pageArray_InsertStory @pageArray, storyArray, afterItemNum
+   -- Insert story and reindex. Quick and dirty.
+   -- We do not check story item ids, nor do we journal individual edits
+   -- Should check itemIDs with "pageArray_CheckUniqueItemIds" beforehand
+   put pageArray ["story"] into oldStoryArray
+   
+   -- add first bit of old story
+   repeat with itemNum = 1 to afterItemNum
+      put oldStoryArray [itemNum] into newStoryArray [itemNum]
+   end repeat
+   
+   -- insert new story
+   put item 2 of the extents of storyArray into lastStoryItemNum
+   put itemNum into insertItemNum
+   repeat with itemNum = 1 to lastStoryItemNum
+      put newStoryArray [insertItemNum]["id"] into afterID
+      add 1 to insertItemNum
+      --
+      put storyArray [itemNum] into itemArray
+      put itemArray into newStoryArray [insertItemNum]
+      --
+      pageArray_AddAddAction pageArray, itemArray, afterID
+      -- put the result into actionArray
+   end repeat
+   
+   -- add last bit of old story
+   put afterItemNum + 1 into oldStart
+   put item 2 of the extents of oldStoryArray into oldEnd
+   repeat with itemNum = oldStart to oldEnd
+      add 1 to insertItemNum
+      put oldStoryArray [itemNum] into newStoryArray [insertItemNum]
+   end repeat
+   --
+   put newStoryArray into pageArray ["story"]
+   return newStoryArray
+end pageArray_InsertStory
+
+command pageArray_MoveItem @pageArray, fromItemNum, toItemNum
    -- was "fedwiki_MoveStoryItem"
    -- should check if fromItemNum and toItemNum are within bounds first
    if fromItemNum = toItemNum then return false
@@ -66,7 +120,7 @@ command pageArray_MoveStoryItem @fedwikiPageArray, fromItemNum, toItemNum
    if fromItemNum is not a number or toItemNum is not a number then return false
    
    local pID
-   put fedwikiPageArray ["story"] into storyArray
+   put pageArray ["story"] into storyArray
    
    -- delete item
    storyArray_DeleteItem storyArray, fromItemNum
@@ -75,25 +129,25 @@ command pageArray_MoveStoryItem @fedwikiPageArray, fromItemNum, toItemNum
    
    -- insert item
    fedwiki_StoryInsertInto storyArray, toItemNum, itemArray
-   put storyArray into fedwikiPageArray ["story"]
+   put storyArray into pageArray ["story"]
    
    -- update journal
    put fedwiki_StoryExtractOrderedIDArray (storyArray) into oderedIDArray
    put the milliseconds into pMilliseconds
-   fedwiki_SetID pID
+   pageArray_AssignID pID
    
-   put fedwikiPageArray ["journal"] into journalArray
+   put pageArray ["journal"] into journalArray
    put "move" into journalEntryArray ["type"]
    put pMilliseconds into journalEntryArray ["date"]
    put pID into journalEntryArray ["id"]
    put oderedIDArray into journalEntryArray ["order"]
-   fedwiki_AddToEndOfIndexArray journalEntryArray, journalArray
-   put journalArray into fedwikiPageArray ["journal"]
+   array_AddToEndOfIndex journalEntryArray, journalArray
+   put journalArray into pageArray ["journal"]
    
    return true
-end pageArray_MoveStoryItem
+end pageArray_MoveItem
 
-command pageArray_DeleteStoryItem @pageArray, itemNumsToDelete
+command pageArray_DeleteItem @pageArray, itemNumsToDelete
    replace CR with comma in itemNumsToDelete
    put pageArray ["story"] into storyArray
    sort numeric items of itemNumsToDelete
@@ -105,40 +159,57 @@ command pageArray_DeleteStoryItem @pageArray, itemNumsToDelete
       pageArray_AddDeleteAction pageArray, deletedItemID
    end repeat
    put storyArray into pageArray ["story"]
-end pageArray_DeleteStoryItem
+end pageArray_DeleteItem
 
-command pageArray_AddDeleteAction @pageArray, deletedItemID, pMilliseconds
-   /*
-   {
-   "type": "remove",
-   "id": "1b37631a8f5e5302",
-   "date": 1551202848877
-   }
-   */
+
+--> PageArray | Journal | Actions
+-
+command pageArray_AddAddAction @pageArray, itemArray, afterID, pMilliseconds
    if pMilliseconds is empty then put the milliseconds into pMilliseconds
    put pageArray ["journal"] into journalArray
    --
-   put "remove" into deleteActionArray ["type"]
-   put pMilliseconds into deleteActionArray ["date"]
-   put deletedItemID into deleteActionArray ["id"]
-   fedwiki_AddToEndOfIndexArray deleteActionArray, journalArray
+   put "add" into actionArray ["type"]
+   put afterID into actionArray ["after"]
+   put itemArray into actionArray ["item"]
+   put itemArray ["id"] into actionArray ["id"]
+   put pMilliseconds into actionArray ["date"]
    --
+   array_AddToEndOfIndex actionArray, journalArray
+   put journalArray into pageArray ["journal"]
+   return actionArray
+end pageArray_AddAddAction
+
+command pageArray_AddDeleteAction @pageArray, deletedItemID, pMilliseconds
+   if pMilliseconds is empty then put the milliseconds into pMilliseconds
+   put pageArray ["journal"] into journalArray
+   --
+   put "remove" into actionArray ["type"]
+   put pMilliseconds into actionArray ["date"]
+   put deletedItemID into actionArray ["id"]
+   --
+   array_AddToEndOfIndex actionArray, journalArray
    put journalArray into pageArray ["journal"]
 end pageArray_AddDeleteAction
 
 
 --> PageArray | Model
 -
-function pageArray_Fetch wikiDomain, pSlug
-   -- can be any wiki (we simply get page-json)
+function pageArray_Fetch wikiDomain, pSlug, pDontCheck
+   -- checks for title, journal, and story
    put pageJson_Fetch (wikiDomain, pSlug) into pageJson
+   if pageJson is empty then return empty
    put json_ToArray (pageJson) into pageArray
-   return pageArray
+   if pDontCheck is true then return pageArray
+   if pageArray_Check (pageArray) then
+      return pageArray
+   else
+      return empty
+   end if
 end pageArray_Fetch
 
-command pageArray_Store fedwikiDomain, pageSlug, pageArray
+command pageArray_Store wikiDomain, pageSlug, pageArray
    put json_FromArray (pageArray) into pageJSON
-   pageJson_Store fedwikiDomain, pageSlug, pageJSON
+   pageJson_Store wikiDomain, pageSlug, pageJSON
    put the result into shellResult
    return shellResult -- should be empty unless an error
 end pageArray_Store
@@ -147,6 +218,7 @@ end pageArray_Store
 --> PageJson | Model
 -
 function pageJson_Fetch wikiDomain, pSlug
+   -- was "fedwiki_FetchPageArray"
    put fedwiki_PageJsonUrl (wikiDomain, pSlug) into someUrl
    put url someUrl into someJSON
    return someJSON
@@ -175,21 +247,9 @@ end pageJson_Delete
 
 --> Private
 -
-private command storyArray_DeleteItem @storyArray, itemNumToDelete
-   put storyArray [ItemNumToDelete] into deletedItemArray
-   put item 2 of the extents of storyArray into maxItem
-   if maxItem is not a number then return empty
-   repeat with itemNumToMove = (itemNumToDelete + 1) to maxItem
-      put itemNumToMove - 1 into itemNumDestination
-      put storyArray [itemNumToMove] into storyArray [itemNumDestination]
-   end repeat
-   delete variable storyArray [maxItem]
-   return deletedItemArray
-end storyArray_DeleteItem
-
 private command _ObjectDomainInfo sObject, @pageTitle, @pageSlug, @wikiDomain
    put the stack_Name of sObject into pageTitle
    put fedwiki_ConstructSlug (pageTitle) into pageSlug
    put the script_Type of sObject into scriptType
-   put help_ConstructObjectDomain (scriptType) into wikiDomain
+   put help_ConstructDomain (scriptType) into wikiDomain
 end _ObjectDomainInfo

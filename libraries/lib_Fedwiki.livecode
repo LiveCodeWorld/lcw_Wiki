@@ -19,6 +19,367 @@ In particular for constructing and deconstructing fedwiki json
 
 --> Working on
 -
+-- getprop mock_DropJson
+-- only here so that graphing does not show this as "missing"
+-- text property of stack "Dropped URLs"
+return empty
+end mock_DropJson
+
+command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
+   put pageArray_Fetch (wikiDomain) into pageArray
+   pageArray_SetItemText pageArray, itemID, itemText
+   pageArray_Store wikiDomain, pageSlug, pageArray
+   return pageArray
+end fedwiki_UpdatePageItem
+
+
+--> Federation | Update
+-
+command federation_UpdateTemplate pageTitle, wikiDomain, pCurlyData, pForkDomains
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put pageTitle into curlyData ["all"]["pageTitle"]
+   put pageSlug into curlyData ["all"]["pageSlug"]
+   put wikiDomain into curlyData ["all"]["wikiDomain"]
+   --
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   if pageArray is empty then
+      put federation_FetchTemplateArray (wikiDomain, pageTitle, pForkDomains) into pageArray
+   end if
+   curly_MergePageArray pageArray, pCurlyData
+   pageArray_Store wikiDomain, pageSlug, pageArray
+   return pageArray
+end federation_UpdateTemplate
+
+function federation_FetchTemplateArray wikiDomain, pPageTitle, pForkDomains
+   put federation_FetchTemplate (wikiDomain) into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   --
+   pageArray_Rename pageArray, pPageTitle
+   pageArray_StripJournal pageArray
+   pageArray_AddFork pageArray, pForkDomains
+   return pageArray
+end federation_FetchTemplateArray
+
+function federation_FetchTemplate wikiDomain
+   set the itemdelimiter to "."
+   put item 1 of wikiDomain into tempType
+   put tempType & "-" & "template" into pageSlug
+   put pageJson_Fetch (wikiDomain, pageSlug) into pageJSON
+   return pageJSON
+end federation_FetchTemplate
+
+function fedwiki_FetchPageMarkdown wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   if pageArray is empty then return empty
+   put pageArray ["title"] into pageTitle
+   put pageArray ["story"] into storyArray
+   put fedwiki_ConstructPageMarkdown (pageTitle, storyArray) into pageMarkdown
+   return pageMarkdown
+end fedwiki_FetchPageMarkdown
+
+function fedwiki_FetchCreationDate wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   put pageArray_GetCreationDate (pageArray) into createdDate
+   return createdDate
+end fedwiki_FetchCreationDate
+
+function fedwiki_FetchOwnerName fedwikiDomain
+   /*
+   get "https://fedwiki.rodwell.me/view/narrative-chart/view/coffeehouse-culture"
+   set the itemdelimiter to slash
+   put item 3 of it into fedwikiDomain
+   */
+   put "http://" & fedwikiDomain & "/welcome-visitors.html" into someURL
+   put url someURL into someHTML
+   --
+   put "//*[@id='site-owner']" into someXPath 
+   replace "'" with quote in someXPath
+   put scrape_WithXPath (someHTML, someXPath, true) into contentSection
+   put line 2 to 3 of contentSection into someName
+   replace CR with space in someName
+   return word 1 to -1 of someName
+end fedwiki_FetchOwnerName
+
+function federation_ModelDocUrl modelName
+   put fedwiki_ConstructSlug (modelName) into pageSlug
+   put "http://roster.fedwiki.org/view/welcome-visitors/view/" & pageSlug into launchURL
+   return launchURL
+end federation_ModelDocUrl
+
+function federation_ServerDocUrl serverName
+   put serverName && "Server" into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put "http://server.fedwiki.org/view/welcome-visitors/view/" & pageSlug into launchURL
+   return launchURL
+end federation_ServerDocUrl
+
+
+--> Fedwiki | Transport | Helpers
+-
+function fedwiki_MarkdownIndex someIndex, pExtraWords
+   -- was "fedwiki_ConstructMarkdownIndex"
+   replace comma with CR in someIndex
+   repeat for each line someLine in someIndex
+      put word 1 to -1 of someLine into domainName
+      if domainName is empty then next repeat
+      if pExtraWords is not empty then put space & pExtraWords after domainName
+      put "- [[" & domainName & "]]" & CR after markdownList
+   end repeat
+   delete char -1 of markdownList
+   return markdownList
+end fedwiki_MarkdownIndex
+
+function fedwiki_HkeyMarkdownIndex hkeyIndex
+   replace comma with CR in hkeyIndex
+   repeat for each line hkey in hkeyIndex
+      if hkey is empty then next repeat
+      hkey_Deconstruct hKey, hName, hType, hObject, hNum
+      put "- [[" & hName & "]]" & CR after markdownList
+   end repeat
+   delete char -1 of markdownList
+   return markdownList
+end fedwiki_HkeyMarkdownIndex
+
+
+--> Fedwiki | Sitemap
+-
+function fedwiki_ListSitemapPages wikiDomain
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   repeat for each key indexNum in sitemapArray
+      put sitemapArray [indexNum]["title"] into pageTitle
+      put pageTitle & CR after pageTitles
+   end repeat
+   delete char -1 of pageTitles
+   return pageTitles
+end fedwiki_ListSitemapPages
+
+function fedwiki_ListSitemapSlugs wikiDomain
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   repeat for each key indexNum in sitemapArray
+      put sitemapArray [indexNum]["slug"] into pageSlug
+      put pageSlug & CR after pageSlugs
+   end repeat
+   delete char -1 of pageSlugs
+   return pageSlugs
+end fedwiki_ListSitemapSlugs
+
+function fedwiki_FetchSitemapArray wikiDomain, pLoad
+   put fedwiki_FetchSitemap (wikiDomain, pLoad) into someJson
+   if someJson is empty then return empty
+   put json_ToArray (someJson) into sitemapArray
+   if sitemapArray is false then return empty
+   return sitemapArray
+end fedwiki_FetchSitemapArray
+
+function fedwiki_FetchSitemap fedwikiDomain, pLoad
+   put fedwiki_JsonSiteMapUrl (fedwikiDomain) into sitemapURL
+   if pLoad is true then load url sitemapURL
+   put url sitemapURL into sitemapJSON
+   return sitemapJSON
+end fedwiki_FetchSitemap
+
+function fedwiki_SearchSitemapArray pageSlug, siteMapArray
+   -- was "fedwiki_FindSlug"
+   repeat for each key indexNum in siteMapArray
+      if siteMapArray [indexNum]["slug"] is pageSlug then
+         return indexNum
+      end if
+   end repeat
+   return 0
+end fedwiki_SearchSitemapArray
+
+function fedwiki_SitemapLastModified sitemapArray
+   put item 2 of the extents of sitemapArray into maxNum
+   put 0 into maxUpdate
+   repeat with indexNum = 1 to maxNum
+      put sitemapArray [indexNum]["slug"] into pageSlug
+      put sitemapArray [indexNum]["date"] into lastUpdate
+      if lastUpdate > maxUpdate then
+         put lastUpdate into maxUpdate
+      end if
+   end repeat
+   return maxUpdate
+end fedwiki_SitemapLastModified
+
+
+--> Fedwiki
+-
+command fedwiki_ReplaceExternalLinks @wikiText
+   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
+   put "(\[http.+\])" into someReg
+   
+   local refStart, refEnd
+   put 0 into indexNum
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         add 1 to indexNum
+         put char sNum to eNum of wikiText into extLinkText
+         delete char - 1 of extLinkText
+         delete char 1 of extLinkText
+         put word 1 of extLinkText into extLinkURL
+         put word 2 to -1 of extLinkText into extLinkText
+         --
+         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
+         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
+         put markdownLink into char sNum to eNum of wikiText
+      else
+         exit repeat
+      end if
+   end repeat
+   return indexNum
+end fedwiki_ReplaceExternalLinks
+
+command fedwiki_ForwardAndReturn restURL
+   put fedwiki_ForwardJSON (restURL) into pageJSON
+   fedwiki_ReturnJSON pageJSON
+end fedwiki_ForwardAndReturn
+
+function fedwiki_ForwardJSON restURL
+   fedwiki_SetRawJSON dropJSON
+   fedwiki_PostJSON dropJSON, restURL
+   put the result into pageJSON
+   return pageJSON
+end fedwiki_ForwardJSON
+
+command fedwiki_SetDroppedFaviconInfo @pageSlug, @fedwikiDomain, pDoubleCheck
+   -- safe double check thing
+   fedwiki_SetRawJSON dropJSON
+   --
+   put fedwiki_IsFaviconDrop (dropJSON) into isFavicon
+   if isFavicon is false then
+      put empty into pageSlug
+      put empty into fedwikiDomain 
+      return false
+   end if
+   
+   put fedwiki_GetDroppedUrl() into droppedURL
+   set the itemDelimiter to "/"
+   put item 3 of droppedURL into fedwikiDomain
+   put item -1 of droppedURL into pageSlug
+   replace ".html" with empty in pageSlug
+   
+   if pDoubleCheck is not true then return true
+   
+   -- let's check it is a wiki domain
+   -- pageSlug may be a ghost page so don't check that
+   put fedwiki_IsWikiPage (fedwikiDomain) into isWiki
+   if isWiki then
+      return true
+   else
+      put empty into pageSlug
+      put empty into fedwikiDomain 
+      return false
+   end if
+end fedwiki_SetDroppedFaviconInfo
+
+function fedwiki_GetDroppedUrl
+   fedwiki_SetRawJSON pRawJSON
+   fedwiki_SetDropped pRawJSON, droppedURL, droppedHTML, droppedText
+   fedwiki_CheckDroppedURL droppedURL, droppedHTML, droppedText
+   return droppedURL
+end fedwiki_GetDroppedUrl
+
+function fedwiki_GetDroppedArray
+   -- also good to get a post from a form POST
+   fedwiki_SetRawJSON pRawJSON
+   put json_ToArray (pRawJSON) into dropArray
+   return dropArray
+end fedwiki_GetDroppedArray
+
+command fedwiki_SetDroppedInfo @dropJSON, @droppedURL, @droppedHTML, @droppedText
+   fedwiki_SetRawJSON dropJSON
+   fedwiki_SetDropped dropJSON, droppedURL, droppedHTML, droppedText
+   put the result into dropArray
+   return dropArray
+end fedwiki_SetDroppedInfo
+
+command fedwiki_DeconstructDroppedURL @pageSlug, @wikiDomain
+   put fedwiki_GetDroppedUrl() into droppedURL
+   --
+   set the itemdelimiter to slash
+   put item 3 of droppedURL into wikiDomain
+   put item -1 of droppedURL into pageSlug
+   --
+   set the itemdelimiter to "."
+   put item 1 of pageSlug into pageSlug
+end fedwiki_DeconstructDroppedURL
+
+
+--> Overide | Maybe
+-
+/*
+These handers are overridden using a behavior and before handlers for testing purposes
+*/
+
+command fedwiki_SetDroppedURL @pDroppedURL
+   if pDroppedURL is empty then
+      -- sets from real or locally mocked "$_POST_RAW" 
+      put fedwiki_GetDroppedUrl() into pDroppedURL
+   end if
+end fedwiki_SetDroppedURL
+
+command fedwiki_SetRawJSON @rawJSON
+   if the environment is "server" then
+      put $_POST_RAW into rawJSON
+      return true
+   else
+      -- mock up $_POST_RAW from selected display of stack "Transporter Drop Urls"
+      put the mock_DropJson of stack "Transporter Drop Urls" into rawJSON
+      put rawJSON into $_POST_RAW
+      return false
+   end if
+end fedwiki_SetRawJSON
+
+
+--> Fedwiki | Dropped
+-
+/*
+These handlers are good for both server and desktop testing purposes.
+The use explicit dropJson, or droppedURL params and never $_POST_RAW
+*/
+
+command fedwiki_SetDropped dropJSON, @droppedURL, @droppedHTML, @droppedText
+   -- don't use directly as it is used by behavior
+   put json_ToArray (dropJSON) into dropArray
+   put dropArray ["html"] into droppedHTML
+   put dropArray ["text"] into droppedText
+   put dropArray ["url"] into droppedURL
+   return dropArray
+end fedwiki_SetDropped
+
+command fedwiki_CheckDroppedURL @droppedURL, droppedHTML, droppedText
+   set the itemdelimiter to "."
+   switch
+      case droppedURL is not empty
+         return "url"
+      case droppedHTML is empty
+         -- does it begin with "<meta http-equiv=\'Content-Type\' content=\'text/html;charset=UTF-8\'><a href=\"
+         put droppedText into droppedURL
+         return "text"
+      case item -1 of droppedText = "html"
+         delete item -1 of droppedText
+         set the itemdelimiter to "/"
+         put "/view" after item 3 of droppedText
+         return "html"
+      default
+         put "Not a URL dropped on the page!" into errorText
+         fedwiki_ReturnError pDropJSON, errorText
+         return errorText
+   end switch
+end fedwiki_CheckDroppedURL
+
+
+--> Fedwiki | URL | Drop
+-
+command fedwiki_DeconstructDropped @droppedText, @droppedHtml, @droppedURL
+   put fedwiki_GetDroppedArray ($_POST_RAW) into dropArray
+   put dropArray ["text"] into droppedText
+   put dropArray ["html"] into droppedHtml
+   put dropArray ["url"] into droppedURL
+   return dropArray
+end fedwiki_DeconstructDropped
+
 
 --> Fedwiki | Fetch | Drop
 -
@@ -92,56 +453,11 @@ end fedwiki_FetchLineUpJson
 
 --> Fedwiki | Tests
 -
-command fedwiki_SetDroppedFaviconInfo @pageSlug, @fedwikiDomain, pDoubleCheck
-   -- safe double check thing
-   put fedwiki_IsFaviconDrop() into isFavicon
-   if isFavicon is false then
-      put empty into pageSlug
-      put empty into fedwikiDomain 
-      return false
-   end if
+function fedwiki_IsFaviconDrop dropJSON
+   -- dropJSON is not longer optional
+   if dropJSON is empty then return false
    
-   put fedwiki_GetDroppedUrl() into droppedURL
-   set the itemDelimiter to "/"
-   put item 3 of droppedURL into fedwikiDomain
-   put item -1 of droppedURL into pageSlug
-   replace ".html" with empty in pageSlug
-   
-   if pDoubleCheck is not true then return true
-   
-   -- let's check it is a wiki domain
-   -- pageSlug may be a ghost page so don't check that
-   put fedwiki_IsWikiPage (fedwikiDomain) into isWiki
-   if isWiki then
-      return true
-   else
-      put empty into pageSlug
-      put empty into fedwikiDomain 
-      return false
-   end if
-end fedwiki_SetDroppedFaviconInfo
-
-command fedwiki_FilterCheck @wikiDomains
-   repeat for each line wikiDomain in wikiDomains
-      set the cursor to busy
-      if fedwiki_IsWiki (wikiDomain) is true then
-         put wikiDomain & CR after goodDomains
-      else
-         put wikiDomain & CR after badDomains
-      end if
-   end repeat
-   delete char -1 of goodDomains
-   delete char -1 of badDomains
-   put goodDomains into wikiDomains
-   return badDomains
-end fedwiki_FilterCheck
-
-function fedwiki_IsFaviconDrop pDropJSON
-   -- quick check of dropped html
-   if pDropJSON is empty then put $_POST_RAW into pDropJSON
-   put fedwiki_GetDroppedArray (pDropJSON) into dropArray
-   put dropArray ["html"] into droppedHtml
-   --
+   -- tests depends on different behaviors of browsers
    if the environment = "server" then
       rigLoaderLoadLibrary "Useragent"
       put rigBrowser() into tBrowser
@@ -149,6 +465,8 @@ function fedwiki_IsFaviconDrop pDropJSON
       put empty into tBrowser
    end if
    
+   put fedwiki_GetDroppedArray (dropJSON) into dropArray
+   put dropArray ["html"] into droppedHtml
    put revXMLCreateTree (droppedHtml, false, true, false) into treeID
    switch tBrowser
       case "Firefox"
@@ -170,6 +488,21 @@ function fedwiki_IsFaviconDrop pDropJSON
    --
    return isFavicon
 end fedwiki_IsFaviconDrop
+
+command fedwiki_FilterCheck @wikiDomains
+   repeat for each line wikiDomain in wikiDomains
+      set the cursor to busy
+      if fedwiki_IsWiki (wikiDomain) is true then
+         put wikiDomain & CR after goodDomains
+      else
+         put wikiDomain & CR after badDomains
+      end if
+   end repeat
+   delete char -1 of goodDomains
+   delete char -1 of badDomains
+   put goodDomains into wikiDomains
+   return badDomains
+end fedwiki_FilterCheck
 
 function fedwiki_IsHtmlUrl wikiPageURL, @errorMsg
    -- http://tools.progressivedemocracy.cc/collaborative-bookmarking.html
@@ -195,13 +528,12 @@ function fedwiki_IsWiki someDomain
 end fedwiki_IsWiki
 
 function fedwiki_IsWikiPage wikiDomain, pSlug
-   if pSlug is empty then put "welcome-visitors" into pSlug
-   put fedwiki_PageJsonUrl (wikiDomain, pSlug) into jsonURL 
-   fedwiki_TestJsonUrl jsonURL, pageTitle, storyArray, journalArray
-   return the result
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray 
+   put pageArray is not empty into someBoolean
+   return someBoolean
 end fedwiki_IsWikiPage
 
-command fedwiki_TestJsonUrl jsonURL, @pageTitle, @storyArray, @journalArray
+function fedwiki_IsJsonUrl jsonURL
    -- http://openscience.cc/maven-science.json
    put "http://(.+)/(.+).json" into someReg
    if matchtext (jsonURL, someReg, wikiDomain, pageSlug) is false then
@@ -210,87 +542,14 @@ command fedwiki_TestJsonUrl jsonURL, @pageTitle, @storyArray, @journalArray
       put empty into storyArray
       put empty into journalArray
       return false
-   end if
-   --
-   put url jsonURL into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   --
-   put pageArray ["title"] into pageTitle
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   if pageTitle is empty or storyArray is not an array or journalArray is not an array then
-      return false
    else
       return true
    end if
-end fedwiki_TestJsonUrl
+end fedwiki_IsJsonUrl
 
 
 --> Fedwiki | List
 -
-function fedwiki_ListSitemapPages wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   repeat for each key indexNum in sitemapArray
-      put sitemapArray [indexNum]["title"] into pageTitle
-      put pageTitle & CR after pageTitles
-   end repeat
-   delete char -1 of pageTitles
-   return pageTitles
-end fedwiki_ListSitemapPages
-
-function fedwiki_ListSitemapSlugs wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   repeat for each key indexNum in sitemapArray
-      put sitemapArray [indexNum]["slug"] into pageSlug
-      put pageSlug & CR after pageSlugs
-   end repeat
-   delete char -1 of pageSlugs
-   return pageSlugs
-end fedwiki_ListSitemapSlugs
-
-
---> Fedwiki | Compact
--
-command fedwiki_CompactPageArrayRefs @pageArray
-   -- this command takes and ref-items and adds them to a "# See also" section 
-   put pageArray ["title"] into pageTitle
-   put pageArray ["story"] into storyArray
-   if storyArray is not an array then
-      put "This is not a single wiki page. Only drop references to single pages on this transporter." &CR&CR& droppedURL into errorText
-      fedwiki_ExitAndReturnError errorText
-   end if
-   
-   put 1 into newItemNum
-   put item 2 of the extents of storyArray into maxItemNum
-   repeat with itemNum = 1 to maxItemNum
-      put storyArray [itemNum] into itemArray
-      put itemArray ["type"] into itemType
-      if itemType = "reference" then
-         put itemArray ["site"] into someSite
-         put itemArray ["slug"] into someSlug
-         put itemArray ["title"] into someTitle
-         
-         put "- [[" & someTitle & "]]" & CR after markDownLinks
-         put itemNum & comma after itemNumsToDelete
-      else
-         put itemArray into newStoryArray [ itemNum]
-      end if
-   end repeat
-   delete char -1 of itemNumsToDelete
-   delete char -1 of markDownLinks
-   --
-   if markDownLinks is not empty then
-      pageArray_DeleteStoryItem pageArray, itemNumsToDelete
-      
-      put fedwiki_FindTitle (pageArray, "See also") into storyItemNum
-      if storyItemNum = 0 then
-         fedwiki_AddMarkdownToPageArray pageArray, "# See also"
-      end if
-      fedwiki_AddMarkdownToPageArray pageArray, markDownLinks
-   end if
-end fedwiki_CompactPageArrayRefs
-
 function fedwiki_ConstructImageLinkTag pCaptionLinkURL
    put html_ExtractTLD (pCaptionLinkURL, true) into linkTag
    switch linkTag
@@ -318,7 +577,7 @@ end fedwiki_HtmlToMarkdown
 function fedwiki_ConstructSlug pageTitle
    -- it is very annoying that "_" is not an allowed character
    replace space with "-" in pageTitle
-   repeat for each char someChar in  "_.,:;"
+   repeat for each char someChar in  "_|.,:;"
       replace someChar with empty in pageTitle
    end repeat
    put tolower (pageTitle) into pageSlug
@@ -334,81 +593,6 @@ function fedwiki_ConstructTitle pageSlug
    delete char -1 of pageTitle
    return pageTitle
 end fedwiki_ConstructTitle
-
-
---> Fedwiki | Clean
--
--- command fedwiki_CleanJournalArray @pageArray, pPreserveActions
--- old name
-fedwiki_CleanJournal pageArray, pPreserveActions
-end fedwiki_CleanJournalArray
-
-command fedwiki_AddJournal @pageArray, wikiDomains, pForkDate
-   replace comma with CR in wikiDomains
-   put pageArray ["journal"] into journalArray
-   put item 2 of the extents of journalArray into indexNum
-   repeat for each line wikiDomain in wikiDomains
-      add 1 to indexNum
-      put fedwiki_ConstructForkItemArray (wikiDomain, pForkDate) into itemArray
-      put itemArray into journalArray [indexNum]
-   end repeat
-   put journalArray into pageArray ["journal"]
-end fedwiki_AddJournal
-
-command fedwiki_StripJournal @pageArray
-   -- was "fedwiki_StripJournalToCreate"
-   -- reconstruct a new creation array with new time deleting old journal history
-   put pageArray ["title"] into pageTitle
-   put fedwiki_ConstructCreateArray (pageTitle) into newCreationArray
-   delete variable pageArray ["journal"]
-   put newCreationArray into pageArray ["journal"][1]
-end fedwiki_StripJournal
-
-command fedwiki_CleanJournal @pageArray, pPreserveActions
-   switch pPreserveActions
-      case empty
-         fedwiki_StripJournal pageArray
-         break
-      default
-         put pageArray ["journal"] into journalArray
-         put item 2 of the extents of journalArray into lastJournalNum
-         put 1 into newItemNum
-         repeat with jNum = 1 to lastJournalNum
-            put journalArray [jNum] into itemArray
-            if itemArray ["type"] is among the items of pPreserveActions then
-               put itemArray into newJournalArray [newItemNum]
-               add 1 to newItemNum
-            end if
-         end repeat
-         put newJournalArray into pageArray ["journal"]
-   end switch
-end fedwiki_CleanJournal
-
-command fedwiki_RenamePage @pageArray, newPageTitle
-   put newPageTitle into pageArray ["title"]
-   put newPageTitle into pageArray ["journal"][1]["item"]["title"]
-end fedwiki_RenamePage
-
-command fedwiki_SetCreationDate @pageArray, pMilliseconds
-   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
-   put pMilliseconds into pageArray ["journal"][1]["date"]
-end fedwiki_SetCreationDate
-
-function fedwiki_ConstructJournalArray pageTitle, pSourceArray, pMilliseconds
-   put fedwiki_ConstructCreateArray (pageTitle, pSourceArray, pMilliseconds) into createArray
-   put createArray into journalArray [1]
-   return journalArray
-end fedwiki_ConstructJournalArray
-
-function fedwiki_ConstructCreateArray pageTitle, pMilliseconds, pSourceArray
-   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
-   put "create" into createArray ["type"]
-   put pMilliseconds into createArray ["date"]
-   put pageTitle into createArray ["item"]["title"]
-   put empty into createArray ["item"]["story"]
-   if pSourceArray is an array then put pSourceArray into createArray ["source"]
-   return createArray
-end fedwiki_ConstructCreateArray
 
 
 --> Fedwiki | JSON Plugin
@@ -455,45 +639,8 @@ function fedwiki_ConstructPluginJsonUrl pageSlug, wikiDomain
 end fedwiki_ConstructPluginJsonUrl
 
 
---> Fedwiki | Transport | Helpers
--
-function fedwiki_HkeyMarkdownIndex hkeyIndex
-   replace comma with CR in hkeyIndex
-   repeat for each line hkey in hkeyIndex
-      if hkey is empty then next repeat
-      hkey_Deconstruct hKey, hName, hType, hObject, hNum
-      put "- [[" & hName & "]]" & CR after markdownList
-   end repeat
-   delete char -1 of markdownList
-   return markdownList
-end fedwiki_HkeyMarkdownIndex
-
-function fedwiki_MarkdownIndex someIndex
-   replace comma with CR in someIndex
-   repeat for each line someLine in someIndex
-      put word 1 to -1 of someLine into domainName
-      if domainName is empty then next repeat
-      put "- [[" & domainName & "]]" & CR after markdownList
-   end repeat
-   delete char -1 of markdownList
-   return markdownList
-end fedwiki_MarkdownIndex
-
-
 --> Fedwiki | Post
 -
-command fedwiki_ForwardAndReturn restURL
-   put fedwiki_ForwardJSON (restURL) into pageJSON
-   fedwiki_ReturnJSON pageJSON
-end fedwiki_ForwardAndReturn
-
-function fedwiki_ForwardJSON restURL
-   put $_POST_RAW into someJSON
-   fedwiki_PostJSON someJSON, restURL
-   put the result into pageJSON
-   return pageJSON
-end fedwiki_ForwardJSON
-
 command fedwiki_PostJSON someJSON, restURL
    set the httpheaders to "Content-Type: application/json" -- required for revIgnitor
    post someJSON to url restURL
@@ -536,108 +683,20 @@ function fedwiki_ProcessPost pPostJSON
 end fedwiki_ProcessPost
 
 
---> Fedwiki | Template
--
-function fedwiki_GetStoryItemText @pageArray, itemID
-   put fedwiki_FindItemID (itemID, pageArray) into itemNum
-   if itemNum = 0 then return empty
-   put pageArray ["story"][itemNum]["text"] into itemText
-   return itemText
-end fedwiki_GetStoryItemText
-
-command fedwiki_SetStoryItemText @pageArray, itemID, itemText
-   put fedwiki_FindItemID (itemID, pageArray) into itemNum
-   if itemNum = 0 then return 0
-   put itemText into pageArray ["story"][itemNum]["text"]
-   return itemNum
-end fedwiki_SetStoryItemText
-
-function fedwiki_GetStoryItemType @pageArray, itemID
-   put fedwiki_FindItemID (itemID, pageArray) into itemNum
-   put pageArray ["story"][itemNum]["type"] into itemText
-   return itemText
-end fedwiki_GetStoryItemType
-
-command fedwiki_SetStoryItemType @pageArray, itemID, itemText
-   put fedwiki_FindItemID (itemID, pageArray) into itemNum
-   put itemText into pageArray ["story"][itemNum]["type"]
-   return itemNum
-end fedwiki_SetStoryItemType
-
-
---> Fedwiki | Item | Find
--
-/*
-These "find" handlers all return an itemNum, from which it is easy to derive any other attribute.
-*/
-
-function fedwiki_FindTitle pageArray, someTitle
-   put "#" && someTitle into markDownTitle
-   put 0 into afterIndexNum
-   repeat
-      put fedwiki_FindItemType ("markdown", pageArray, afterIndexNum) into itemNum
-      if itemNum = 0 then return 0
-      
-      put pageArray ["story"][itemNum]["text"] into markDownText
-      if word 1 to -1 of line 1 of markDownText = markDownTitle then
-         return itemNum
-      else
-         put itemNum into afterIndexNum
-      end if
-   end repeat
-   return 0
-end fedwiki_FindTitle
-
-function fedwiki_FindItemType itemType, pageArray, pAfterIndexNum
-   if pAfterIndexNum is a number then
-      put pAfterIndexNum + 1 into startIndexNum
-   else
-      put 1 into startIndexNum
-   end if
-   put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into maxItem
-   repeat with itemNum = startIndexNum to maxItem
-      put storyArray [itemNum]["type"] into testType
-      if itemType = testType then
-         return itemNum
-      end if
-   end repeat
-   return 0
-end fedwiki_FindItemType
-
-function fedwiki_FindItemID itemID, pageArray
-   put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into maxItem
-   repeat with itemNum = 1 to maxItem
-      put storyArray [itemNum]["id"] into testID
-      if testID = itemID then
-         return itemNum
-      end if
-   end repeat
-   return 0
-end fedwiki_FindItemID
-
-function fedwiki_ItemNumToID itemNum, pageArray
-   -- silly utility in case we forget
-   put pageArray ["story"][itemNum]["id"] into itemID
-   return itemID
-end fedwiki_ItemNumToID
-
-
 --> Fedwiki | Create
 -
 function fedwiki_CreateMarkdownPageArray pageTitle, pageDescription
    put pageTitle into pageArray ["title"]
-   put fedwiki_ConstructJournalArray (pageTitle) into pageArray ["journal"]
-   fedwiki_AddMarkdownToPageArray pageArray, pageDescription
+   put pageArray_ConstructJournal (pageTitle) into pageArray ["journal"]
+   pageArray_AddMarkdown pageArray, pageDescription
    return pageArray
 end fedwiki_CreateMarkdownPageArray
 
 function fedwiki_CreateHtmlPageArray pageTitle, someHTML
    -- not such a good idea to have HTML as first paragraph?
    put pageTitle into pageArray ["title"]
-   put fedwiki_ConstructJournalArray (pageTitle) into pageArray ["journal"] 
-   fedwiki_AddHtmlToPageArray pageArray, someHTML
+   put pageArray_ConstructJournal (pageTitle) into pageArray ["journal"] 
+   pageArray_AddHtml pageArray, someHTML
    return pageArray
 end fedwiki_CreateHtmlPageArray
 
@@ -667,35 +726,6 @@ command fedwiki_CreateFirstParagraph pageTitle, pageDescription, someURL, @pageA
 end fedwiki_CreateFirstParagraph
 
 
---> Working On
--
-command fedwiki_ReplaceExternalLinks @wikiText
-   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
-   put "(\[http.+\])" into someReg
-   
-   local refStart, refEnd
-   put 0 into indexNum
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         add 1 to indexNum
-         put char sNum to eNum of wikiText into extLinkText
-         delete char - 1 of extLinkText
-         delete char 1 of extLinkText
-         put word 1 of extLinkText into extLinkURL
-         put word 2 to -1 of extLinkText into extLinkText
-         --
-         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
-         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
-         put markdownLink into char sNum to eNum of wikiText
-      else
-         exit repeat
-      end if
-   end repeat
-   return indexNum
-end fedwiki_ReplaceExternalLinks
-
-
 --> Fedwiki | Ref Plugin
 -
 function fedwiki_ConstructMarkdownPage someMarkdown, pPageTitle
@@ -707,7 +737,7 @@ function fedwiki_ConstructMarkdownPage someMarkdown, pPageTitle
       end if
       delete line 1 of someMarkdown
    end if
-   put fedwiki_ConstructPageArray (pPageTitle) into pageArray
+   put pageArray_Construct (pPageTitle) into pageArray
    --
    
    repeat for each line downLine in someMarkdown
@@ -723,22 +753,14 @@ function fedwiki_ConstructMarkdownPage someMarkdown, pPageTitle
             -- put fedwiki_ConstructImageHtml (imageURL, pCaption, pCaptionLinkURL, pLinkToImage) into imageHtml
             put html_ConstructImageDiv (imageURL) into imageHtml
             --
-            fedwiki_AddHtmlToPageArray pageArray, imageHtml
+            pageArray_AddHtml pageArray, imageHtml
             break
          default
-            fedwiki_AddMarkdownToPageArray pageArray, downLine
+            pageArray_AddMarkdown pageArray, downLine
       end switch
    end repeat
    return pageArray
 end fedwiki_ConstructMarkdownPage
-
-function fedwiki_ConstructPageArray pageTitle, pSomeText, pSourceArray
-   -- was "fedwiki_ConstructSimplePageArray"
-   put pageTitle into pageArray ["title"]
-   if pSomeText is not empty then fedwiki_AddParagraphToPageArray pageArray, pSomeText
-   put fedwiki_ConstructJournalArray (pageTitle, pSourceArray) into pageArray ["journal"] 
-   return pageArray
-end fedwiki_ConstructPageArray
 
 function fedwiki_ConstructNewPageJson pageTitle, pSomeText
    put fedwiki_ConstructNewPageArray (pageTitle, pSomeText) into pageArray
@@ -748,22 +770,14 @@ end fedwiki_ConstructNewPageJson
 
 function fedwiki_ConstructNewPageArray pageTitle, pSomeText, pSourceArray
    put pageTitle into pageArray ["title"]
-   put fedwiki_ConstructJournalArray (pageTitle, pSourceArray) into pageArray ["journal"] 
+   put pageArray_ConstructJournal (pageTitle, pSourceArray) into pageArray ["journal"] 
    if pSomeText is empty then
-      fedwiki_AddFactoryToPageArray pageArray
+      pageArray_AddFactory pageArray
    else
-      fedwiki_AddParagraphToPageArray pageArray, pSomeText
+      pageArray_AddText pageArray, pSomeText
    end if
    return pageArray
 end fedwiki_ConstructNewPageArray
-
-function fedwiki_FetchPageMarkdown jsonURL
-   fedwiki_TestJsonUrl jsonURL, pageTitle, storyArray, journalArray
-   if the result is false then return empty
-   --
-   put fedwiki_ConstructPageMarkdown (pageTitle, storyArray) into pageMarkdown
-   return pageMarkdown
-end fedwiki_FetchPageMarkdown
 
 
 --> Fedwiki | Add | Lines
@@ -802,7 +816,7 @@ command fedwiki_AutoAddLines @pageArray, someLines
       get line 1 to 2 of someLines
       replace CR with space in it
       if it is not empty then
-         fedwiki_AddParagraphToPageArray pageArray, it
+         pageArray_AddText pageArray, it
       end if
       delete line 1 to 2 of someLines
       if someLines is empty then
@@ -810,24 +824,6 @@ command fedwiki_AutoAddLines @pageArray, someLines
       end if
    end repeat
 end fedwiki_AutoAddLines
-
-
---> Fedwiki | Fins
--
-function fedwiki_FindSlug pageSlug, siteMapArray
-   repeat for each key indexNum in siteMapArray
-      if siteMapArray [indexNum]["slug"] is pageSlug then
-         return indexNum
-      end if
-   end repeat
-   return 0
-end fedwiki_FindSlug
-
-function fedwiki_LastStoryItemNum fedwikiPageArray
-   put fedwikiPageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into lastItemNum
-   return lastItemNum
-end fedwiki_LastStoryItemNum
 
 
 --> Fedwiki | Edit
@@ -839,15 +835,15 @@ command fedwiki_AddTools @fedwikiPageArray, pSearchWords
       put CR & CR & "Search for [[free culture]] images for this page on [" & searchURL && "google]" after someMarkdown
    end if
    
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, someMarkdown
-   fedwiki_AddTransportToPageArray fedwikiPageArray
+   pageArray_AddMarkdown fedwikiPageArray, someMarkdown
+   pageArray_AddTransport fedwikiPageArray
    -- fedwiki_AddCreativeCommonsSearch fedwikiPageArray, searchWords
 end fedwiki_AddTools
 
 command fedwiki_AddCreativeCommonsSearch @fedwikiPageArray, searchWords
    put google_ConstructCreativeCommonsSearchUrl (searchWords) into searchURL
    put "Search for [[free culture]] images for this page on [" & searchURL && "google]" into someMarkdown
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, someMarkdown
+   pageArray_AddMarkdown fedwikiPageArray, someMarkdown
 end fedwiki_AddCreativeCommonsSearch
 
 command fedwiki_AddExternalLinkToFirstSection @fedwikiPageArray, someURL, pLinkText
@@ -860,7 +856,7 @@ command fedwiki_AddExternalLinkToFirstSection @fedwikiPageArray, someURL, pLinkT
       -- section was empty
       put "There is no text for this section. Please add some." into itemText
       fedwiki_AddExternalLink itemText, someURL, pLinkText
-      put fedwiki_ConstructStoryItemArray (itemText, "markdown") into itemArray
+      put pageArray_ConstructItemArray (itemText, "markdown") into itemArray
       --
       fedwiki_StoryInsertInto storyArray, 1, itemArray
       --
@@ -878,7 +874,7 @@ command fedwiki_MakeTextParagraphFirst @fedwikiPageArray, pTypeList
    repeat with itemNum = 1 to (the number of lines of the keys of storyArray)
       put storyArray [itemNum]["type"] into itemType
       if itemType is among the items of pTypeList then
-         pageArray_MoveStoryItem fedwikiPageArray, itemNum, 1
+         pageArray_MoveItem fedwikiPageArray, itemNum, 1
          return true
       end if
    end repeat
@@ -939,19 +935,16 @@ end fedwiki_StoryExtractorderedIDArray
 
 --> Fedwiki | Return
 -
-command fedwiki_ReturnPageArray fedwikiPageArray
-   if fedwikiPageArray is an array then
-      -- fedwiki_StripJournal fedwikiPageArray
-      --
-      put json_FromArray (fedwikiPageArray) into someJSON
-      fedwiki_ReturnJSON someJSON
-   else
+command fedwiki_ReturnPageArray pageArray
+   if pageArray is not an array then
       put "The is not one that I can parse." into someInfo
-      put CR & CR & fedwikiPageArray after someInfo
-      --
-      put fedwiki_ConstructErrorJSON (someInfo, "Error with page array!") into someJSON
-      fedwiki_ReturnJSON pageJSON
+      put CR & CR & pageArray after someInfo
+      put pageArray_Construct ("Error with page array!", someInfo) into pageArray
+      put json_FromArray (pageArray) into someJSON
    end if
+   
+   put json_FromArray (pageArray) into someJSON
+   fedwiki_ReturnJSON someJSON
 end fedwiki_ReturnPageArray
 
 command fedwiki_ReturnJSON someJSON
@@ -966,8 +959,8 @@ end fedwiki_ReturnJSON
 
 command fedwiki_ExitAndReturnError errorText, pErrorTitle
    if pErrorTitle is empty then put "Error" into pErrorTitle
-   put fedwiki_ConstructErrorJSON (errorText, pErrorTitle) into errorJSON
-   fedwiki_ReturnJSON errorJSON
+   put pageArray_Construct (pErrorTitle, errorText) into pageArray
+   fedwiki_ReturnPageArray pageArray
    exit to top
 end fedwiki_ExitAndReturnError
 
@@ -976,20 +969,6 @@ command fedwiki_ReturnError someValue, errorText
       fedwiki_ExitAndReturnError errorText, pErrorTitle
    end if
 end fedwiki_ReturnError
-
-function fedwiki_ConstructErrorJSON errorText, pErrorTitle
-   put fedwiki_ConstructErrorArray (errorText, pErrorTitle) into fedwikiPageArray
-   put json_FromArray (fedwikiPageArray) into someJSON
-   return someJSON
-end fedwiki_ConstructErrorJSON
-
-function fedwiki_ConstructErrorArray errorText, pErrorTitle
-   if pErrorTitle is empty then
-      put "Error" into pErrorTitle
-   end if
-   put fedwiki_ConstructNewPageArray (pErrorTitle, errorText) into fedwikiPageArray
-   return fedwikiPageArray
-end fedwiki_ConstructErrorArray
 
 
 --> Fedwiki | Parse
@@ -1104,18 +1083,6 @@ function fedwiki_FetchSiteExport fedwikiDomain
    return someJSON
 end fedwiki_FetchSiteExport
 
-function fedwiki_FetchSitemap fedwikiDomain
-   put fedwiki_JsonSiteMapUrl (fedwikiDomain) into sitemapURL
-   put url sitemapURL into sitemapJSON
-   return sitemapJSON
-end fedwiki_FetchSitemap
-
-function fedwiki_FetchSitemapArray fedwikiDomain
-   put fedwiki_FetchSitemap (fedwikiDomain) into someJson
-   put json_ToArray (someJson) into sitemapArray
-   return sitemapArray
-end fedwiki_FetchSitemapArray
-
 function fedwiki_FetchMetadataArray someURL
    set the itemdelimiter to "."
    if item -1 of someURL = "html" then
@@ -1150,77 +1117,6 @@ function fedwiki_FetchTitle someURL
    end repeat
    return fedwikiPageArray ["title"]
 end fedwiki_FetchTitle
-
-
---> Fedwiki | URL | Drop
--
-function fedwiki_GetDroppedArray pDropJSON
-   -- also good to get a post from a form
-   if pDropJSON is empty then put $_POST_RAW into pDropJSON
-   put json_ToArray (pDropJSON) into dropArray
-   return dropArray
-end fedwiki_GetDroppedArray
-
-command fedwiki_DeconstructDroppedURL @pageSlug, @wikiDomain, pDroppedURL
-   -- changed handler to do something more useful (used by youtube.lc)
-   if pDroppedURL is empty then
-      put fedwiki_GetDroppedUrl ($_POST_RAW) into pDroppedURL
-      -- could do a check here
-   end if
-   
-   -- let's assume its a fedwiki domain, but could be one of the following formats:
-   --
-   -- http://project.livecode.world/view/welcome-visitors/view/lcwwiki
-   -- http://project.livecode.world/lcwwiki
-   -- http://project.livecode.world/lcwwiki.json
-   -- http://project.livecode.world/lcwwiki.html
-   
-   set the itemdelimiter to slash
-   put item 3 of pDroppedURL into wikiDomain
-   put item -1 of pDroppedURL into pageSlug
-   
-   set the itemdelimiter to "."
-   put item 1 of pageSlug into pageSlug
-   return true
-end fedwiki_DeconstructDroppedURL
-
-command fedwiki_DeconstructDropped @droppedText, @droppedHtml, @droppedURL
-   put fedwiki_GetDroppedArray ($_POST_RAW) into dropArray
-   put dropArray ["text"] into droppedText
-   put dropArray ["html"] into droppedHtml
-   put dropArray ["url"] into droppedURL
-   return dropArray
-end fedwiki_DeconstructDropped
-
-function fedwiki_GetDroppedUrl pDropJSON
-   if pDropJSON is empty then put $_POST_RAW into pDropJSON
-   
-   fedwiki_SetDroppedInfo pDropJSON, droppedURL, droppedHTML, droppedText
-   --
-   set the itemdelimiter to "."
-   switch
-      case droppedURL is not empty
-         return droppedURL
-      case droppedHTML is empty
-         -- does it begin with "<meta http-equiv=\'Content-Type\' content=\'text/html;charset=UTF-8\'><a href=\"
-         return droppedText
-      case item -1 of droppedText = "html"
-         delete item -1 of droppedText
-         set the itemdelimiter to "/"
-         put "/view" after item 3 of droppedText
-         return droppedText
-      default
-         fedwiki_ReturnError pDropJSON, "No URL dropped on the page!"
-   end switch
-end fedwiki_GetDroppedUrl
-
-command fedwiki_SetDroppedInfo dropJSON, @droppedURL, @droppedHTML, @droppedText
-   put json_ToArray (dropJSON) into dropArray
-   put dropArray ["html"] into droppedHTML
-   put dropArray ["text"] into droppedText
-   put dropArray ["url"] into droppedURL
-   return dropArray
-end fedwiki_SetDroppedInfo
 
 
 --> Fedwiki | URL
@@ -1352,7 +1248,7 @@ command fedwiki_AddImageToPageArray @pageArray, imageURL, pCaption, pCaptionLink
    put " -" && tldBit into linkInfo
    --
    put fedwiki_ConstructImageHtml (imageURL, pCaption, pCaptionLinkURL, linkInfo) into imageHTML
-   fedwiki_AddHtmlToPageArray pageArray, imageHTML
+   pageArray_AddHtml pageArray, imageHTML
    return true
 end fedwiki_AddImageToPageArray
 
@@ -1387,97 +1283,6 @@ command fedwiki_AddExternalLink @someText, someURL, pLinkText
 end fedwiki_AddExternalLink
 
 
---> Fedwiki | Add
--
-command fedwiki_AddRosterToPageArray @pageArray, rosterText, pID
-   if rosterText is empty then return false
-   put fedwiki_ConstructStoryItemArray (rosterText, "roster", pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddRosterToPageArray
-
-command fedwiki_AddRefToPageArray @pageArray, pageSlug, wikiDomain, refText, pageTitle, pID
-   if pageSlug is empty then return false
-   put fedwiki_ConstructStoryRefArray (pageSlug, wikiDomain, refText, pageTitle, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddRefToPageArray
-
-command fedwiki_AddTitleToPageArray @pageArray, someTitle, pID
-   if someTitle is  empty then return false
-   put "#" && someTitle into someMarkdown
-   fedwiki_AddMarkdownToPageArray pageArray, someMarkdown, pID
-   return true
-end fedwiki_AddTitleToPageArray
-
-command fedwiki_AddMarkdownToPageArray @pageArray, someMarkdown, pID
-   if someMarkdown is  empty then return false
-   put fedwiki_ConstructStoryMarkdownArray (someMarkdown, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddMarkdownToPageArray
-
-command fedwiki_AddFactoryToPageArray @pageArray, pID
-   put fedwiki_ConstructFactoryArray (pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddFactoryToPageArray
-
-command fedwiki_AddPagefoldToPageArray @pageArray, someText, pID
-   if someText is  empty then return false
-   put word 1 to -1 of someText into someText
-   put fedwiki_ConstructStoryPagefoldArray (someText, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddPagefoldToPageArray
-
-command fedwiki_AddParagraphToPageArray @pageArray, someText, pID
-   if someText is  empty then return false
-   put word 1 to -1 of someText into someText
-   put fedwiki_ConstructStoryParagraphArray (someText, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddParagraphToPageArray
-
-command fedwiki_AddHtmlToPageArray @pageArray, someHtml, pID
-   if someCode is  empty then return false
-   put fedwiki_ConstructStoryHtmlArray (someHtml, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddHtmlToPageArray
-
-command fedwiki_AddCodeToPageArray @pageArray, someCode, pID
-   if someCode is  empty then return false
-   put fedwiki_ConstructStoryCodeArray (someCode, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddCodeToPageArray
-
-command fedwiki_AddAudioToPageArray @pageArray, audioUrl, someText, pID
-   if audioUrl is  empty then return false
-   put fedwiki_ConstructStoryAudioArray (audioUrl, someText, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddAudioToPageArray
-
-command fedwiki_AddMapToPageArray @pageArray, mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID
-   if mapLat is  empty then return false
-   put fedwiki_ConstructStoryMapArray (mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddMapToPageArray
-
-command fedwiki_AddTransportToPageArray @pageArray, pTransportLine, pID
-   if pTransportLine is  empty then return false
-   if pTransportLine is empty then
-      put "POST https://rest.livecode.world/imagine" into pTransportLine
-   end if
-   put fedwiki_ConstructTransportArray (pTransportLine, pID) into itemArray
-   fedwiki_AddItemArrayToStoryEnd itemArray, pageArray
-   return true
-end fedwiki_AddTransportToPageArray
-
-
 --> Fedwiki | Add | Array
 -
 command fedwiki_AddStoryArray @fedwikiPageArray, moreStoryItemArray
@@ -1487,7 +1292,7 @@ command fedwiki_AddStoryArray @fedwikiPageArray, moreStoryItemArray
    fedwiki_AddToStoryArrayItems storyItemArray, moreStoryItemArray
    put storyItemArray into fedwikiPageArray ["story"]
    --
-   fedwiki_StripJournal fedwikiPageArray
+   pageArray_StripJournal fedwikiPageArray
    return true
 end fedwiki_AddStoryArray
 
@@ -1495,135 +1300,10 @@ command fedwiki_AddToStoryArrayItems @storyItemArray, moreStoryItemArray
    if moreStoryItemArray is not an array then return false
    repeat with storyItemNum = 1 to item 2 of the extents of moreStoryItemArray
       put moreStoryItemArray [storyItemNum] into itemArray
-      fedwiki_AddToEndOfIndexArray itemArray, storyItemArray
+      array_AddToEndOfIndex itemArray, storyItemArray
    end repeat
    return true
 end fedwiki_AddToStoryArrayItems
-
-command fedwiki_AddItemArrayToStoryEnd storyItemArray, @fedwikiPageArray
-   -- this add a factory to the journal and a itemArray to the journal and story
-   -- all with the same id
-   if storyItemArray is not an array then return 0
-   
-   put fedwikiPageArray ["story"] into storyArray
-   put fedwikiPageArray ["journal"] into journalArray
-   put storyItemArray ["id"] into itemID
-   
-   -- add the item to the end of the story
-   fedwiki_AddToEndOfIndexArray storyItemArray, storyArray
-   -- figure out what we just added it after
-   -- this can be empty if it is the first entry
-   put the result into afterID
-   put storyArray into fedwikiPageArray ["story"]
-   
-   -- 3) Now let's add the edit or add to the journal
-   -- make the factory have the same id as the item we will add to the story
-   put fedwiki_ConstructFactoryArray (itemID) into factoryArray
-   -- now add a journal entry for adding after the id of the end paragraph
-   fedwiki_AddToJournalArray journalArray, factoryArray, "add", afterID
-   
-   -- finally add the journal entry for editing the factory
-   fedwiki_AddToJournalArray journalArray, storyItemArray, "edit"
-   put journalArray into fedwikiPageArray ["journal"]
-   
-   put fedwiki_lastStoryItemNum (fedwikiPageArray) into lastItemNum
-   return lastItemNum
-end fedwiki_AddItemArrayToStoryEnd
-
-command fedwiki_AddToEndOfIndexArray dataOrArray, @someArray
-   put item 2 of the extents of someArray into indexNum
-   put someArray [indexNum]["id"] into afterID
-   add 1 to indexNum
-   put dataOrArray into someArray [indexNum]
-   return afterID -- figure out what we just added it after
-end fedwiki_AddToEndOfIndexArray
-
-
---> Fedwiki | Add | Construct
--
-function fedwiki_ConstructStoryRefArray pageSlug, wikiDomain, refText, pageTitle, pID
-   fedwiki_SetID pID   
-   put audioUrl & CR & someText into itemArray ["text"]
-   
-   put wikiDomain into itemArray ["site"]
-   put pageTitle into itemArray ["title"]
-   put pageSlug into itemArray ["slug"]
-   put refText into itemArray ["text"]
-   --
-   put "reference" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end fedwiki_ConstructStoryRefArray
-
-function fedwiki_ConstructTransportArray transportLine, pID
-   fedwiki_SetID pID
-   put transportLine into itemArray ["text"]
-   put "transport" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end fedwiki_ConstructTransportArray
-
-function fedwiki_ConstructStoryMapArray mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID
-   fedwiki_SetID pID
-   put pID into itemArray ["id"]
-   if mapLat is not empty then
-      put mapLat into itemArray ["latlng"]["lat"]
-      put mapLong into itemArray ["latlng"]["lng"]
-   end if
-   
-   if mapText is empty then put "Map" into mapText
-   if pPinText is not empty then
-      -- "text": "Map\n52.207483, 0.115771 Master's Garden"
-      put CR & mapLat & comma && mapLong && pPinText after mapText
-   end if
-   put mapText into itemArray ["text"]
-   
-   switch pTileType
-      case "fsd"
-         -- "tile": "http://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png",
-         break
-   end switch
-   
-   put "map" into itemArray ["type"]
-   put mapZoom into itemArray ["zoom"]
-   return itemArray
-end fedwiki_ConstructStoryMapArray
-
-function fedwiki_ConstructStoryCodeArray someCode, pID
-   return fedwiki_ConstructStoryItemArray (someCode, "code", pID)
-end fedwiki_ConstructStoryCodeArray
-
-function fedwiki_ConstructStoryAudioArray audioUrl, someText, pID
-   fedwiki_SetID pID   
-   put audioUrl & CR & someText into itemArray ["text"]
-   put "audio" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end fedwiki_ConstructStoryAudioArray
-
-function fedwiki_ConstructStoryHtmlArray someHtml, pID
-   return fedwiki_ConstructStoryItemArray (someHtml, "html", pID)
-end fedwiki_ConstructStoryHtmlArray
-
-function fedwiki_ConstructStoryMarkdownArray someMarkdown, pID
-   return fedwiki_ConstructStoryItemArray (someMarkdown, "markdown", pID)
-end fedwiki_ConstructStoryMarkdownArray
-
-function fedwiki_ConstructStoryPagefoldArray someText, pID
-   return fedwiki_ConstructStoryItemArray (someText, "pagefold", pID)
-end fedwiki_ConstructStoryPagefoldArray
-
-function fedwiki_ConstructStoryParagraphArray someText, pID
-   return fedwiki_ConstructStoryItemArray (someText, "paragraph", pID)
-end fedwiki_ConstructStoryParagraphArray
-
-function fedwiki_ConstructStoryItemArray someText, itemType, pID  
-   fedwiki_SetID pID   
-   put someText into itemArray ["text"]
-   put itemType into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end fedwiki_ConstructStoryItemArray
 
 
 --> Fedwiki | Journal | Array | Create
@@ -1633,19 +1313,6 @@ command fedwiki_AddToCreateArray @fedwikiPageArray, someArray
    union sourceArray with someArray
    put sourceArray into fedwikiPageArray ["journal"]["source"]
 end fedwiki_AddToCreateArray
-
-command fedwiki_AddToJournalArray @journalArray, itemArray, journalType, pAfterID, pMilliseconds
-   if pMilliseconds is empty then put the milliseconds into pMilliseconds
-   if pAfterID is not empty then
-      put pAfterID into journalEntryArray ["after"]
-   end if
-   put pMilliseconds into journalEntryArray ["date"]
-   put itemArray ["id"] into journalEntryArray ["id"]
-   put itemArray into journalEntryArray ["item"]
-   put journalType into journalEntryArray ["type"]
-   
-   fedwiki_AddToEndOfIndexArray journalEntryArray, journalArray
-end fedwiki_AddToJournalArray
 
 
 --> Fedwiki | Journal | Array | Construct
@@ -1686,17 +1353,17 @@ function fedwiki_ConstructNewImagePageArray pageTitle, someImage, imageType, pIm
    
    put pageTitle into fedwikiPageArray ["title"]  
    put fedwiki_ConstructEncodedImageArray (someImage, imageType, pImageCaption) into imageArray
-   fedwiki_AddItemArrayToStoryEnd imageArray, fedwikiPageArray
+   pageArray_AddItemArray imageArray, fedwikiPageArray
    
-   put fedwiki_ConstructJournalArray (pageTitle, pSourceArray) into journalArray
-   fedwiki_AddToJournalArray journalArray, imageArray, "add"
+   put pageArray_ConstructJournal (pageTitle, pSourceArray) into journalArray
+   journalArray_Add journalArray, imageArray, "add"
    put journalArray into fedwikiPageArray ["journal"] 
    
    return fedwikiPageArray
 end fedwiki_ConstructNewImagePageArray
 
 function fedwiki_ConstructEncodedImageArray someImage, imageType, pImageCaption, pID   
-   fedwiki_SetID pID
+   pageArray_AssignID pID
    if pImageCaption is empty then put "Uploaded image" into pImageCaption
    
    put "Uploaded image" into imageArray ["caption"] 
@@ -1812,24 +1479,11 @@ end fedwiki_ConstructOpenStreetMapURL
 
 function fedwiki_ConstructCodePageArray pageTitle, someCode, pSomeText, pSourceArray
    put pageTitle into pageArray ["title"]
-   if pSomeText is not empty then fedwiki_AddParagraphToPageArray pageArray, pSomeText
-   fedwiki_AddCodeToPageArray pageArray, someCode
-   put fedwiki_ConstructJournalArray (pageTitle, pSourceArray) into pageArray ["journal"] 
+   if pSomeText is not empty then pageArray_AddText pageArray, pSomeText
+   pageArray_AddCode pageArray, someCode
+   put pageArray_ConstructJournal (pageTitle, pSourceArray) into pageArray ["journal"] 
    return pageArray
 end fedwiki_ConstructCodePageArray
-
-function fedwiki_ConstructFactoryArray pID
-   fedwiki_SetID pID
-   put "factory" into factoryArray ["type"]
-   put pID into factoryArray ["id"]
-   return factoryArray
-end fedwiki_ConstructFactoryArray
-
-command fedwiki_SetID @pID
-   if pID is empty then 
-      put uuid () into pID
-   end if
-end fedwiki_SetID
 
 function fedwiki_JsonEncode someText
    put utf8_Encode (someText) into utf8Text
@@ -1858,6 +1512,12 @@ end _stripEndHashFromSlug
 
 --> Deps
 -
+command date_ConvertMilliseconds @someMilliseconds
+   put someMilliseconds/1000 into someMilliseconds
+   convert someMilliseconds from seconds to long date
+   delete item 1 of someMilliseconds
+end date_ConvertMilliseconds
+
 function google_ConstructCreativeCommonsSearchUrl searchWords
    put urlencode (searchWords) into searchBit
    get merge ("https://www.google.com/search?as_st=y&tbm=isch&as_q=[[searchBit]]&as_epq=&as_oq=&as_eq=&cr=&as_sitesearch=&safe=images&tbs=sur:fmc&gws_rd=ssl")
@@ -2011,6 +1671,71 @@ command line_SetUnique @someIndex, pCaseSensitive
    end if
 end line_SetUnique
 
+function url_ListTopDomains domainNames
+   put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
+   put keys (domainNameArray) into topDomainNames
+   url_SortDomainIndex topDomainNames
+   return topDomainNames
+end url_ListTopDomains
+
+function url_ConstructTopLevelDomainArray domainNames
+   /*
+   gets a reverse-polish style array of domain names
+   items keys with ["domain name"] are the domainname
+   remove from lists to get subdomains
+   */
+   
+   set the itemdelimiter to "."
+   repeat for each line domainName in domainNames
+      set the cursor to busy
+      url_DeconstructTopDomain domainName, topDomainName, subDomainBit
+      
+      -- let's reverse the order
+      put 1 into keyNum
+      put true into isIpAdress
+      repeat with itemNum = the number of items of subDomainBit down to 1
+         put item itemNum of subDomainBit into domainBit
+         if domainBit is not a number then
+            put false into isIpAdress
+         end if
+         put domainBit into keyArray [keyNum]
+         add 1 to keyNum
+      end repeat
+      
+      if isIpAdress is true then
+         next repeat
+      end if
+      
+      if keyArray is an array then
+         put domainName into domainNameArray [topDomainName]["subdomain"][keyArray]["domain name"]
+      else
+         put domainName into domainNameArray [topDomainName]["domain"]["domain name"]
+      end if
+      delete variable keyArray
+   end repeat
+   return domainNameArray
+end url_ConstructTopLevelDomainArray
+
+command url_DeconstructTopDomain domainString, @topDomainName, @subDomainBit
+   -- a quick hack
+   -- could check it is a url first
+   
+   set the itemdelimiter to ":"
+   put item 1 of domainString into domainName
+   -- put item 2 of domainString into somePort
+   
+   set the itemdelimiter to "."
+   switch
+      case item -2 to -1 of domainName = "co.uk"
+         put item -3 to -1 of domainName into topDomainName
+         put item 1 to -4 of domainName into subDomainBit
+         break
+      default
+         put item -2 to -1 of domainName into topDomainName
+         put item 1 to -3 of domainName into subDomainBit
+   end switch
+end url_DeconstructTopDomain
+
 command url_CheckDomainIndex @domainNames
    -- could have option to test actual domains
    -- quick check to remove pages without "."
@@ -2021,8 +1746,6 @@ command url_CheckDomainIndex @domainNames
    end repeat
    delete char -1 of goodDomains
    put goodDomains into domainNames
-   --
-   url_SortDomainIndex domainNames
    return true
 end url_CheckDomainIndex
 
