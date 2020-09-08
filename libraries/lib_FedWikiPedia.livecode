@@ -18,7 +18,6 @@ Everything at the bottom of this code is in process of being moved to it's own l
 
 command fedwikipedia_CleanConvertTemplate @wikiSectionLine
    -- some start text {{convert|22|–|25|C|F}} also {{convert|4|C-change|sigfig=1}} end text 
-   -- put script_GetCommentAboveMe() into wikiSectionLine
    
    put "[^\}]+" into untilCurlyBracket
    put "\{\{convert\|(" & untilCurlyBracket & ")\}\}" into someReg
@@ -59,7 +58,6 @@ end fedwikipedia_CleanCitations
 
 private command _StripCitations @wikiText
    -- starting text <ref name="fdsa">{{cite web|author=Nisi Shawl |url=http://seattletimes.nwsource.com/html/books/2008758249_br22sterling.html |title=Books &#124; "The Caryatids": four clones need a home &#124; Seattle Times Newspaper |publisher=Seattletimes.nwsource.com |date=2009-02-19 |accessdate=2010-01-01}}</ref> something at the end
-   -- put script_GetCommentAboveMe() into wikiSectionLine
    
    put "[^\}]+" into untilCurlyBracket
    put "\{\{cite (" & untilCurlyBracket & ")\}\}" into someReg
@@ -227,7 +225,6 @@ command fedwikipedia_CleanInternalLinks @wikiSectionLine
    -- strips out image files as well (carefull)
    -- some starting text [[Machtergreifung|came to power]] something [[Real Link|well a second one]] at end
    -- Berlin was devastated by [[Bombing of Berlin in World War II|bombing raids]], fires and street battles during 
-   -- put script_GetCommentAboveMe() into wikiSectionLine
    
    put "\[\[([^\]]+)\|([^\]]+)\]\]" into someReg
    put "(?m)" before someReg -- multiline search
@@ -548,7 +545,6 @@ private command _CleanTable @wikiText
    
    World
    */
-   -- put script_GetCommentAboveMe() into wikiText
    
    put "[^\}]*" into notClosingBracket
    put "(?mi)(\{\|" & notClosingBracket & "\|\})" into someReg
@@ -563,7 +559,6 @@ end _CleanBlockQuotes
 
 private command _CleanSeeAlso @wikiSectionLine
    -- some start text {{See also|1920s Berlin}} end text 
-   -- put script_GetCommentAboveMe() into wikiSectionLine
    
    put "[^\}]+" into untilCurlyBracket
    put "\{\{See also\|(" & untilCurlyBracket & ")\}\}" into someReg
@@ -585,7 +580,6 @@ end _CleanSeeAlso
 
 command _CleanComments @wikiText
    -- As an example here is a <!-- Bot generated title --> that needs to be removed.
-   -- put script_GetCommentAboveMe() into wikiText
    --
    put "[^\>]*" into notClosingBracket
    --
@@ -601,7 +595,11 @@ end _CleanComments
 --> HTML | Tidy
 -
 function html_FetchTidy someURL
-   put "curl -s" && someURL && "| tidy -asxhtml --quiet yes --tidy-mark no --show-warnings false --show-errors 0" into someShell
+   if the platform is "server" then
+      put "curl -s" && someURL && "| tidy -asxhtml --quiet yes --tidy-mark no --show-warnings false --show-errors 0" into someShell
+   else
+      put "curl -s" && someURL && "| /usr/local/bin/tidy -asxhtml --quiet yes --tidy-mark no --show-warnings false --show-errors 0" into someShell
+   end if
    put shell (someShell) into someXHTML
    return someXHTML
 end html_FetchTidy

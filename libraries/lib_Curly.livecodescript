@@ -28,6 +28,48 @@ function pageData_GetItemArray pageData, varName
 end pageData_GetItemArray
 
 
+--> Curly | Merge
+-
+command curly_ReplacePageArray @pageArray, curlyKey, curlyReplacement
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      get storyArray [itemNum]["text"]
+      put it into itemText
+      curly_ReplaceText itemText, curlyKey, curlyReplacement
+      if itemText is not it then
+         put itemText into pageArray ["story"][itemNum]["text"]
+         put itemNum & comma after updateditemNums
+      end if
+   end repeat
+   delete char -1 of updateditemNums
+   return updateditemNums
+end curly_ReplacePageArray
+
+command curly_MergeAll @pageArray, curlyData
+   -- curly merge every story items text
+   put curlyData ["all"] into curlyArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum]["text"] into itemText
+      curly_Merge itemText, curlyArray
+      put itemText into pageArray ["story"][itemNum]["text"]
+   end repeat
+end curly_MergeAll
+
+command curly_Merge @someText, curlyArray
+   repeat for each key curlyKey in curlyArray
+      put curlyArray [curlyKey] into curlyReplacement
+      curly_ReplaceText someText, curlyKey, curlyReplacement
+   end repeat
+end curly_Merge
+
+command curly_ReplaceText @someText, curlyKey, curlyReplacement
+   put "(\{\{\s*" & curlyKey & "\s*\}\})" into someReg
+   text_StripReg someText, someReg, curlyReplacement
+   return the result
+end curly_ReplaceText
+
+
 --> Curly | PageArray
 -
 command curly_MergePageArray @pageArray, curlyData
@@ -57,18 +99,6 @@ command curly_SetPageItems @pageArray, curlyIdArray
    end repeat
 end curly_SetPageItems
 
-command curly_MergeAll @pageArray, curlyData
-   put curlyData ["all"] into curlyArray
-   
-   -- curly merge every story items text
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum]["text"] into itemText
-      curly_Merge itemText, curlyArray
-      put itemText into pageArray ["story"][itemNum]["text"]
-   end repeat
-end curly_MergeAll
-
 
 --> Curly
 -
@@ -96,14 +126,6 @@ command curly_SetReplaceArray @curlyData, itemArray, itemID, pNewItemID
    end if
    put itemArray into curlyData ["replace"][itemID]
 end curly_SetReplaceArray
-
-command curly_Merge @someText, curlyArray
-   repeat for each key curlyLabel in curlyArray
-      put curlyArray [curlyLabel] into curlyReplacement
-      put "(\{\{\s*" & curlyLabel & "\s*\}\})" into someReg
-      text_StripReg someText, someReg, curlyReplacement
-   end repeat
-end curly_Merge
 
 
 --> WikiText

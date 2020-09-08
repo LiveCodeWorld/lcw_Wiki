@@ -151,7 +151,7 @@ function fedwiki_ExtractRosterSites
             put word 2 to -1 of someLine into someRef
             put item 1 of someRef into fedwikiDomain
             put item 2 of someRef into pageSlug
-            put pageJson_Fetch (fedwikiDomain, pageSlug) into pageJson
+            put fedwiki_FetchPageJson (fedwikiDomain, pageSlug) into pageJson
             return pageJson
             break
          default

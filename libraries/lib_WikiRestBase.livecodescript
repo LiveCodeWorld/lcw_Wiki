@@ -28,6 +28,46 @@ See also - https://www.mediawiki.org/wiki/REST_API
 
 --> Working on
 -
+command wikipedia_DownloadImages pageTitle
+   -- maximum height 1080
+   -- mediawiki_NormaliseTitle pageTitle, pageTitle, pageID, pLang
+   -- mediawiki_NormaliseTitle pageTitle, pageTitle, pageID
+   
+   put restbase_ListImageUrls (pageTitle) into imageUrls
+   if imageUrls is empty then
+      -- let's guess it is Spansih
+      put restbase_ListImageUrls (pageTitle, "es") into imageUrls
+   end if
+   
+   if imageUrls is empty then return empty
+   
+   put dropbox_MediaWikiImageFolder (pageTitle) into someFolder
+   folder_CreateNested someFolder
+   
+   set the itemdelimiter to slash
+   repeat for each line someURl in imageUrls
+      set the cursor to busy
+      put urldecode (item -1 of someURl) into shortFile
+      put "binfile:" & someFolder & shortFile into localURL
+      put url someURl into url localURL
+   end repeat
+   
+   return imageUrls
+end wikipedia_DownloadImages
+
+function dropbox_MediaWikiImageFolder pageTitle
+   put dropbox_Folder ("Imagine Media Installation - Footage") & pageTitle & slash into someFolder
+   return someFolder
+end dropbox_MediaWikiImageFolder
+
+function dropbox_Folder pShortFolder
+   put "/Users/fortyfoxes/Dropbox/" into someFolder
+   if pShortFolder is not empty then
+      put pShortFolder & slash after someFolder
+   end if
+   return someFolder
+end dropbox_Folder
+
 
 --> Wikipedia | List
 -
@@ -47,26 +87,63 @@ function wikipedia_ListPages titleString, pNearMatch, pLang
    return pageTitles
 end wikipedia_ListPages
 
-function wikicommons_ListImages fromName, pFormat
+function wikicommons_ListImages shortImageFile
    -- this does not seem to return good lists of images
    -- lot's of dodgy characters = spam? in file names etc?
    -- api.php?action=query&list=allimages&ailimit=5&aifrom=Albert&aiprop=dimensions|mime [try in ApiSandbox]
    -- put "Albert Einstein" into fromName
    -- put "IndustrialSymbiosisWasteHeatExchange.png" into shortImageFile
-   if pFormat is empty then put "json" into pFormat
    
-   put "action=query&list=allimages&format=[[pFormat]]" into urlPattern
-   put "&titles=Image:[[shortImageFile]]" after urlPattern
+   put "action=query&list=allimages&format=json" into urlPattern
+   -- put "&titles=Image:[[shortImageFile]]" after urlPattern
+   put "&titles=[[shortImageFile]]" after urlPattern
    put wikicommons_GetApiStem() & merge (urlPattern) into restURL
    
    put mediawiki_FetchJSON (restURL) into someJSON
-   -- put url someURL into someJSON
    return someJSON
 end wikicommons_ListImages
 
 
 --> Restbase | Fetch
 -
+function restbase_ListImageUrls pageTitle, pLang, pRestbaseEndpoint  
+   put restbase_FetchMediaArray (pageTitle, pLang, pRestbaseEndpoint) into mediaItemArray
+   repeat for each key itemNum in mediaItemArray
+      put mediaItemArray [itemNum]["original"]["source"] into imageURL
+      if imageURL is empty then
+         put mediaItemArray [itemNum]["sources"][1]["url"] into imageURL
+         put imageURL & CR after imageUrls
+      else
+         put imageURL & CR after imageUrls
+      end if
+   end repeat
+   delete char -1 of imageUrls
+   return imageUrls
+end restbase_ListImageUrls
+
+function restbase_ListImages pageSlug, pLang, pRestbaseEndpoint
+   put restbase_FetchMediaArray (pageSlug, pLang, pRestbaseEndpoint) into mediaItemArray
+   repeat for each key itemNum in mediaItemArray
+      put mediaItemArray [itemNum]["titles"]["normalized"] into imageTitle
+      put mediaItemArray [itemNum]["original"]["source"] into imageURL
+      put imageURL into imageArray [imageTitle]
+   end repeat
+   put keys (imageArray) into imageTitles
+   return imageTitles
+end restbase_ListImages
+
+function restbase_FetchMediaArray pageTitle, pLang, pRestbaseEndpoint
+   --  -H "accept: application/json; charset=utf-8; profile="https://www.mediawiki.org/wiki/Specs/Media/1.3.1""
+   -- put merge ("https://en.wikipedia.org/api/rest_v1/page/media/[[pageSlug]]?redirect=true") into restURL
+   -- put urlencode (pageTitle) into pageSlug
+   
+   put restbase_ConstructSlugRestURL (pageTitle, "page/media/", pLang, pRestbaseEndpoint) into restURL
+   put mediawiki_FetchJSON (restURL) into someJSON
+   put json_ToArray (someJSON) into someArray
+   put someArray ["items"] into mediaItemArray
+   return mediaItemArray
+end restbase_FetchMediaArray
+
 function restbase_FetchSlugArray @pageSlug, restPath, pLang
    -- updates pageSlug if there is a redirect
    
@@ -183,6 +260,8 @@ end restbase_FetchSummaryJSON
 function restbase_ConstructSlugRestURL pageSlug, restPath, pLang, pRestbaseEndpoint
    if pLang is empty then put "en" into pLang
    if pRestbaseEndpoint is empty then put ".wikipedia.org/api/rest_v1/" into pRestbaseEndpoint
+   --
+   replace space with "_" in pageSlug
    --
    put restPath & pageSlug into apiPath
    put "https://" & pLang & pRestbaseEndpoint into restURL

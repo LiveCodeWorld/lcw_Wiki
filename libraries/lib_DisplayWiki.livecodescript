@@ -7,7 +7,37 @@ type: library
 version: 0.2
 
 
---> Display
+--> Fedwiki
+-
+command fedwiki_Launch wikiDomain, pPageTitle
+   if pPageTitle is empty then
+      put empty into pSlug
+   else
+      put fedwiki_ConstructSlug (pPageTitle) into pSlug
+   end if
+   --
+   fedwiki_LaunchSlug wikiDomain, pSlug
+   --
+   put the result into wikiURL
+   return wikiURL
+end fedwiki_Launch
+
+command fedwiki_LaunchSlug wikiDomain, pSlug
+   switch pSlug
+      case "welcome-visitors"
+      case empty
+         put "http://" & wikiDomain into wikiURL
+         break
+      default
+         put "http://" & wikiDomain & "/view/welcome-visitors/view/" & pSlug into wikiURL
+   end switch
+   --
+   launch url wikiURL
+   return wikiURL
+end fedwiki_LaunchSlug
+
+
+--> Display | Events
 -
 on mDoubleUp_Test indexView, wikiDomain
    put the fedray_Data of indexView into fedray
@@ -24,39 +54,6 @@ on mDoubleUp_Test indexView, wikiDomain
       launch url someURL
    end if
 end mDoubleUp_Test
-
-command display_FedrayUpdate fedray, titleText
-   put keys (fedray) into fedDomains
-   url_SortDomainindex fedDomains
-   --
-   put display_FindView ("Federation", titleText) into indexView
-   if exists (indexView) then
-      set the displayed_Index of indexView to fedDomains
-   else
-      display_Lines fedDomains, titleText, "mDoubleUp_Test", "Federation"
-      put the result into indexView
-      set the title_Menu of indexView to "Global | Federation | Build | Menu"
-   end if
-   
-   -- does the same as "fedray_Fetch()" but with display
-   repeat for each line wikiDomain in fedDomains
-      display_Spin wikiDomain, indexView
-      put the result into lineNum
-      --
-      fedray_UpdateDomain fedray, wikiDomain, true -- updates fedray without saving
-      put the result into pageNum
-      if pageNum is empty then
-         set the line_Colour [lineNum] of indexView to red
-      else
-         set the line_Colour [lineNum] of indexView to green
-      end if
-   end repeat
-   
-   -- now let's store fedray to the newly created indexView
-   set the fedray_Data of indexView to fedray
-   set the hilited_Lines of indexView to 0
-   return indexView
-end display_FedrayUpdate
 
 
 --> Display | Wiki
@@ -118,3 +115,37 @@ command display_Podcasts
       exit to top
    end repeat
 end display_Podcasts
+
+
+--> Private
+-
+private command _UpdateFedrayDisplay @fedray, pIndexView
+   -- if pIndexView exists then update the displayed index display
+   -- but don't save to the server
+   put keys (fedray) into fedDomains
+   repeat for each line wikiDomain in fedDomains
+      if exists (pIndexView) then
+         display_Spin wikiDomain, pIndexView
+         put the result into lineNum
+      end if
+      --
+      fedray_UpdateDomain fedray, wikiDomain -- updates fedray without saving
+      --
+      if exists (pIndexView) then
+         put the result into pageNum
+         if pageNum is empty then
+            set the line_Colour [lineNum] of pIndexView to red
+         else
+            set the line_Colour [lineNum] of pIndexView to green
+         end if
+      end if
+   end repeat
+   
+   if exists (pIndexView) then
+      -- now let's store fedray to the newly created indexView
+      set the fedray_Data of indexView to fedray
+      set the hilited_Lines of indexView to 0
+   end if
+end _UpdateFedrayDisplay
+
+

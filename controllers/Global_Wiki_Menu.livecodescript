@@ -9,13 +9,45 @@ version: 0.4
 /*
 This menu is used to control a Livecode wiki browser.
 */
+command mDoubleUp_DownloadImages displayView, pageTitle
+   _CheckExists pageTitle
+   --
+   wikipedia_DownloadImages pageTitle
+   put the result into imageUrls
+   
+   put the number of lines of imageUrls into iNum
+   lcw_Answer merge ("Downloaded [[iNum]] images for the wiki page '[[pageTitle]]'?")
+end mDoubleUp_DownloadImages
+
+private command _CheckExists pageTitle
+   put dropbox_MediaWikiImageFolder (pageTitle) into someFolder
+   if there is a folder someFolder then
+      lcw_WarnAndExit merge ("There is already an image folder for the wiki page '[[pageTitle]]'?"), true
+   end if
+end _CheckExists
 
 
 --> Global | Wiki | Menu
 -
-on menu_Test
-   put the params
-end menu_Test
+on menu_DisplayKeywords
+   -- "http://carlos.proto.institute/view/welcome-visitors/view/imagine-keywords"
+   put pageArray_Fetch ("carlos.proto.institute", "imagine-keywords") into pageArray
+   put pageArray_GetPageLinks (pageArray) into wikiLinks
+   --
+   display_Lines wikiLinks, "D4A Keywords", "mDoubleUp_DownloadImages", "carlos.proto.institute"
+   put the result into displayView
+   
+   set the title_Menu of displayView to "Global | D4A | Menu"
+   set the line_Menu of displayView to "Global | D4A | Line | Menu"
+end menu_DisplayKeywords
+
+on menu_FetchChromeFedwiki
+   put chrome_GetURl() into wikiURL
+   fedwiki_DeconstructURL wikiURL, pageSlug, wikiDomain
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   --
+   display_Array pageArray
+end menu_FetchChromeFedwiki
 
 on _
 end _
@@ -221,4 +253,3 @@ function _GetWikiView mTarget
    put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
    return wikiView
 end _GetWikiView
-

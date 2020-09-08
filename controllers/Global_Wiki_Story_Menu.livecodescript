@@ -286,10 +286,9 @@ on menu_FetchLastPage dgView
    
    put fedwiki_ExtractPageSlugsFromPath (urlPath) into pageSlugs
    put line -1 of pageSlugs into pageSlug
-   put pageJson_Fetch (fedwikiDomain, pageSlug) into someJSON
-   put json_ToArray (someJSON) into someArray
+   put pageArray_Fetch (fedwikiDomain, pageSlug) into someArray
    
-   display_Array someArray, "pageJson_Fetch"
+   display_Array someArray, "pageArray_Fetch()"
 end menu_FetchLastPage
 
 on menu_WikiSiteMap dgView
