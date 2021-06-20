@@ -20,6 +20,30 @@ The wikiText "clean" functions are in "lib_FedwikiPedia"
 
 --> Working on
 -
+command _AddTocFromSectionTitle @pageArray, pageSlug, sectionTitle, subSectionArray, sectionNum
+   -- put wikicommons_FetchTocArray (pageSlug) into tocArray
+   -- wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, subsectionInfoArray, subsectionArray
+   --
+   if subSectionArray is not an array then return false
+   put item 2 of the extents of subsectionArray into maxNum
+   if maxNum < 2 then return false
+   
+   pageArray_AddMarkdown pageArray, "# Sections"
+   -- _AddTocToPageArray fedwikiPageArray, pageSlug, subsectionArray, tocArray
+   repeat with indexNum = 2 to maxNum
+      put subsectionArray [indexNum]["line"] into sectionTitle
+      replace "<i>" with empty in sectionTitle
+      replace "</i>" with empty in sectionTitle
+      --
+      put sectionNum + subsectionArray [indexNum]["index"] - 1 into subSectionNum
+      put wikicommons_ConstructSectionForm (pageSlug, subSectionNum, sectionTitle) into formHTML
+      pageArray_AddHtml pageArray, formHTML
+   end repeat
+end _AddTocFromSectionTitle
+
+
+--> Wikicommons
+-
 function wikicommons_ConstructBasicSummaryPageArray pageTitle, pageDescription, pWikiURL, pSourceArray
    local fedwikiPageArray
    
@@ -163,6 +187,8 @@ function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL,
    -- can't figure out how to use this info
    put parseArray ["sections"][1] into sectionInfoArray
    put sectionInfoArray ["line"] into sectionTitle
+   replace "<i>" with empty in sectionTitle
+   replace "</i>" with empty in sectionTitle
    
    -- construct wikipediaURL section link
    put _ConstructWikipediaURL (pageSlug, sectionTitle, apiStem) into wikipediaURL
@@ -201,7 +227,8 @@ function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL,
    fedwiki_AddTools fedwikiPageArray, seachWords
    
    -- add "# Sections"
-   _AddTocFromSectionTitle fedwikiPageArray, pageSlug, sectionTitle
+   put parseArray ["sections"] into sectionArray
+   _AddTocFromSectionTitle fedwikiPageArray, pageSlug, sectionTitle, sectionArray, sectionNum
    
    -- add draggable markDownTitles
    put "#" && sectionTitle into markDownTitle
@@ -255,10 +282,11 @@ end wikicommons_ConstructTwoImagePageArray
 function wikicommons_ConstructSectionForm pageSlug, sectionNum, sectionTitle
    -- https://en.wikipedia.org/w/index.php?title=Alps&action=edit&section=7
    
-   put merge ("<form action='https://rest.livecode.world/mediawiki/importSection'><input name=section_title size=60 value='[[sectionTitle]]'>") into formHTML
-   put CR & merge ("<input name=url type=hidden value='https://en.wikipedia.org/w/index.php?title=[[pageSlug]]&action=edit&section=[[sectionNum]]'>") after formHTML
-   put CR & "<input type=submit value=create></form>" after formHTML
-   --
+   put merge ("<form action='https://rest.livecode.world/mediawiki/importSection'><input name=section_title size=60 value='[[sectionTitle]]'>") into formTemplate
+   put CR & "<input name=url type=hidden value='https://en.wikipedia.org/w/index.php?title=[[pageSlug]]&action=edit&section=[[sectionNum]]'>" after formTemplate
+   put CR & "<input type=submit value=create></form>" after formTemplate
+   replace "'" with quote in formTemplate
+   put merge (formTemplate) into formHTML
    return formHTML
 end wikicommons_ConstructSectionForm
 
@@ -549,22 +577,9 @@ private function _ConstructWikipediaURL pageSlug, sectionTitle, apiStem
    return wikipediaURL
 end _ConstructWikipediaURL
 
-command _AddTocFromSectionTitle @fedwikiPageArray, pageSlug, sectionTitle
-   local subsectionInfoArray, subsectionArray
-   
-   put wikicommons_FetchTocArray (pageSlug) into tocArray
-   wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, subsectionInfoArray, subsectionArray
-   --
-   if subsectionArray is an array then
-      pageArray_AddMarkdown fedwikiPageArray, "# Sections"
-      _AddTocToPageArray fedwikiPageArray, pageSlug, subsectionArray, tocArray
-   end if
-end _AddTocFromSectionTitle
-
 command _AddTocToPageArray @pageArray, pageSlug, subsectionArray, tocArray
    put item 2 of the extents of subsectionArray into maxNum
    repeat with indexNum = 1 to maxNum
-      -- put wikicommons_FindTocDetailArray (sectionTitle, tocArray) into sectionInfoArray
       put subsectionArray [indexNum]["info"] into sectionInfoArray
       _DeconstructSectionInfoArray sectionInfoArray, sectionTitle, sectionSlug, sectionNum, dotNumber, sectionLevel
       

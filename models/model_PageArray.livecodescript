@@ -21,9 +21,336 @@ For now this means domains on the Atopia server.
 
 --> Working on
 -
+command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
+   put pageArray_FindItemType ("json", pageArray) into itemNum
+   if itemNum = 0 then
+      get the extents of pageArray ["story"]
+      put item 2 of it + 1 into itemNum
+      --
+      put "json" into pageArray ["story"][itemNum]["type"]
+      put uuid () into pageArray ["story"][itemNum]["id"]
+      --
+      if pDescription is empty then
+         put line 1 of the keys of jsonArray into pDescription
+      end if
+      put pDescription into pageArray ["story"][itemNum]["text"]
+   else
+      if pDescription is empty then
+         put pageArray ["story"][itemNum]["text"] into pDescription
+         if pDescription is empty then
+            put line 1 of the keys of jsonArray into pDescription
+            put pDescription into pageArray ["story"][itemNum]["text"]
+         end if
+      else
+         put pDescription into pageArray ["story"][itemNum]["text"]
+      end if
+   end if
+   --
+   put jsonArray into pageArray ["story"][itemNum]["resource"]
+   --
+   put "Livecode" into pageArray ["story"][itemNum]["writer"] -- "writer": "goaljam"
+   --
+   put pageArray ["Title"] into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pSlug
+   put pSlug into pageArray ["story"][itemNum]["slug"] -- "slug": "junk",
+   --
+   -- "interval": 115324
+   put the milliseconds  into milliNow
+   put pageArray ["story"][itemNum]["written"] into lastWritten
+   if lastWritten is a number then
+      put milliNow - lastWritten into pageArray ["story"][itemNum]["interval"]
+   else
+      put 0 into pageArray ["story"][itemNum]["interval"]    
+   end if
+   put milliNow into pageArray ["story"][itemNum]["written"] -- "written": 1620833478309,
+   --
+   put pageArray ["story"][itemNum]["writes"] into lastWriteNum
+   if lastWriteNum is a number then
+      put lastWriteNum + 1 into pageArray ["story"][itemNum]["writes"]
+   else
+      put 1 into pageArray ["story"][itemNum]["writes"]
+   end if
+   --
+   return the result
+end pageArray_AddJsonArray
+
+
+--> Atopia | PageJson | Model
+-
+/*
+These handlers are not used very much, except by pageArray_Fetch, pageArray_Store, pageArray_Delete
+*/
+
+function pageJson_Fetch wikiDomain, pSlug
+   -- was "pageJson_Fetch"
+   put pageJson_ConstructUrl (wikiDomain, pSlug) into someUrl
+   put url someUrl into someJSON
+   return someJSON
+end pageJson_Fetch
+
+function pageJson_ConstructUrl fedwikiDomain, pSlug
+   if pSlug is empty then
+      -- http://c0de.academy/welcome-visitors.json?random=95b9c89e
+      put "http://" & fedwikiDomain & "/welcome-visitors.json" into someUrl
+   else
+      -- put url "http://c0de.academy/currently-working-on.json?random=32c053a"
+      put "http://" & fedwikiDomain & "/" & pSlug & ".json" into someUrl
+   end if
+   put "?random=" & the milliseconds after someUrl
+   return someUrl
+end pageJson_ConstructUrl
+
+command pageJson_Store wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
+   put atopia_ConstructPagePath (wikiDomain, pageSlug) into wikiPagePath
+   --
+   atopia_StoreData wikiPagePath, pageJSON
+   --
+   put the result into shellResult
+   if shellResult is not empty then return shellResult
+   if pDeleteSiteMap is not false then -- deleting sitemap is the lazy way to update it
+      atopia_DeleteWikiSitemap wikiDomain
+   end if
+   return shellResult -- should be empty unless an error
+end pageJson_Store
+
+command pageJson_Delete wikiDomain, pageSlug
+   put atopia_ConstructPagePath (wikiDomain, pageSlug) into wikiPagePath
+   --
+   atopia_DeleteFile wikiPagePath
+   --
+   put the result into shellResult
+   return shellResult
+end pageJson_Delete
+
+
+--> PageArray | Image
+-
+function pageArray_ConstructImage imageURL, pPageTitle, pPageDescription, pLinkURL, pImageCaption
+   local pageArray
+   if pPageTitle is empty then put "Imported Image" into pPageTitle
+   if pPageDescription is empty then
+      put "This [[ghost-page]] has not been saved yet. Drag the map off this page if you want to keep it." into pPageDescription
+   end if
+   --
+   put pPageTitle into pageArray ["title"]
+   put pageArray_ConstructJournal (pPageTitle) into pageArray ["journal"] 
+   /*
+   if pImageCaption is empty then put "This is [[thumbnail image]]" into pImageCaption
+   pageArray_AddThumbnail pageArray, imageURL, pImageCaption
+   */
+   pageArray_AddMarkdown pageArray, pPageDescription
+   --
+   if pImageCaption is empty then put "This is a [[full width image]]" into pImageCaption
+   pageArray_AddImage pageArray, imageURL, pImageCaption
+   --
+   return pageArray
+end pageArray_ConstructImage
+
+function pageArray_ConstructImageEditPage imageURL, imageAttributeArray, pAddMetaData
+   html_DeconstructImageArray imageAttributeArray, srcURL, imageCaption, imageWidth, imageHeight, imageClass
+   if imageCaption is empty then put "This is a full width image" into imageCaption
+   --
+   put pageArray_FetchTemplate ("fedwiki.org", "edit-image-template", "Edit Image Tool", "fedwiki.org") into pageArray
+   --
+   curly_ReplacePageArray pageArray, "ImageURL", imageURL
+   --
+   put fedwiki_ConstructExternalLink (imageURL) into imageLink
+   curly_ReplacePageArray pageArray, "ImageLink", imageLink
+   --
+   curly_ReplacePageArray pageArray, "ImageCaption", imageCaption
+   
+   /*
+   pageArray_AddImage pageArray, imageURL, imageCaption
+   --
+   if imageCaption is empty then put "This is an [[full thumbnail image]]" into imageCaption
+   pageArray_AddThumbnail pageArray, imageURL, imageCaption
+   */
+   
+   if pAddMetaData is not false then
+      -- this fetches the image a second time with curl
+      pageArray_AddImageMetadata pageArray, imageURL
+   end if
+   --
+   return pageArray
+end pageArray_ConstructImageEditPage
+
+function pageArray_ConstructGoogleImagePage imageURL, imageAttributeArray
+   html_DeconstructImageArray imageAttributeArray, srcURL, imageCaption, imageWidth, imageHeight, imageClass
+   --
+   put "Your Dropped Image" into pageTitle
+   put "Here is a simple image you dropped on to wiki. From here you can do several things." into pageText
+   put " Below is a simple [[full width image]], that uses the [[about html plugin]] to display the image using html." after pageText
+   put pageArray_Construct (pageTitle, pageText) into pageArray
+   put empty into linkURL
+   --
+   put srcURL into dataURL
+   --
+   if imageCaption is empty then put "This is an [[full width image]]" into imageCaption
+   pageArray_AddImage pageArray, dataURL, imageCaption
+   --
+   if imageCaption is empty then put "This is an [[full thumbnail image]]" into imageCaption
+   pageArray_AddThumbnail pageArray, dataURL, imageCaption
+   --
+   return pageArray
+end pageArray_ConstructGoogleImagePage
+
+command pageArray_AddEmbeddedImage @pageArray, someImage, pImageCaption, pImageType
+   if pImageType is empty then put image_DetectType (someImage) into pImageType
+   --
+   put fedwiki_ConstructEncodedImageArray (someImage, pImageType, pImageCaption) into imageArray
+   pageArray_AddItemArray imageArray, pageArray
+end pageArray_AddEmbeddedImage
+
+command pageArray_AddImage @pageArray, imageURL, pImageCaption, pLinkURL
+   if pageArray is not an array then return false
+   if imageURL is  empty then return false
+   _SetImageDescription pImageCaption, pLinkURL, imageURL
+   --
+   put fedwiki_ConstructImageHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
+   pageArray_AddHtml pageArray, imageHTML
+   return true
+end pageArray_AddImage
+
+command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
+   if pageArray is not an array then return false
+   if imageURL is  empty then return false
+   _SetImageDescription pImageCaption, pLinkURL, imageURL
+   --
+   put fedwiki_ConstructThumbHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
+   pageArray_AddHtml pageArray, imageHTML
+   return true
+end pageArray_AddThumbnail
+
+private command _SetImageDescription @pImageCaption, @pLinkURL, imageURL
+   if pImageCaption is empty then put "This is an image" into pImageCaption
+   if pLinkURL is empty then
+      if imageURL begins with "data:image/" then
+         put empty into pLinkURL
+      else
+         put imageURL into pLinkURL
+      end if
+   end if
+end _SetImageDescription
+
+
+--> PageArray | Construct
+-
+function pageArray_Construct pageTitle, someMarkdown
+   -- was "fedwiki_ConstructSimplePageArray"
+   put pageTitle into pageArray ["title"]
+   pageArray_AddMarkdown pageArray, someMarkdown
+   put pageArray_ConstructJournal (pageTitle) into pageArray ["journal"] 
+   return pageArray
+end pageArray_Construct
+
+function pageArray_ConstructFactory pID
+   pageArray_AssignID pID
+   put "factory" into factoryArray ["type"]
+   put pID into factoryArray ["id"]
+   return factoryArray
+end pageArray_ConstructFactory
+
+function pageArray_ConstructJournal pageTitle, pSourceArray, pMilliseconds
+   put storyArray_ConstructCreate (pageTitle, pSourceArray, pMilliseconds) into createArray
+   put createArray into journalArray [1]
+   return journalArray
+end pageArray_ConstructJournal
+
+
+--> PageArray | LastUpdated
+-
+function pageArray_FetchLastUpdated wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   --
+   get pageArray_GetFirstItem (pageArray, "code")
+   set the itemdelimiter to ":"
+   delete item 1 of it
+   put word 1 to -1 of it into lastUpDate
+   --
+   convert lastUpDate from internet date to seconds
+   return lastUpDate
+end pageArray_FetchLastUpdated
+
+command pageArray_StoreLastUpdated wikiDomain, pSlug, pDateInSeconds
+   if pDateInSeconds is empty then put the seconds into pDateInSeconds
+   --
+   convert pDateInSeconds from seconds to internet date
+   put "Last updated:" && pDateInSeconds into lastUpDate
+   --
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   pageArray_SetFirstItem pageArray, "code", lastUpDate
+   --
+   pageArray_Store wikiDomain, pSlug, pageArray, true
+end pageArray_StoreLastUpdated
+
+
+--> PageArray | Roster
+-
+command pageArray_AddToRoster @pageArray, newDomain
+   put pageArray_FindItemType ("roster", pageArray) into itemNum
+   if itemNum = 0 then return 0
+   --
+   put pageArray ["story"][itemNum]["text"] into rosterText
+   roster_AddDomain rosterText, newDomain
+   put rosterText into pageArray ["story"][itemNum]["text"]
+   return itemNum
+end pageArray_AddToRoster
+
+function pageArray_GetFirstRoster pageArray
+   put pageArray_FindItemType ("roster", pageArray) into firstRosterItemNum
+   if firstRosterItemNum = 0 then return empty
+   
+   put pageArray ["story"][firstRosterItemNum]["text"] into rosterText
+   return rosterText
+end pageArray_GetFirstRoster
+
+command pageArray_SetRoster @pageArray, rosterDomains, rosterTitle
+   put pageArray_FindItemType ("roster", pageArray) into firstRosterItemNum
+   if firstRosterItemNum > 0 then
+      put word 1 to -1 of (rosterTitle & CR & CR & rosterDomains) into rosterText
+      put rosterText into pageArray ["story"][firstRosterItemNum]["text"]
+   end if
+end pageArray_SetRoster
+
+command pageArray_AddRoster @pageArray, rosterText, pID
+   if rosterText is empty then return false
+   put storyArray_ConstructItem (rosterText, "roster", pID) into itemArray
+   pageArray_AddItemArray itemArray, pageArray
+   return true
+end pageArray_AddRoster
+
+
+--> Fedwiki | Page
+-
+command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
+   put pageArray_Fetch (wikiDomain) into pageArray
+   pageArray_SetItemText pageArray, itemID, itemText
+   pageArray_Store wikiDomain, pageSlug, pageArray
+   return pageArray
+end fedwiki_UpdatePageItem
+
+
+--> PageArray | Video
+-
+function vimeo_ConstructWatchUrl videoID
+   put "https://vimeo.com/" & videoID into vimeoURL
+   return vimeoURL
+end vimeo_ConstructWatchUrl
+
+function youtube_ConstructWatchUrl videoID
+   put "https://www.youtube.com/watch?v=" & videoID into youtubeURL
+   return youtubeURL
+end youtube_ConstructWatchUrl
+
 
 --> PageArray | Model
 -
+function pageArray_FetchByTitle wikiDomain, pTitle
+   put fedwiki_ConstructSlug (pTitle) into pSlug
+   put pageArray_Fetch (wikiDomain, pSlug, true) into pageArray
+   return pageArray
+end pageArray_FetchByTitle
+
 function pageArray_Fetch wikiDomain, pSlug, pDontCheck
    -- checks for title, journal, and story
    put pageJson_Fetch (wikiDomain, pSlug) into pageJson
@@ -38,88 +365,51 @@ function pageArray_Fetch wikiDomain, pSlug, pDontCheck
    end if
 end pageArray_Fetch
 
-command pageArray_Store wikiDomain, pageSlug, pageArray
+command pageArray_Store wikiDomain, pageSlug, pageArray, pDeleteSiteMap
    put json_FromArray (pageArray) into pageJSON
    pageJson_Store wikiDomain, pageSlug, pageJSON
    put the result into shellResult
-   return shellResult -- should be empty unless an error
+   --
+   if pDeleteSiteMap then
+      atopia_DeleteWikiSitemap wikiDomain
+   end if
+   --
+   if shellResult is empty then
+      put fedwiki_ConstructUrlFromSlug (wikiDomain, pageSlug) into wikiURL
+      return wikiURL
+   else
+      return "Error," && shellResult
+   end if
 end pageArray_Store
 
 command pageArray_Delete wikiDomain, pageSlug
    pageJson_Delete wikiDomain, pageSlug
+   put the result into shellResult
+   if shellResult is not empty then return shellResult
+   --
+   atopia_DeleteWikiSitemap wikiDomain
+   return empty
 end pageArray_Delete
 
 
---> PageJson | Model
+--> PageArray | Set
 -
-/*
-These handlers are not used very much, except by pageArray_Fetch, pageArray_Store, pageArray_Delete
-*/
-
-function pageJson_Fetch wikiDomain, pSlug
-   -- was "pageJson_Fetch"
-   put pageJson_ConstructUrl (wikiDomain, pSlug) into someUrl
-   put url someUrl into someJSON
-   return someJSON
-end pageJson_Fetch
-
-command pageJson_Store wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
-   -- was "fedwiki_StorePageJson"
-   put fedwiki_ConstructPath (wikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_StoreData wikiPagePath, pageJSON
-   --
-   put the result into shellResult
-   if shellResult is not empty then return shellResult
-   if pDeleteSiteMap is not false then -- deleting sitemap is the lazy way to update it
-      atopia_DeleteWikiSitemap wikiDomain
-   end if
-   return shellResult -- should be empty unless an error
-end pageJson_Store
-
-command pageJson_Delete wikiDomain, pageSlug
-   -- was "fedwiki_DeletePageJson"
-   put fedwiki_ConstructPath (wikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_DeleteFile wikiPagePath
-   --
-   put the result into shellResult
-   return shellResult
-end pageJson_Delete
-
-function pageJson_ConstructUrl fedwikiDomain, pSlug
-   if pSlug is empty then
-      -- http://c0de.academy/welcome-visitors.json?random=95b9c89e
-      put "http://" & fedwikiDomain & "/welcome-visitors.json" into someUrl
-   else
-      -- put url "http://c0de.academy/currently-working-on.json?random=32c053a"
-      put "http://" & fedwikiDomain & "/" & pSlug & ".json" into someUrl
-   end if
-   put "?random=" & the milliseconds after someUrl
-   return someUrl
-end pageJson_ConstructUrl
-
-
---> PageArray | Default | Model
--
-function pageArray_FetchDefault pageSlug
-   put atopia_DefaultWikiPagePath (pageSlug) into defaultPath
-   put atopia_FetchData (defaultPath) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   return pageArray
-end pageArray_FetchDefault
-
-command pageArray_StoreDefault pageSlug, pageArray
-   put json_FromArray (pageArray) into pageJSON
-   put atopia_DefaultWikiPagePath (pageSlug) into defaultPath
-   atopia_StoreData defaultPath, pageJSON
-   put the result into shellResult
-   return shellResult
-end pageArray_StoreDefault
+command pageArray_SetTitle @pageArray, someTitle, pID
+   if someTitle is  empty then return false
+   put "#" && someTitle into someMarkdown
+   pageArray_AddMarkdown pageArray, someMarkdown, pID
+   return true
+end pageArray_SetTitle
 
 
 --> PageArray | Add
 -
+command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pID
+   put fedwiki_ConstructButtonForm (buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor) into formHTML
+   pageArray_AddHTML pageArray, formHTML, pID
+   return formHTML
+end pageArray_AddButton
+
 command pageArray_AddAddAction @pageArray, itemArray, afterID, pMilliseconds
    if pMilliseconds is empty then put the milliseconds into pMilliseconds
    put pageArray ["journal"] into journalArray
@@ -147,119 +437,85 @@ command pageArray_AddDeleteAction @pageArray, deletedItemID, pMilliseconds
    put journalArray into pageArray ["journal"]
 end pageArray_AddDeleteAction
 
-command pageArray_SetTitle @pageArray, someTitle, pID
-   if someTitle is  empty then return false
-   put "#" && someTitle into someMarkdown
-   pageArray_AddMarkdown pageArray, someMarkdown, pID
-   return true
-end pageArray_SetTitle
-
 command pageArray_AddMarkdown @pageArray, someMarkdown, pID
-   if someMarkdown is  empty then return false
-   put pageArray_ConstructItemArray (someMarkdown, "markdown", pID) into itemArray
+   if someMarkdown is empty then return 0
+   put storyArray_ConstructItem (someMarkdown, "markdown", pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddMarkdown
 
 command pageArray_AddText @pageArray, someText, pID
-   if someText is  empty then return false
+   if someText is  empty then return 0
    put word 1 to -1 of someText into someText
-   put pageArray_ConstructItemArray (someText, "paragraph", pID) into itemArray
+   put storyArray_ConstructItem (someText, "paragraph", pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddText
 
 command pageArray_AddHtml @pageArray, someHtml, pID
-   if someCode is  empty then return false
-   put pageArray_ConstructItemArray (someHtml, "html", pID) into itemArray
+   if someCode is  empty then return 0
+   put storyArray_ConstructItem (someHtml, "html", pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddHtml
 
-command pageArray_AddRoster @pageArray, rosterText, pID
-   if rosterText is empty then return false
-   put pageArray_ConstructItemArray (rosterText, "roster", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
-   return true
-end pageArray_AddRoster
-
 command pageArray_AddReference @pageArray, pageSlug, wikiDomain, refText, pageTitle, pID
-   if pageSlug is empty then return false
-   put pageArray_ConstructReference (pageSlug, wikiDomain, refText, pageTitle, pID) into itemArray
+   if pageSlug is empty then return 0
+   put storyArray_ConstructReference (pageSlug, wikiDomain, refText, pageTitle, pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddReference
 
 command pageArray_AddFactory @pageArray, pID
    put pageArray_ConstructFactory (pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddFactory
 
 command pageArray_AddPagefold @pageArray, someText, pID
-   if someText is  empty then return false
+   if someText is  empty then return 0
    put word 1 to -1 of someText into someText
-   put pageArray_ConstructItemArray (someText, "pagefold", pID) into itemArray
+   put storyArray_ConstructItem (someText, "pagefold", pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddPagefold
 
 command pageArray_AddCode @pageArray, someCode, pID
    if someCode is  empty then return false
-   put pageArray_ConstructItemArray (someCode, "code", pID) into itemArray
+   put storyArray_ConstructItem (someCode, "code", pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
    return true
 end pageArray_AddCode
 
+command pageArray_AddVideo @pageArray, videoID, videoType, videoDescription, pID
+   -- videoID can be "webm http://xxx"
+   if videoID is empty then return 0
+   put storyArray_ConstructVideo (videoID, videoType, videoDescription, pID) into itemArray
+   pageArray_AddItemArray itemArray, pageArray
+   return the result
+end pageArray_AddVideo
+
 command pageArray_AddAudio @pageArray, audioUrl, someText, pID
    if audioUrl is  empty then return false
-   put pageArray_ConstructAudio (audioUrl, someText, pID) into itemArray
+   put storyArray_ConstructAudio (audioUrl, someText, pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
    return true
 end pageArray_AddAudio
 
-command pageArray_AddMap @pageArray, mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID
-   if mapLat is  empty then return false
-   put pageArray_ConstructMap (mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
-   return true
-end pageArray_AddMap
-
 command pageArray_AddTransport @pageArray, pTransportLine, pID
-   if pTransportLine is  empty then return false
+   if pTransportLine is  empty then return 0
    if pTransportLine is empty then
       put "POST https://rest.livecode.world/imagine" into pTransportLine
    end if
-   put pageArray_ConstructTransport (pTransportLine, pID) into itemArray
+   put storyArray_ConstructTransport (pTransportLine, pID) into itemArray
    pageArray_AddItemArray itemArray, pageArray
-   return true
+   return the result
 end pageArray_AddTransport
 
 
---> PageArray | Construct
+--> StoryArray | Construct
 -
-function pageArray_Construct pageTitle, someMarkdown
-   -- was "fedwiki_ConstructSimplePageArray"
-   put pageTitle into pageArray ["title"]
-   pageArray_AddMarkdown pageArray, someMarkdown
-   put pageArray_ConstructJournal (pageTitle) into pageArray ["journal"] 
-   return pageArray
-end pageArray_Construct
-
-function pageArray_ConstructFactory pID
-   pageArray_AssignID pID
-   put "factory" into factoryArray ["type"]
-   put pID into factoryArray ["id"]
-   return factoryArray
-end pageArray_ConstructFactory
-
-function pageArray_ConstructJournal pageTitle, pSourceArray, pMilliseconds
-   put pageArray_ConstructCreateArray (pageTitle, pSourceArray, pMilliseconds) into createArray
-   put createArray into journalArray [1]
-   return journalArray
-end pageArray_ConstructJournal
-
-function pageArray_ConstructCreateArray pageTitle, pMilliseconds, pSourceArray
+function storyArray_ConstructCreate pageTitle, pMilliseconds, pSourceArray
    if pMilliseconds is not a number then put the milliseconds into pMilliseconds
    put "create" into createArray ["type"]
    put pMilliseconds into createArray ["date"]
@@ -267,9 +523,10 @@ function pageArray_ConstructCreateArray pageTitle, pMilliseconds, pSourceArray
    put empty into createArray ["item"]["story"]
    if pSourceArray is an array then put pSourceArray into createArray ["source"]
    return createArray
-end pageArray_ConstructCreateArray
+end storyArray_ConstructCreate
 
-function pageArray_ConstructReference pageSlug, wikiDomain, refText, pageTitle, pID
+function storyArray_ConstructReference pageSlug, wikiDomain, refText, pageTitle, pID
+   -- was "pageArray_ConstructReference"
    pageArray_AssignID pID   
    put audioUrl & CR & someText into itemArray ["text"]
    
@@ -281,57 +538,43 @@ function pageArray_ConstructReference pageSlug, wikiDomain, refText, pageTitle, 
    put "reference" into itemArray ["type"]
    put pID into itemArray ["id"]
    return itemArray
-end pageArray_ConstructReference
+end storyArray_ConstructReference
 
-function pageArray_ConstructTransport transportLine, pID
+function storyArray_ConstructTransport transportLine, pID
+   -- was "pageArray_ConstructTransport"
    pageArray_AssignID pID
    put transportLine into itemArray ["text"]
    put "transport" into itemArray ["type"]
    put pID into itemArray ["id"]
    return itemArray
-end pageArray_ConstructTransport
+end storyArray_ConstructTransport
 
-function pageArray_ConstructMap mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID
+function storyArray_ConstructVideo videoID, videoType, videoDescription, pID
+   -- was "pageArray_ConstructVideoArray"
    pageArray_AssignID pID
+   put toUpper (videoType) && videoID & CR & line 1 of videoDescription into itemArray ["text"]
+   put "video" into itemArray ["type"]
    put pID into itemArray ["id"]
-   if mapLat is not empty then
-      put mapLat into itemArray ["latlng"]["lat"]
-      put mapLong into itemArray ["latlng"]["lng"]
-   end if
-   
-   if mapText is empty then put "Map" into mapText
-   if pPinText is not empty then
-      -- "text": "Map\n52.207483, 0.115771 Master's Garden"
-      put CR & mapLat & comma && mapLong && pPinText after mapText
-   end if
-   put mapText into itemArray ["text"]
-   
-   switch pTileType
-      case "fsd"
-         -- "tile": "http://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png",
-         break
-   end switch
-   
-   put "map" into itemArray ["type"]
-   put mapZoom into itemArray ["zoom"]
    return itemArray
-end pageArray_ConstructMap
+end storyArray_ConstructVideo
 
-function pageArray_ConstructAudio audioUrl, someText, pID
+function storyArray_ConstructAudio audioUrl, someText, pID
+   -- was "pageArray_ConstructAudio"
    pageArray_AssignID pID   
    put audioUrl & CR & someText into itemArray ["text"]
    put "audio" into itemArray ["type"]
    put pID into itemArray ["id"]
    return itemArray
-end pageArray_ConstructAudio
+end storyArray_ConstructAudio
 
-function pageArray_ConstructItemArray someText, itemType, pID  
+function storyArray_ConstructItem someText, itemType, pID
+   -- was "pageArray_ConstructItemArray"
    pageArray_AssignID pID   
    put someText into itemArray ["text"]
    put itemType into itemArray ["type"]
    put pID into itemArray ["id"]
    return itemArray
-end pageArray_ConstructItemArray
+end storyArray_ConstructItem
 
 
 --> Deps
@@ -366,4 +609,3 @@ command line_AddToNameArray @nameArray, someIndex
       put empty into nameArray [someLine]
    end repeat
 end line_AddToNameArray
-

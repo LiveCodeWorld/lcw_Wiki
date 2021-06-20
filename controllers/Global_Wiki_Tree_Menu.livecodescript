@@ -1,8 +1,8 @@
-﻿script "Global_Wiki_Tree_Menu"
+﻿script "Global | Wiki | Tree | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Wiki_Tree_Menu
+name: Global | Wiki | Tree | Menu
 type: controller
 version: 0.1
 

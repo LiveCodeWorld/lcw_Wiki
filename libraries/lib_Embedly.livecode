@@ -13,6 +13,35 @@ deps: none
 A library for interfacing with MediaWiki instances.
 */
 
+--> Embedly
+-
+function embedly_GetApiKey
+   put secret_Get ("EmbedlyApiKey") into apiKey
+   return apiKey 
+end embedly_GetApiKey
+
+command embedly_SetApiKey apiKey
+   secret_Set "EmbedlyApiKey", apiKey
+   put the result into modelDataFile
+   return modelDataFile
+end embedly_SetApiKey
+
+function embedly_FetchArray someUrl, pWidth
+   -- local EmbedlyApiKey = "593b77f67742450bb7396b1c12427af5"
+   embedly_SetApiKey "593b77f67742450bb7396b1c12427af5"
+   put embedly_GetApiKey() into EmbedlyApiKey
+   
+   if pWidth is empty then put 420 into pWidth
+   
+   put urlEncode (someUrl) into encodedUrl
+   put merge ("http://api.embed.ly/1/oembed?key=[[EmbedlyApiKey]]&url=[[encodedUrl]]") into someURL
+   if mWidth is not empty then put "&maxwidth=" & pWidth after someURL
+   put url someURL into someJSON
+   put json_ToArray (someJSON) into someArray
+   return someArray
+end embedly_FetchArray
+
+
 --> SOX
 -
 command sox_NormalizeAudio audioFile, normalizedFile
@@ -24,20 +53,8 @@ command sox_NormalizeAudio audioFile, normalizedFile
 end sox_NormalizeAudio
 
 
---> Embedly
+--> Cloud
 -
-function embedly_FetchArray someUrl, pWidth
-   local EmbedlyApiKey = "593b77f67742450bb7396b1c12427af5"
-   if pWidth is empty then put 420 into pWidth
-   
-   put urlEncode (someUrl) into encodedUrl
-   put merge ("http://api.embed.ly/1/oembed?key=[[EmbedlyApiKey]]&url=[[encodedUrl]]") into someURL
-   if mWidth is not empty then put "&maxwidth=" & pWidth after someURL
-   put url someURL into someJSON
-   put json_ToArray (someJSON) into someArray
-   return someArray
-end embedly_FetchArray
-
 function cloud_FetchEvernoteFolderContentsArray folderPath
    put cloud_FetchEvernoteFolderContents (folderPath) into someJSON
    put json_ToArray (someJSON) into someArray

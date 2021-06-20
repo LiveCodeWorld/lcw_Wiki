@@ -99,6 +99,60 @@ end fedwikipedia_CleanTable
 
 --> Working On
 -  
+command _CleanTemplates @wikiText
+   /*
+   This needs fixing as it is a mess.
+   
+   Issue is that no regular expression seems able to detect complex nested templates such as cladograms
+   Nor can I find a way to return the text without templates - ie use api to strip them.
+   Looks like might be able to get rid of them with the following heuristic.
+   - Remove/delete/skip line if first char of indented line begins with:
+   - "{{" or "|" or "}}"
+   
+   Sometimes it starts with "* " and at other times as in "Ant" there are some annoying sentances thrown in the middle :(
+   
+   The best heuristic seems to be to count "{{" and "}}"
+   */
+   
+   -- now let's iterate whole text
+   -- we can try this once for the first header template, or repeat till we don't find a line beginnng with "{{"
+   put 0 into openCount
+   repeat 1000
+      put line_BeginsWith ("{{", wikiText) into startLineNum
+      
+      if startLineNum = 0 then exit repeat
+      repeat 1000
+         put word 1 to -1 of line startLineNum of wikiText into nextLine
+         switch
+            case nextLine is empty
+               delete line startLineNum of wikiText
+               next repeat
+               break
+               -- maybe faster to repeat code with breaks to avoid checking each condition
+            case char 1 to 2 of nextLine = "{{" -- could count
+            case char -2 to -1 of nextLine = "}}" -- could count
+            case char 1 of nextLine = "|"
+            case char 1 of nextLine = "*"
+               _AddBracketCount openCount, nextLine
+               delete line startLineNum of wikiText
+               break
+            default
+               -- case nextLine is empty
+               if openCount > 0 then
+                  delete line startLineNum of wikiText
+                  next repeat
+               else
+                  exit repeat
+               end if
+         end switch
+      end repeat
+   end repeat
+   
+   -- strip the simple ones
+   _StripTemplates wikitext
+   return wikiText
+end _CleanTemplates
+
 function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    -- use "mediawiki_FetchSummaryPageArray" instead
    -- see also "fedwikipedia_FetchSectionSummaryPageArray"
@@ -390,7 +444,7 @@ function fedwiki_ConvertWikipediaQueryArray wikipediaQueryArray
       exit repeat -- just do one page for now
    end repeat
    
-   put fedwiki_ConstructNewPageArray (pageTitle, pageDescription) into pageArray
+   put pageArray_Construct (pageTitle, pageDescription) into pageArray
    pageArray_AddHtml pageArray, pageExtract
    
    wikicommons_AddAllImages pageArray, pageTitle
@@ -440,54 +494,6 @@ end _CleanReferences
 
 --> Private | Cleaners
 -
-command _CleanTemplates @wikiText
-   /*
-   Issue is that no regular expression seems able to detect complex nested templates such as cladograms
-   Nor can I find a way to return the text without templates - ie use api to strip them.
-   Looks like might be able to get rid of them with the following heuristic.
-   - Remove/delete/skip line if first char of indented line begins with:
-   - "{{" or "|" or "}}"
-   
-   Sometimes it starts with "* " and at other times as in "Ant" there are some annoying sentances thrown in the middle :(
-   
-   The best heuristic seems to be to count "{{" and "}}"
-   */
-   
-   -- now let's iterate whole text
-   -- we can try this once for the first header template, or repeat till we don't find a line beginnng with "{{"
-   put 0 into openCount
-   repeat
-      put line_BeginsWith ("{{", wikiText) into startLineNum
-      
-      if startLineNum = 0 then exit repeat
-      repeat
-         put word 1 to -1 of line startLineNum of wikiText into nextLine
-         switch
-            -- maybe faster to repeat code with breaks to avoid checking each condition
-            case char 1 to 2 of nextLine = "{{" -- could count
-            case char -2 to -1 of nextLine = "}}" -- could count
-            case char 1 of nextLine = "|"
-            case char 1 of nextLine = "*"
-               _AddBracketCount openCount, nextLine
-               delete line startLineNum of wikiText
-               break
-            default
-               -- case nextLine is empty
-               if openCount > 0 then
-                  delete line startLineNum of wikiText
-                  next repeat
-               else
-                  exit repeat
-               end if
-         end switch
-      end repeat
-   end repeat
-   
-   -- strip the simple ones
-   _StripTemplates wikitext
-   return wikiText
-end _CleanTemplates
-
 private command _AddBracketCount @openCount, nextLine
    -- need to add the number of "{{" and subtract the number of "}}" to figure out what to add to total
    -- word 1 to -1 of line startLineNum = nextLine
@@ -767,7 +773,7 @@ function xml_ToArray pXML, pTranslateKeyBoolean, pStoreEncodedAs, pUseValueKey, 
          put xml_ConvertXMLNodeToArray (treeID, theRootNode, theXMLEncoding, pStoreEncodedAs, pUseValueKey, pTranslateKeyBoolean) into theArray [theRootNode]
       end if
       
-      revDeleteXMLTree treeID
+      revXMLDeleteTree treeID
    end if
    return theArray
 end xml_ToArray

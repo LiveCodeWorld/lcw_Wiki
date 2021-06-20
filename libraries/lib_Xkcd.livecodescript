@@ -64,3 +64,15 @@ function xkcd_FetchJson comicNum
 end xkcd_FetchJson
 
 
+--> Private
+-
+private command _DeconstructParseArray parseArray, @pageTitle, @pageDescription, @sectionArray, @imageArray
+   put parseArray ["title"] into pageTitle
+   put parseArray ["sections"] into sectionArray
+   put parseArray ["images"] into imageArray
+   put parseArray ["wikitext"]["*"] into pageDescription
+   mediawiki_CleanPageDescription pageDescription, infoBoxArray
+   return infoBoxArray
+end _DeconstructParseArray
+
+

@@ -22,6 +22,27 @@ There may be map and other stuff in that code that is not here?
 
 --> Working on
 -
+private command _AddMapSection @pageArray, summaryArray, pTileType
+   -- add map section
+   
+   put summaryArray ["title"] into pageTitle
+   put summaryArray ["description"] into shortDescription
+   
+   put summaryArray ["coordinates"]["lat"] into mapLat
+   put summaryArray ["coordinates"]["lon"] into mapLong
+   put 15 into mapZoom
+   
+   if mapLat is not empty then
+      put "[[" & pageTitle & "]]." && shortDescription into pinTitle
+      put fedwiki_ConstructOpenStreetMapLink (mapLat, mapLong, mapZoom, pinTitle) into mapText
+      --
+      pageArray_AddMap pageArray, mapLat, mapLong, mapText, mapZoom, pinTitle
+   end if
+end _AddMapSection
+
+
+--> Mediawiki
+-
 function mediawiki_FetchDialoguePageArray pageSlug
    put pageSlug into curlyData ["all"]["New Page Title"]
    put pageArray_Fetch ("future.fedwiki.org", "future-dialogue-template") into pageArray
@@ -79,31 +100,38 @@ function mediawiki_FetchPageArray wikipediaURL, pFirstSectionOnly
    */
    
    mediawiki_DeconstructURL wikipediaURL, pageSlug, apiStem, wikiLang
-   put pFirstSectionOnly is not false into pFirstSectionOnly
-   
+   put mediawiki_GetPageArrayFromSlug (pageSlug, wikiLang, apiStem, pFirstSectionOnly) into fedwikiPageArray
+   --
+   return fedwikiPageArray
+end mediawiki_FetchPageArray
+ 
+function mediawiki_GetPageArrayFromSlug pageSlug, wikiLang, pApiStem, pFirstSectionOnly
    -- fetch some metadata
+   put pFirstSectionOnly is not false into pFirstSectionOnly
+   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem
+   --
    put restbase_FetchSummaryArray (pageSlug, wikiLang) into summaryArray -- pageSlug updated if redirect
    if summaryArray is not an array then
       -- don't think this happens. Not found???
-      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, empty, wikiLang, apiStem) into notFoundPageArray
+      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, empty, wikiLang, pApiStem) into notFoundPageArray
       return notFoundPageArray
    end if
    
    put summaryArray ["content_urls"]["desktop"]["page"] into wikipediaURL
    put summaryArray ["title"] into pageTitle
    if pageTitle = "Not Found." then
-      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, wikipediaURL, wikiLang, apiStem) into notFoundPageArray
+      put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, wikipediaURL, wikiLang, pApiStem) into notFoundPageArray
       return notFoundPageArray
    end if
    
    -- now fetch
-   put mediawiki_FetchWikiText (pageSlug, apiStem) into wikiText -- need all of the text
+   put mediawiki_FetchWikiText (pageSlug, pApiStem) into wikiText -- need all of the text   
    put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray -- used for TOC
    
    -- and construct
    put mediawiki_ConstructPageArray (pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, wikipediaURL) into fedwikiPageArray
    return fedwikiPageArray
-end mediawiki_FetchPageArray
+end mediawiki_GetPageArrayFromSlug
 
 function mediawiki_FetchPageArrayWithParse wikiSlug, pSectionNum, pApiRoot, pWikiUrl
    put mediawiki_FetchParseArray (wikiSlug, pSectionNum, pApiRoot) into parseArray
@@ -237,6 +265,9 @@ function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArra
    -- add link back to wikipedia
    fedwiki_AddExternalLinkToFirstSection fedwikiPageArray, pWikipediaURL
    
+   -- add map if it exists
+   _AddMapSection fedwikiPageArray, summaryArray
+   
    -- strip journal
    pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
@@ -252,7 +283,7 @@ function mediawiki_ConstructSummaryPageArray firstSection, summaryArray, mobileS
    -- create array and add page description
    put summaryArray ["content_urls"]["desktop"]["page"] into wikipediaURL
    fedwiki_AddExternalLink firstLine, wikipediaURL, "wikipedia"
-   put fedwiki_ConstructNewPageArray (pageTitle, firstLine) into fedwikiPageArray
+   put pageArray_Construct (pageTitle, firstLine) into fedwikiPageArray
    
    _AddPosterImage fedwikiPageArray, summaryArray
    
@@ -279,6 +310,15 @@ end mediawiki_ConstructSummaryPageArray
 
 --> Private | Wikicommons | Page Array
 -
+private command _DeconstructParseArray parseArray, @pageTitle, @pageDescription, @sectionArray, @imageArray
+   put parseArray ["title"] into pageTitle
+   put parseArray ["sections"] into sectionArray
+   put parseArray ["images"] into imageArray
+   put parseArray ["wikitext"]["*"] into pageDescription
+   mediawiki_CleanPageDescription pageDescription, infoBoxArray
+   return infoBoxArray
+end _DeconstructParseArray
+
 private command _AddPosterImage @pageArray, summaryArray, pAddedImages
    -- maybe already added with wiktext (so we check shortFile is not in pAddedImages)
    
@@ -335,25 +375,6 @@ private command _AddSeeAlsoSection @pageArray, mobileSectionArray, resultArray
       pageArray_AddMarkdown pageArray, seeAlsoMarkdown
    end if
 end _AddSeeAlsoSection
-
-private command _AddMapSection @pageArray, summaryArray
-   -- add map section
-   
-   put summaryArray ["title"] into pageTitle
-   put summaryArray ["description"] into shortDescription
-   
-   put summaryArray ["coordinates"]["lat"] into mapLat
-   put summaryArray ["coordinates"]["lon"] into mapLong
-   put 15 into mapZoom
-   
-   if mapLat is not empty then
-      put "[[" & pageTitle & "]]." && shortDescription into pinTitle
-      put fedwiki_ConstructOpenStreetMapLink (mapLat, mapLong, mapZoom, pinTitle) into mapText
-      put pageArray_ConstructMap (mapLat, mapLong, mapText, mapZoom, pinTitle) into itemArray
-      --
-      pageArray_AddItemArray itemArray, pageArray
-   end if
-end _AddMapSection
 
 private function _ExtractTocFromHtmlLines seeAlsoHtml
    -- extract <ul> section

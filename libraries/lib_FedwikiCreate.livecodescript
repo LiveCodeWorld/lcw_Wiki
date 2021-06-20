@@ -16,6 +16,66 @@ Should be called ""lib_RosterCreate""
 
 --> Working on
 -
+function roster_CreateActivityPage wikiDomain
+   -- used by "roster.lc" (nothing else yet)
+   
+   set the itemdelimiter to "."
+   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle
+   
+   put atopia_FetchRoster (wikiDomain, false) into domainNames
+   
+   put fedwiki_MarkdownIndex (domainNames) into markdownIndex
+   
+   put rosterTitle into curlyArray ["rosterTitle"]
+   put wikiDomain into curlyArray ["wikiDomain"]
+   put rosterDomains into curlyArray ["rosterText"]
+   put markdownIndex into curlyArray ["rosterIndex"]
+   --
+   -- put pageArray_FetchTemplate ("roster.fedwiki.org", "roster-template", curlyArray) into pageArray
+   put pageSlug into curlyArray ["Page Slug"]
+   put fedwikiDomain into curlyArray ["Wiki Domain"]
+   put fedwiki_ConstructTitle (pageSlug) into curlyArray ["Page Title"]
+   put pageArray_Fetch ("roster.fedwiki.org", "roster-template") into pageArray
+   --
+   put curlyArray into curlyData ["all"]
+   curly_MergeAll pageArray, curlyData
+   --
+   put rosterTitle && "Activity" into pageTitle
+   put pageTitle into pageArray ["title"]
+   --
+   return pageArray
+end roster_CreateActivityPage
+
+function roster_FetchUpdatedPageArray domainFilter, templateDomain, templateSlug, pItemID
+   if domainFilter = "top" then
+      put atopia_FetchRoster() into domainNames
+      put url_ListTopDomains (domainNames) into domainNames
+   else
+      put atopia_FetchRoster (domainFilter, false) into domainNames
+   end if
+   --
+   put pageArray_Fetch (templateDomain, templateSlug) into pageArray
+   if pageArray is empty then
+      put merge ("Could not find page '[[templateSlug]]' of wiki '[[templateDomain]]'.") into someText
+      put pageArray_Construct ("Missing Page!", someText) into pageArray
+      fedwiki_ReturnPageArray pageArray
+      exit to top
+   end if
+   
+   put fedwiki_ConstructTitle (templateSlug) into pageTitle
+   put pageTitle & CR & CR & domainNames into rosterText
+   --
+   if pItemID is empty then
+      put pageArray_FindItemType ("roster", pageArray) into itemNum
+      put rosterText into pageArray ["story"][itemNum]["text"]
+   else
+      pageArray_SetItemText pageArray, pItemID, rosterText
+   end if
+   --
+   pageArray_StripJournal pageArray
+   return pageArray
+end roster_FetchUpdatedPageArray
+
 
 --> Roster | Categorised
 -
@@ -97,6 +157,9 @@ function roster_PagefoldConstruct pageArray
    return rosterText
 end roster_PagefoldConstruct
 
+
+--> Private
+-
 private command _AddBeforePageFold fromPageArray, @newStoryArray, pLastDividerItemNum
    -- add to the end of newStoryArray
    put item 2 of the extents of newStoryArray into nextItemNum
@@ -134,7 +197,7 @@ private command _AddMissingDomains @refItemStoryArray, missingDomainArray
    put item 2 of the extents of refItemStoryArray into newItemNum
    repeat for each key missingDomain in missingDomainArray
       add 1 to newItemNum
-      put pageArray_ConstructReference ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
+      put storyArray_ConstructReference ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
       put itemArray into refItemStoryArray [newItemNum]
    end repeat
 end _AddMissingDomains

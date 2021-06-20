@@ -93,3 +93,14 @@ command zotero_SetAuthenticationToken oAuthToken
    put the result into modelDataFile
    return modelDataFile
 end zotero_SetAuthenticationToken
+
+
+--> Deps
+-
+function secret_Get secretName
+   -- for server use only
+   if the environment is not "server" then pass "secret_Get"
+   --
+   put rigFetchConfigItem (secretName) into someSecret
+   return someSecret
+end secret_Get

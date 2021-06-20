@@ -26,28 +26,29 @@ command atopia_ToggleIsIndexed wikiDomain, someBoolean, pLaunchSitePage
    return fedray
 end atopia_ToggleIsIndexed
 
-command atopia_ToggleIsInRoster subDomain, someBoolean
-   put atopia_FetchRoster() into rosterText
-   if someBoolean is true then
-      put CR & subDomain after rosterText
-   else
-      line_Delete subDomain, rosterText
-   end if
-   url_SortDomainIndex rosterText
+command atopia_ToggleIsInRoster wikiDomain, someBoolean
+   put atopia_FetchRosterDomains() into wikiDomains
    --
-   atopia_StoreRoster rosterText
+   if someBoolean is true then
+      put CR & wikiDomain after wikiDomains
+   else
+      line_Delete wikiDomain, wikiDomains
+   end if
+   url_SortDomainIndex wikiDomains
+   --
+   atopia_StoreRosterDomains wikiDomains
 end atopia_ToggleIsInRoster
 
 command atopia_ToggleIsInDomainArray subDomain, someBoolean
-   put atopia_FetchFedray() into fedray
+   put atopia_FetchDomainArray() into fedray
    --
    if someBoolean is true then
-      fedray_UpdateDomain fedray, subDomain
+      fedray_UpdateLastModified fedray, subDomain
    else
       delete variable fedray [subDomain]
    end if
    --
-   atopia_StoreFedray fedray
+   atopia_StoreDomainArray fedray
 end atopia_ToggleIsInDomainArray
 
 command atopia_ToggleIsInSites subDomain, someBoolean, pLaunchSitePage
@@ -73,23 +74,6 @@ function fedwiki_FetchPageMarkdown wikiDomain, pSlug
    return pageMarkdown
 end fedwiki_FetchPageMarkdown
 
-function fedwiki_FetchOwnerName fedwikiDomain
-   /*
-   get "https://fedwiki.rodwell.me/view/narrative-chart/view/coffeehouse-culture"
-   set the itemdelimiter to slash
-   put item 3 of it into fedwikiDomain
-   */
-   put "http://" & fedwikiDomain & "/welcome-visitors.html" into someURL
-   put url someURL into someHTML
-   --
-   put "//*[@id='site-owner']" into someXPath 
-   replace "'" with quote in someXPath
-   put scrape_WithXPath (someHTML, someXPath, true) into contentSection
-   put line 2 to 3 of contentSection into someName
-   replace CR with space in someName
-   return word 1 to -1 of someName
-end fedwiki_FetchOwnerName
-
 function federation_ModelDocUrl modelName
    put fedwiki_ConstructSlug (modelName) into pageSlug
    put "http://roster.fedwiki.org/view/welcome-visitors/view/" & pageSlug into launchURL
@@ -106,19 +90,11 @@ end federation_ServerDocUrl
 
 --> Fedwiki | URL
 -
-function fedwiki_JsonSiteExportUrl fedwikiDomain
+function fedwiki_JsonSiteExportUrl wikiDomain
    -- http://david.viral.academy/system/export.json
-   put "http://" & fedwikiDomain & "/system/export.json" into someUrl
+   put "http://" & wikiDomain & "/system/export.json" into someUrl
    return someUrl
 end fedwiki_JsonSiteExportUrl
-
-function fedwiki_JsonSiteMapUrl fedwikiDomain   
-   -- set the itemDelimiter to slash
-   -- put item 1 to 3 of fedwikiUrl into sitemapURL
-   put "http://" & fedwikiDomain into sitemapURL
-   put "/system/sitemap.json" after sitemapURL
-   return sitemapURL
-end fedwiki_JsonSiteMapUrl
 
 function fedwiki_UrlPathToSlug urlPath
    set the itemdelimiter to "/"
@@ -137,36 +113,54 @@ function fedwiki_ExtractPageSlugsFromPath urlPath
    return word 1 to -1 of someSlugs
 end fedwiki_ExtractPageSlugsFromPath
 
-function fedwiki_FaviconURL fedwikiDomain
-   put "http://" & fedwikiDomain & "/favicon.png" into someUrl
+function fedwiki_FaviconURL wikiDomain
+   put "http://" & wikiDomain & "/favicon.png" into someUrl
    return someUrl
 end fedwiki_FaviconURL
 
-command fedwiki_DeconstructURL wikiURL, @pageSlug, @fedwikiDomain
-   url_Deconstruct wikiURL, someProtocol, fedwikiDomain, urlPath, pageSlug, fileExtension, uName, pWord
+function fedwiki_ConstructAssetUrl shortFile, wikiDomain, pSubFolder
+   put "http://" into assetURL -- could be "https"
+   put wikiDomain after assetURL
+   put "/assets/" after assetURL
+   --
+   if pSubFolder is not empty then
+      text_AddTrailing pSubFolder, slash
+      put pSubFolder after assetURL
+   end if
+   --
+   put shortFile after assetURL
+   return assetURL
+end fedwiki_ConstructAssetUrl
+
+command fedwiki_DeconstructURL wikiURL, @pageSlug, @wikiDomain
+   url_Deconstruct wikiURL, someProtocol, wikiDomain, urlPath, pageSlug, fileExtension, uName, pWord
    return someProtocol
 end fedwiki_DeconstructURL
 
-function fedwiki_ConstructURL pageTitle, fedwikiDomain, pSolo, pProtocol
-   put fedwiki_ConstructSlug (pageTitle) into pSlug
-   put fedwiki_PageUrl (fedwikiDomain, pSlug, pSolo, pProtocol) into someURL
+function fedwiki_ConstructURL wikiDomain, pTitle, pProtocol
+   put fedwiki_ConstructSlug (pTitle) into pSlug
+   put fedwiki_ConstructUrlFromSlug (wikiDomain, pSlug, pProtocol) into someURL
    return someURL
 end fedwiki_ConstructURL
 
-function fedwiki_PageUrl fedwikiDomain, pSlug, pSolo, pProtocol
+function fedwiki_ConstructUrlFromSlug wikiDomain, pSlug, pProtocol
    if pProtocol is empty then put "http" into pProtocol
    
-   put pProtocol & "://" & fedwikiDomain & slash into someURL
-   if pSolo is true then
-      if pSlug is empty then put "welcome-visitors" into pSlug
-      put pSlug & ".html" after someURL
-      return someURL
-   end if
-   
+   put pProtocol & "://" & wikiDomain & slash into someURL
    if pSlug is empty then
       put "view/welcome-visitors" & pSlug after someURL
    else
       put "view/welcome-visitors/view/" & pSlug after someURL
    end if
    return someURL
-end fedwiki_PageUrl
+end fedwiki_ConstructUrlFromSlug
+
+function fedwiki_ConstructHtmlUrl wikiDomain, pSlug, pProtocol
+   if pProtocol is empty then put "http" into pProtocol
+   if pSlug is empty then put "welcome-visitors" into pSlug
+   --
+   put pProtocol & "://" & wikiDomain & slash into someURL
+   put pSlug & ".html" after someURL
+   --
+   return someURL
+end fedwiki_ConstructHtmlUrl

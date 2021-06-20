@@ -134,7 +134,7 @@ function wikicommons_FetchImagePageArray shortImageFile, pPageTitle, pPageCommen
    switch item 1 of someMime
       case "video"
          if pPageComment is empty then put "Here is an video from Wikipedia ready to drag onto your page..." into pPageComment
-         put fedwiki_ConstructNewPageArray (pageTitle, pPageComment) into pageArray
+         put pageArray_Construct (pageTitle, pPageComment) into pageArray
          --
          _DeconstructSandMediaArray sandPageArray, pageTitle, mediaURL, mediaCaption, descriptionURL, thumbURL
          put the result into videoLine
@@ -143,7 +143,7 @@ function wikicommons_FetchImagePageArray shortImageFile, pPageTitle, pPageCommen
          break
       default
          if pPageComment is empty then put "Here is an image from Wikipedia ready to drag onto your page..." into pPageComment
-         put fedwiki_ConstructNewPageArray (pageTitle, pPageComment) into pageArray
+         put pageArray_Construct (pageTitle, pPageComment) into pageArray
          wikicommons_AddImageToPageArray pageArray, sandPageArray
    end switch
    return pageArray

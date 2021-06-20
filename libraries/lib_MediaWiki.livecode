@@ -418,15 +418,6 @@ end mediwiki_ExtractPageSlugFromUrl
 
 --> Private
 -
-private command _DeconstructParseArray parseArray, @pageTitle, @pageDescription, @sectionArray, @imageArray
-   put parseArray ["title"] into pageTitle
-   put parseArray ["sections"] into sectionArray
-   put parseArray ["images"] into imageArray
-   put parseArray ["wikitext"]["*"] into pageDescription
-   mediawiki_CleanPageDescription pageDescription, infoBoxArray
-   return infoBoxArray
-end _DeconstructParseArray
-
 private function _letsFindNestedStartBracketNum startWikiTemplate, endWikiTemplate, wikiText
    put char (startWikiTemplate+2) to (endWikiTemplate-2) of wikiText into testBit
    put 0 into lastOffset

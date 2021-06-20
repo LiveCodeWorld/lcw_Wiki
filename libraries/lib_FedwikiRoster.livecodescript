@@ -7,6 +7,8 @@ type: library
 version: 0.3
 
 /*
+Experimental libreary. Moving code to better named libs like "model_Atopia" and "model_Fedray"
+
 This library is designed to make it easy to programtically generate rosters from a Fedwiki server.
 
 Rosters are the prefered way of storing lists of domains. 
@@ -16,11 +18,55 @@ For more complicated data for which using page-json is suitable, we can use the 
 
 --> Working on
 -
-command roster_ReturnPageArray wikiDomain, pRosterTitle
-   put atopia_FetchRosterDomains (wikiDomain) into wikiDomains
-   put roster_ConstructPageArray (wikiDomains, pRosterTitle) into pageArray
-   fedwiki_ReturnPageArray pageArray
-end roster_ReturnPageArray
+function roster_FetchTemplate pWikiDomain, pPageTitle, pForkDomains
+   if pForkDomains is empty then put "fedwiki.org,roster.fedwiki.org,sites.fedwiki.org" into pForkDomains
+   --
+   switch
+      case (pPageTitle is empty) AND (pWikiDomain is empty)
+         put "roster.fedwiki.org" into pWikiDomain
+         put "Sites Template" into pPageTitle
+         break
+      case (pPageTitle is empty)
+         put _ConstructSitesTitle (pWikiDomain) into pPageTitle
+         break
+      case (pWikiDomain is empty)
+         put "roster.fedwiki.org" into pWikiDomain
+         break
+      default
+         -- both not empty. Good to go
+   end switch
+   --
+   put fedwiki_ConstructSlug (pPageTitle) into pSlug
+   put pageArray_Fetch (pWikiDomain, pSlug) into pageArray
+   pageArray_CleanFork pageArray, pForkDomains
+   return pageArray
+end roster_FetchTemplate
+
+function roster_FetchLive wikiDomain
+   -- live version (uses "tree")
+   -- see also "atopia_FetchFolders"
+   
+   put merge ("ssh root@fedwiki.org tree /root/.wiki/*[[wikiDomain]]/status -d") into remoteShell
+   put word 1 to -1 of shell (remoteShell) into folderLines
+   if folderLines contains "[error opening dir]" then 
+      put remoteShell into rosterText
+   else
+      delete line -1 of folderLines
+      put word 1 to -1 of folderLines into folderLines
+      -- replace "/root/.wiki/" with empty in rosterText
+      
+      set the itemdelimiter to slash
+      repeat for each line rosterLine in folderLines
+         -- /root/.wiki/david.proto.institute/status
+         get item 4 to -2 of rosterLine
+         if it is not empty then
+            put it & CR after rosterText
+         end if
+      end repeat
+      delete char -1 of rosterText
+   end if
+   return rosterText
+end roster_FetchLive
 
 
 --> Federation | Roster
@@ -44,88 +90,46 @@ command federation_StoreRosterDomains wikiDomains
    return pageArray
 end federation_StoreRosterDomains
 
+command federation_ReturnSitesPageArray wikiDomain, pPageTitle
+   put federation_ListDomains (wikiDomain) into rosterDomains
+   put roster_ConstructSitesPageArray (wikiDomain, rosterDomains, pPageTitle) into pageArray
+   --
+   fedwiki_ReturnPageArray pageArray
+end federation_ReturnSitesPageArray
 
---> Atopia | Roster | Header
+command federation_ReturnActivityRoster rosterTitle, pSincePeriod
+   put federation_ListRecentDomains (pSincePeriod) into rosterText
+   put rosterTitle & CR & CR before rosterText
+   put roster_ConstructPageArray (rosterText) into pageArray
+   fedwiki_ReturnPageArray pageArray
+end federation_ReturnActivityRoster
+
+
+--> Roster | Return
 -
-command atopia_AddToRoster wikiDomain
-   put atopia_FetchRosterDomains() into rosterDomains
+command atopia_ReturnSitesPageArray wikiDomain, pPageTitle
+   put atopia_ListWelcomeFolders (wikiDomain) into rosterDomains
+   put roster_ConstructSitesPageArray (wikiDomain, rosterDomains, pPageTitle) into pageArray
    --
-   put CR & wikiDomain after rosterDomains
-   url_SortDomainIndex rosterDomains
-   --
-   atopia_StoreRosterDomains rosterDomains
-   return rosterText
-end atopia_AddToRoster
+   fedwiki_ReturnPageArray pageArray
+end atopia_ReturnSitesPageArray
 
-command atopia_DeleteFromRoster wikiDomain
-   put atopia_FetchRosterDomains() into rosterDomains
-   --
-   line_Delete wikiDomain, rosterDomains
-   --
-   atopia_StoreRosterDomains rosterDomains
-   return rosterText
-end atopia_DeleteFromRoster
-
-function atopia_FetchRosterDomains pDomainFilter
-   put atopia_FetchRoster() into atopiaDomains
-   roster_StripHeader atopiaDomains
-   --
-   url_FilterDomainIndex atopiaDomains, pDomainFilter
-   --
-   return word 1 to -1 of atopiaDomains
-end atopia_FetchRosterDomains
-
-command atopia_StoreRosterDomains wikiDomains
-   url_SortDomainIndex wikiDomains
-   put "Atopia Domains" & CR&CR & wikiDomains into rosterText
-   --
-   atopia_StoreRoster rosterText
-   --
-   put the result into pageArray
-   return pageArray
-end atopia_StoreRosterDomains
-
-function atopia_FetchRoster
-   -- fetch the one big domain index roster then filter
-   put roster_Fetch ("server.fedwiki.org", "atopia-domain-index", "741a0fcdd3ff76b2") into rosterText
-   return word 1 to -1 of rosterText
-end atopia_FetchRoster
-
-command atopia_StoreRoster rosterText
-   roster_Store "server.fedwiki.org", "atopia-domain-index", rosterText, "741a0fcdd3ff76b2"
-   put the result into pageArray
-   return pageArray
-end atopia_StoreRoster
+command atopia_ReturnRoster wikiDomains, pTitle, pRosterTitle
+   put atopia_ListWelcomeFolders (wikiDomains) into filteredAtopiaDomains
+   roster_ReturnFiltered filteredAtopiaDomains, pTitle, pRosterTitle
+end atopia_ReturnRoster
 
 
---> Roster | Header
+--> Roster | Domains
 -
-command roster_StripHeader @rosterText
-   if word 1 to -1 of line 2 of rosterText is empty then
-      delete line 1 to 2 of rosterText
-      url_SortDomainIndex rosterText
-   end if
-end roster_StripHeader
+command roster_AddDomain @rosterText, wikiDomain
+   roster_Deconstruct rosterText, rosterDomains, rosterTitle
+   put the result into hasTitle
+   line_Add wikiDomain, rosterDomains
+   put roster_Reconstruct (rosterDomains, rosterTitle) into rosterText
+   return hasTitle
+end roster_AddDomain
 
-command roster_AddHeader @rosterText, rosterHeader
-   if word 1 to -1 of line 2 of rosterText is empty then
-      url_SortDomainIndex rosterText
-      put rosterHeader & CR & CR before rosterText
-      put word 1 to -1 of domainIndex into rosterText
-   end if
-end roster_AddHeader
-
-command roster_ReplaceHeader @rosterText, newRosterHeader
-   if word 1 to -1 of line 2 of rosterText is empty then
-      delete line 1 to 2 of rosterText
-      url_SortDomainIndex rosterText
-      put newRosterHeader & CR & CR before rosterText
-   end if
-end roster_ReplaceHeader
-
-
---> Roster
--
 command roster_StripDomain @rosterText, wikiDomain
    -- remove domain and subdomains from an index
    set the wholematches to true
@@ -137,6 +141,105 @@ command roster_StripDomain @rosterText, wikiDomain
    delete line lineNum of rosterText
 end roster_StripDomain
 
+function roster_Reconstruct rosterDomains, pRosterTitle
+   if pRosterTitle is empty then return rosterDomains
+   --
+   return pRosterTitle & CR&CR & rosterDomains
+end roster_Reconstruct
+
+command roster_Deconstruct rosterText, @rosterDomains, @rosterTitle
+   put word 1 to -1 of rosterText into rosterText
+   --
+   if roster_HasTitle (rosterText) then
+      put word 1 to -1 of line 1 of rosterText into rosterTitle
+      put line 3 to -1 of rosterText into rosterDomains
+      return true
+   else
+      put empty into rosterTitle
+      put rosterText into rosterDomains
+      return false
+   end if
+end roster_Deconstruct
+
+function roster_HasTitle rosterText
+   if line 1 of rosterText contains "." then return false
+   -- 
+   if word 1 to -1 of line 2 of rosterText is empty then
+      return true
+   else
+      return false
+   end if
+end roster_HasTitle
+
+
+--> Roster | Header
+-
+command roster_StripHeader @rosterText
+   if roster_HasTitle (rosterText) then
+      delete line 1 to 2 of rosterText
+      url_SortDomainIndex rosterText
+   end if
+end roster_StripHeader
+
+command roster_AddHeader @rosterText, rosterHeader
+   if roster_HasTitle (rosterText) then
+      url_SortDomainIndex rosterText
+      put rosterHeader & CR & CR before rosterText
+      put word 1 to -1 of domainIndex into rosterText
+   end if
+end roster_AddHeader
+
+command roster_ReplaceHeader @rosterText, newRosterHeader
+   if roster_HasTitle (rosterText) then
+      delete line 1 to 2 of rosterText
+      url_SortDomainIndex rosterText
+      put newRosterHeader & CR & CR before rosterText
+   end if
+end roster_ReplaceHeader
+
+
+--> Roster
+-
+command roster_ReturnPageArray wikiDomain, pTitle, pRosterTitle
+   -- should return to "federation_ReturnRoster"
+   put fedray_FetchDomains (wikiDomain) into wikiDomains
+   roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
+end roster_ReturnPageArray
+
+command roster_ReturnAtopiaPageArray wikiDomain, pTitle, pRosterTitle
+   -- put atopia_FetchRosterDomains (wikiDomain) into atopiaDomains
+   -- put atopia_ListDomainsFromFedray() into atopiaDomains
+   -- put atopia_ListWelcomeFolders (wikiDomain) into atopiaDomains
+   put federation_ListDomains (wikiDomain) into wikiDomains
+   --
+   roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
+end roster_ReturnAtopiaPageArray
+
+command roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
+   -- put fedwiki_SitesWithPage (wikiDomains, pTitle) into filteredDomains
+   put roster_ConstructPageArray (wikiDomains, pRosterTitle) into pageArray
+   fedwiki_ReturnPageArray pageArray
+end roster_ReturnFiltered
+
+
+--> Roster | Filter
+-
+command roster_DomainFilter @domainIndex, topDomain
+   if topDomain is empty then return empty
+   --
+   put "*." & topDomain into someFilter
+   set the wholematches to true
+   put topDomain is among the lines of domainIndex into topThere
+   filter domainIndex with someFilter
+   if topThere then
+      put topDomain & CR before domainIndex
+   end if
+   return someFilter
+end roster_DomainFilter
+
+
+--> Roster | Category
+-
 function roster_DepStackNames
    -- here just to make updates of multiple roster controllers easy
    return "lib_Fedwiki,lib_FedwikiRoster,lib_PageArray,model_Fedwiki"
@@ -179,32 +282,6 @@ function roster_FetchLivePageArray wikiDomain
    put roster_ConstructPageArray (rosterText) into pageArray
    return pageArray
 end roster_FetchLivePageArray
-
-function roster_FetchLive wikiDomain
-   -- live version (uses "tree")
-   -- see also "atopia_FetchFolders"
-   
-   put merge ("ssh root@fedwiki.org tree /root/.wiki/*[[wikiDomain]]/status -d") into remoteShell
-   put word 1 to -1 of shell (remoteShell) into folderLines
-   if folderLines contains "[error opening dir]" then 
-      put remoteShell into rosterText
-   else
-      delete line -1 of folderLines
-      put word 1 to -1 of folderLines into folderLines
-      -- replace "/root/.wiki/" with empty in rosterText
-      
-      set the itemdelimiter to slash
-      repeat for each line rosterLine in folderLines
-         -- /root/.wiki/david.proto.institute/status
-         get item 4 to -2 of rosterLine
-         if it is not empty then
-            put it & CR after rosterText
-         end if
-      end repeat
-      delete char -1 of rosterText
-   end if
-   return rosterText
-end roster_FetchLive
 
 
 --> Roster | Fetch
@@ -258,36 +335,6 @@ function roster_EvaluateText rosterText
 end roster_EvaluateText
 
 
---> Roster | Model
--
-function roster_Fetch wikiDomain, pageSlug, pItemID
-   -- find in first roster on page
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   if pItemID is empty then
-      put pageArray_FindItemType ("roster", pageArray) into itemNum
-      put pageArray ["story"][itemNum]["text"] into rosterDomainText
-   else
-      put pageArray_GetItemText (pageArray, pItemID) into rosterDomainText
-   end if
-   return rosterDomainText
-end roster_Fetch
-
-command roster_Store wikiDomain, pageSlug, rosterText, pItemID
-   -- store in first roster on page
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   --
-   if pItemID is empty then
-      put pageArray_FindItemType ("roster", pageArray) into itemNum
-   else
-      put pageArray_FindItemID (pItemID, pageArray) into itemNum
-   end if
-   put rosterText into pageArray ["story"][itemNum]["text"]
-   --
-   pageArray_Store wikiDomain, pageSlug, pageArray
-   return pageArray
-end roster_Store
-
-
 --> Roster | Filter
 -
 command roster_Clean @rosterText
@@ -323,7 +370,7 @@ function roster_ConstructPageArray rosterText, pRosterTitle
 end roster_ConstructPageArray
 
 
---> Fedwiki | Roster | Merge
+--> Roster | Merge
 -
 function roster_Subtract wikiDomain, pageSlug, plusID, minusID
    -- was "fedwiki_SubtractRoster"
@@ -337,3 +384,50 @@ function roster_Subtract wikiDomain, pageSlug, plusID, minusID
    end repeat
    return rosterText
 end roster_Subtract
+
+
+--> Roster | Construct
+-
+function roster_ConstructSitesPageArray wikiDomain, rosterDomains, pPageTitle, pForkDomains
+   put roster_FetchPageArray (wikiDomain, rosterDomains, pPageTitle, pForkDomains) into pageArray
+   _UpdateSites pageArray, wikiDomain, pPageTitle
+   return pageArray
+end roster_ConstructSitesPageArray
+
+function roster_FetchPageArray wikiDomain, rosterDomains, pPageTitle, pForkDomains
+   put roster_FetchTemplate (wikiDomain, pPageTitle, pForkDomains) into pageArray
+   _SetSitesPageRoster pageArray, pPageTitle, rosterDomains
+   return pageArray
+end roster_FetchPageArray
+
+
+--> Private
+-
+private command _SetSitesPageRoster @pageArray, rosterTitle, authorDomains
+   pageArray_SetRoster pageArray, authorDomains, rosterTitle
+   
+   -- could search for a header rather than use fixed itemID
+   put pageArray_FindItemID ("94aeb407a09d831b", pageArray) into listItemNum
+   if listItemNum > 0 then
+      put fedwiki_MarkdownIndex (authorDomains) into markDownList
+      put "# List of sites" & CR&CR & markDownList into pageArray ["story"][listItemNum]["text"]
+   end if
+end _SetSitesPageRoster
+
+private function _ConstructSitesTitle wikiDomain
+   set the itemdelimiter to "."
+   repeat for each item someItem in wikiDomain
+      put text_InitialCaps (someItem) & space after pageTitle
+   end repeat
+   put "Sites" after pageTitle
+   return pageTitle
+end _ConstructSitesTitle
+
+private command _UpdateSites @pageArray, wikiDomain, pageTitle
+   put word 1 to -2 of pageTitle && "Activity" into activityTitle
+   put pageTitle into curlyData ["all"]["pageTitle"]
+   put activityTitle into curlyData ["all"]["activityTitle"]
+   put wikiDomain into curlyData ["all"]["wikiDomain"]
+   --
+   curly_MergePageArray pageArray, curlyData
+end _UpdateSites

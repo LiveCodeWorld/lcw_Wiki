@@ -16,6 +16,32 @@ and add them to a handler below in order to code simple rest calls that return a
 
 --> Working on
 -
+function wikipedia_FetchPageGeolocation pageTitle, pApiRoot
+   -- https://en.wikipedia.org/w/api.php?action=query&format=json&prop=coordinates&titles=Wikimedia%20Foundation
+   put "/w/api.php?action=query&format=json&prop=coordinates&titles=" into sandBoxFragment
+   put urlencode (pageTitle) after sandBoxFragment
+   
+   put sandbox_FetchJSON (sandBoxFragment, pApiRoot) into someJSON
+   put json_ToArray (someJSON) into sandboxArray
+   --
+   -- display_Data sandboxArray
+   if "batchcomplete" is not among the keys of sandboxArray then return ("Error, with query -" && sandBoxFragment)
+   
+   put sandboxArray ["query"]["pages"] into pagesGeoArray
+   put the keys of pagesGeoArray into pageIDs
+   if the number of lines of pageIDs = 1 then
+      put pagesGeoArray [pageIDs]["title"] into foundTitle
+      put pagesGeoArray [pageIDs]["coordinates"][1]["globe"] into foundGlobe
+      --
+      put pagesGeoArray [pageIDs]["coordinates"][1]["lat"] into foundLat
+      put pagesGeoArray [pageIDs]["coordinates"][1]["lon"] into foundLong
+      --
+      return foundLat,foundLong,foundTitle
+   else
+      return pagesGeoArray
+   end if
+end wikipedia_FetchPageGeolocation
+
 function wikpedia_FetchPageImageSandboxArray pageTitle, pApiRoot
    put "/w/api.php?action=query&format=json&uselang=de&prop=pageimages&meta=filerepoinfo%7Cwikibase&titles=" into sandBoxFragment
    put urlencode (pageTitle) after sandBoxFragment

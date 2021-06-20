@@ -23,60 +23,494 @@ See also:
 
 --> Working on
 -
-command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
-   put pageArray_Fetch (wikiDomain) into pageArray
-   pageArray_SetItemText pageArray, itemID, itemText
-   pageArray_Store wikiDomain, pageSlug, pageArray
-   return pageArray
-end fedwiki_UpdatePageItem
+function image_ToDataImageUrl someImage, imageType
+   -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
+   
+   put "data:image/" & imageType & ";base64," into dataImageUrl
+   put base64encode (someImage) after dataImageUrl
+   return dataImageUrl
+end image_ToDataImageUrl
 
-function fedwiki_FetchCreationDate wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   put pageArray_GetCreationDate (pageArray) into createdDate
-   return createdDate
-end fedwiki_FetchCreationDate
+function image_FromDataImageUrl dataImageUrl
+   -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
+   
+   set the itemdelimiter to slash
+   if item 1 of dataImageUrl is not "data:image" then return empty
+   
+   set the itemdelimiter to comma
+   get item 1 of dataImageUrl
+   
+   /* -- don't need this simply to return decoded image 
+   set the itemdelimiter to ";"
+   get item 1 of it 
+   set the itemdelimiter to slash
+   put item -1 of it into mimeType
+   set the itemdelimiter to comma
+   */
+   
+   delete item 1 of dataImageUrl
+   put base64decode (dataImageUrl) into someImage
+   return someImage
+end image_FromDataImageUrl
 
-function fedwiki_FetchFirstCreatedSlugArray wikiDomain
-   -- here we check each page and item of the journal (slow)
-   put fedwiki_ListSitemapSlugs (wikiDomain) into pSlugs
-   sort pSlugs
+function _ConstructImageHtml divClassBit, imgStyleBit, encodedSrcURL, pCaptionText, pEncodedImageLink
+   /*
+   This is not encoding the the links, we need to do that somewhere
+   May want to consider: replace "'" with "%27"
+   */
+   
+   -- div header
+   put "<div [[divClassBit]]>" & CR into htmlTemplate
+   -- maybe add a link to the image
+   if pImageLink is not empty then put "<a href='[[pEncodedImageLink]]' target='_blank'>" after htmlTemplate
+   -- add the core image bit with srcURL and image styling
+   put "<img [[imgStyleBit]] src='[[encodedSrcURL]]'>" & CR after htmlTemplate
+   if pImageLink is not empty then put "</a>" & CR after htmlTemplate
+   -- add caption
+   put "<p class=caption>" & CR&CR after htmlTemplate
+   put "[[pCaptionText]]" & CR&CR after htmlTemplate
+   -- add ending
+   put "</p></div>" after htmlTemplate
    --
-   put the milliseconds into creationDate
-   repeat for each line pSlug in pSlugs
-      put fedwiki_ExtractFirstAuthorDate (wikiDomain, pSlug) into mSeconds
-      if mSeconds is empty then
-         next repeat -- page does not exits for some reason even though it is in the sitemap?
-      else if mSeconds < creationDate then
-         put mSeconds into creationDate
-         put creationDate into creationSlugArray ["creationDate"]
-         put pSlug into creationSlugArray ["slug"]
+   put merge (htmlTemplate) into someHTML
+   return someHTML
+end _ConstructImageHtml
+
+function fedwiki_ConstructLinkTag someURL
+   switch
+      case someURL contains "twitter.com"
+         return "twitter"
+      case someURL contains "facebook.com"
+         return "facebook"
+      case someURL contains "bbc.co.uk"
+         return "bbc"
+      case someURL contains "listennotes.com"
+         return "listen"
+      case someURL contains "wikipedia.org"
+         return "wikipedia"
+      case someURL contains "wikimedia.org"
+         return "wikimedia"
+      default
+         put html_ExtractTLD (someURL, true) into linkTag
+         return linkTag
+   end switch
+end fedwiki_ConstructLinkTag
+
+
+--> Markdown
+-
+function md_Link someText
+   put "[[" & word 1 to -1 of someText & "]]" into mdLinkText
+   return mdLinkText
+end md_Link
+
+command md_AddLinkLine @someMarkdown, linkURL, pLinkKey, pLinkLabel
+   put word 1 to -1 of of item 1 of linkURL into linkURL
+   if text_IsNotEmpty (linkURL) then
+      put md_ConstructExternalLinkLine (linkURL, pLinkLabel, pLinkKey) into mdLinkLine
+      
+      put word 1 to -1 of someMarkdown into someMarkdown
+      if someMarkdown is empty then
+         put mdLinkLine into someMarkdown
+      else
+         put CR & mdLinkLine after someMarkdown
+      end if
+      return true
+   else
+      return false
+   end if
+end md_AddLinkLine
+
+function md_ConstructExternalLinkLine linkURL, pLinkLabel, pLinkKey
+   switch
+      case linkURL is empty 
+      case linkURL is "null" 
+         return empty
+      default
+         put fedwiki_ConstructExternalLink (linkURL, pLinkLabel) into externalLink
+         put "-" & space into mdLinkLine
+         if pLinkKey is not empty then 
+            put pLinkKey & space after mdLinkLine
+         end if
+         put externalLink after mdLinkLine
+         return mdLinkLine
+   end switch
+end md_ConstructExternalLinkLine
+
+function md_ConstructKeyWordLinkSection kWords, pListDelim, pExcludeItems
+   if kWords is empty then return empty
+   if pListDelim is empty then put ", " into pListDelim
+   if pExcludeItems is empty then put "Welcome Visitors" into pExcludeItems
+   replace comma with CR in kWords
+   --
+   repeat for each line kWord in kWords
+      if kWord is among the items of pExcludeItems then next repeat
+      --
+      put word 1 to -1 of kWord into kWord
+      put text_InitialCaps (kWord) into kWord
+      put "[[" & kWord & "]]" & pListDelim after kWordSection
+   end repeat
+   --
+   put the number of chars of of pListDelim * -1 into startCharNum
+   delete char startCharNum to -1 of kWordSection
+   return kWordSection
+end md_ConstructKeyWordLinkSection
+
+
+--> Fedwiki | JSON | Plugin
+-
+function fedwiki_FetchPluginData pageSlug, wikiDomain
+   put fedwiki_FetchPluginJSON (pageSlug, wikiDomain) into pJSON
+   put json_ToArray (pJSON) into pData
+   return pData
+end fedwiki_FetchPluginData
+
+command fedwiki_StorePluginData pageSlug, wikiDomain, someData, pApiKey
+   if pApiKey is empty then
+      put atopia_GetJsonSecret() into pApiKey
+   end if
+   --
+   put json_FromArray (someData) into someJSON
+   fedwiki_PutPluginJSON someJSON, pageSlug, wikiDomain, pApiKey
+   put the result into resultJSON
+   put json_ToArray (resultJSON) into resultArray
+   if resultArray is an array then
+      return resultArray
+   else
+      return resultJSON
+   end if
+end fedwiki_StorePluginData
+
+function fedwiki_FetchPluginJSON pageSlug, wikiDomain
+   put fedwiki_ConstructPluginJsonUrl (pageSlug, wikiDomain) into restURL
+   -- put jsonrpc_Get (restURL) into someJSON
+   put url restURL into someJSON
+   return someJSON
+end fedwiki_FetchPluginJSON
+
+command fedwiki_PutPluginJSON someJSON, pageSlug, wikiDomain, apiKey
+   put fedwiki_ConstructPluginJsonUrl (pageSlug, wikiDomain) into restURL
+   --
+   put "Content-type: application/json" into newHeaders
+   put CR & "Accept: application/json" after newHeaders
+   put CR & "Accept-Charset: utf-8" after newHeaders
+   put CR & "X-Api-Key:" && apiKey after newHeaders
+   set the httpheaders to newHeaders
+   --
+   put someJSON into url restURL
+   put the result into putResult
+   /*
+   -- this should return, but is returning only error msg I think
+   {
+   "status": "ok",
+   "writes": 3330,
+   "interval": 299524,
+   "length": 17736
+   }
+   */
+   return putResult
+end fedwiki_PutPluginJSON
+
+function fedwiki_ConstructPluginJsonUrl pageSlug, wikiDomain
+   -- see atopia_PluginJsonPath()
+   -- http://admin.fedwiki.org/plugin/json/atopia-fedwiki-sites
+   put "http://" & wikiDomain & "/plugin/json/" & pageSlug into restURL
+   return restURL
+end fedwiki_ConstructPluginJsonUrl
+
+
+--> Fedwiki | Image
+-
+function fedwiki_ConstructImageCaption pCaption, pCaptionLinkURL
+   if pCaption is empty then
+      put "This is an image" into pCaption
+   else if the number of words of pCaption > 35 then
+      put word 1 to 35 of pCaption & "..." into pCaption
+   else
+      put word 1 to -1 of pCaption into pCaption
+   end if
+   html_TopAndTailParagraphTags pCaption
+   --
+   if pCaptionLinkURL is empty then return pCaption
+   if char -1 of pCaption = "." then delete char -1 of pCaption
+   --
+   put fedwiki_ConstructExternalLink (pCaptionLinkURL) into externalLink
+   put pCaption && "-" && externalLink into imageCaption
+   --
+   return imageCaption
+end fedwiki_ConstructImageCaption
+
+
+--> Fedwiki | Links
+-
+command fedwiki_AddExternalLink @someText, pExtLinkURL, pHackHtml
+   if char -1 of someText = "." then delete char -1 of someText
+   --
+   put md_ConstructExternalLinkLine (pExtLinkURL) into mdLinkLine
+   --
+   if pHackHtml is true then
+      -- ...<p>It's only preliminary, folks.</p><img src="http://feeds.feedburner.com/~r/sciencealert-latestnews/~4/Bj-Ay6aCDOg" height="1" width="1" alt=""/>
+      put "</p>" into ePara
+      set the itemdelimiter to ePara
+      if char -4 to -1 of someText = "</p>" then
+         delete char -4 to -1 of someText
+         _TrimFullStop someText, mdLinkLine
+         put ePara after someText
+      else if the number of items of someText > 1 then
+         put item -1 of someText into lastBit
+         delete item -1 of someText
+         _TrimFullStop someText, mdLinkLine
+         put ePara & lastBit after someText
+      else
+         _TrimFullStop someText, mdLinkLine
+      end if
+   else
+      _TrimFullStop someText, mdLinkLine
+   end if
+   return linkTag
+end fedwiki_AddExternalLink
+
+function fedwiki_ConstructExternalLink linkURL, pLinkTag
+   if pLinkTag is empty then
+      put fedwiki_ConstructLinkTag (linkURL) into pLinkTag
+   end if
+   put "[" & linkURL && pLinkTag & "]" into externalLink
+   return externalLink
+end fedwiki_ConstructExternalLink
+
+function fedwiki_MarkdownIndex someIndex, pExtraWords
+   -- was "fedwiki_ConstructMarkdownIndex"
+   replace comma with CR in someIndex
+   repeat for each line someLine in someIndex
+      put word 1 to -1 of someLine into domainName
+      if domainName is empty then next repeat
+      if pExtraWords is not empty then put space & pExtraWords after domainName
+      put "- [[" & domainName & "]]" & CR after markdownList
+   end repeat
+   delete char -1 of markdownList
+   return markdownList
+end fedwiki_MarkdownIndex
+
+function fedwiki_GetLinks wikiText
+   local sNum, eNum
+   -- put ".+" into notBracket
+   -- put "\[\[([^\]]+)\|([^\]]+)\]\]" into someReg
+   
+   put "[^\]]+" into notBracket
+   put "\[\[(" & notBracket & ")\]\]" into someReg
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         put char sNum to eNum of wikiText into pageTitle
+         put pageTitle & CR after pageTitles
+         --
+         delete char 1 to eNum of wikiText
+      else 
+         exit repeat
       end if
    end repeat
-   return creationSlugArray
-end fedwiki_FetchFirstCreatedSlugArray
+   delete char -1 of pageTitles
+   return pageTitles
+end fedwiki_GetLinks
 
-function fedwiki_FetchSiteCreationDate wikiDomain
-   -- here we check each page and item of the journal (slow)
-   put fedwiki_ListSitemapSlugs (wikiDomain) into pSlugs
-   sort pSlugs
-   put the milliseconds into creationDate
-   repeat for each line pSlug in pSlugs
-      put fedwiki_ExtractFirstAuthorDate (wikiDomain, pSlug) into mSeconds
-      if mSeconds is empty then
-         next repeat -- page does not exits for some reason even though it is in the sitemap?
-      else if mSeconds < creationDate then
-         put mSeconds into creationDate
+command fedwiki_ReplaceExternalLinks @wikiText
+   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
+   put "(\[http.+\])" into someReg
+   
+   local refStart, refEnd
+   put 0 into indexNum
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         add 1 to indexNum
+         put char sNum to eNum of wikiText into extLinkText
+         delete char - 1 of extLinkText
+         delete char 1 of extLinkText
+         put word 1 of extLinkText into extLinkURL
+         put word 2 to -1 of extLinkText into extLinkText
+         --
+         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
+         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
+         put markdownLink into char sNum to eNum of wikiText
+      else
+         exit repeat
       end if
    end repeat
-   return creationDate
-end fedwiki_FetchSiteCreationDate
+   return indexNum
+end fedwiki_ReplaceExternalLinks
 
-function fedwiki_ExtractFirstAuthorDate wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   put pageArray_ExtractFirstAuthorDate (pageArray, wikiDomain) into mSeconds
-   return mSeconds
-end fedwiki_ExtractFirstAuthorDate
+function fedwiki_ConstructMarkdownLine someTitle, externalURL
+   fedwiki_AddExternalLink someTitle, externalURL
+   put "-" && someTitle into someMarkdown
+   return someMarkdown
+end fedwiki_ConstructMarkdownLine
 
+function fedwiki_ConstructLink someText, pExternalURL
+   put word 1 to -1 of line 1 of someText into someText
+   if pExternalURL is empty then
+      return "[[" & someText & "]]"
+   else
+      put word 1 to -1 of pExternalURL into pExternalURL
+      return "[" & pExternalURL && someText & "]"
+   end if
+end fedwiki_ConstructLink
+
+private command _TrimFullStop @someText, linkBit
+   put word 1 to -1 of someText into someText
+   switch
+      case char -3 to -1 of someText is "..."
+      case char -2 to -1 of someText is ".."
+         break
+      case char -1 of someText is "."
+         delete char -1 of someText
+         break
+   end switch
+   put linkBit after someText
+end _TrimFullStop
+
+
+--> Transport
+-
+command transport_DropTest @droppedURL, @srcImageURL, @qEnd, @isFavicon
+   fedwiki_SetRawJSON rawJSON
+   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
+   put the result into dropArray
+   put transport_DroppedHtmlIsFavicon (droppedHtml) into isFavicon
+   --
+   put url_FileEnding (droppedURL) into qEnd
+   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into imageAttributeArray
+   put imageAttributeArray ["src"] into srcImageURL
+   if srcImageURL is empty then
+      return empty
+   else
+      return imageAttributeArray
+   end if
+end transport_DropTest
+
+function transport_DroppedHtmlIsFavicon droppedHtml
+   -- tests depends on different behaviors of browsers
+   if the environment = "server" then
+      rigLoaderLoadLibrary "Useragent"
+      put rigBrowser() into tBrowser
+   else
+      put empty into tBrowser
+   end if
+   
+   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
+   switch tBrowser
+      case "Firefox"
+         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
+         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
+         break
+      case "Safari"
+         put revXMLAttribute (treeID, "/img", "class") into favClass
+         put revXMLAttribute (treeID, "/img", "height") into favHeight
+         break
+         -- case "Chrome"
+      default
+         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
+         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
+         break
+   end switch
+   revXMLDeleteTree treeID
+   put favClass = "favicon" and favHeight = "32px" into isFavicon
+   --
+   return isFavicon
+end transport_DroppedHtmlIsFavicon
+
+function fedwiki_GetDroppedImageURL 
+   /*
+   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+   <img class="alignnone" src="https://s3.amazonaws.com/codementor_content/2014-Oct-Week4/shellscripting.jpg" alt="" width="186" height="244">
+   -- put debug_GetCommentAbove() into droppedHTML
+   */
+   
+   fedwiki_SetRawJSON rawJSON
+   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
+   --
+   -- put html_ListImageNodes (droppedHTML) into imageNodes
+   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into attributeArray
+   put attributeArray ["src"] into imageURL
+   -- put attributeArray ["height"] into imageH
+   -- put attributeArray ["width"] into imageW
+   return imageURL
+end fedwiki_GetDroppedImageURL
+
+function html_ListImageNodes someHTML, pNode
+   if someHTML is empty then return empty
+   if pNode is empty then put "/" into pNode
+   
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLChildNames (treeID, pNode, CR, "img", true) into childNodes
+   revXMLDeleteTree treeID
+   --
+   repeat for each line childNode in childNodes
+      put pNode & childNode & CR after imageNodes
+   end repeat
+   delete char -1 of imageNodes
+   return imageNodes
+end html_ListImageNodes
+
+function html_GetNodeAttributeArray someNode, someHTML
+   if someHTML is empty then return empty
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLAttributes (treeID, someNode, tab, CR) into attributeTable
+   revXMLDeleteTree treeID
+   --
+   split attributeTable with CR and tab
+   return attributeTable
+end html_GetNodeAttributeArray
+
+function pageArray_FetchNewSite wikiDomain
+   /*
+   put fedwiki_FetchCitePageJSON (wikiDomain) into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   */
+   
+   put pageArray_Fetch (wikiDomain) into pageArray
+   put pageArray ["story"][1]["text"] into firstPara
+   --
+   put pageArray_Construct (wikiDomain, firstPara) into pageArray
+   --
+   put atopia_ConstructNewSiteButton (wikiDomain) into btnHTML
+   pageArray_AddHtml pageArray, btnHTML
+   --
+   put "Welcome Visitors" into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put firstPara into refText
+   pageArray_AddReference pageArray, pageSlug, wikiDomain, refText, pageTitle
+   --
+   -- put pageArray_FetchText (wikiDomain, pageSlug) into siteText
+   put fedwiki_FetchSiteText (wikiDomain) into siteText
+   --
+   put wordcloud_Fetch (siteText) into someImage
+   put  "[[" & wikiDomain & "]]" into imageCaption
+   put merge ("http://[[wikiDomain]]") into pCaptionLinkURL
+   pageArray_AddEmbeddedImage pageArray, someImage, imageCaption, "jpeg"
+   --
+   pageArray_AddMonkeyKeyWordSection pageArray, siteText
+   --
+   return pageArray
+end pageArray_FetchNewSite
+
+function fedwiki_FetchSiteText wikiDomain
+   -- see also "azure_FetchAndConvertSitemap()"
+   local docArray
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   if sitemapArray is empty then return empty
+   --
+   repeat for each key indexNum in sitemapArray
+      put sitemapArray [indexNum] into itemArray
+      fedwiki_DeconstructSitemapArray itemArray, pageTitle, firstPara, pageSlug, mDate      
+      put pageTitle & CR & firstPara & CR & CR after siteText
+   end repeat
+   delete char -2 to -1 of siteText
+   return siteText
+end fedwiki_FetchSiteText
+
+
+--> Fedwiki | Post
+-
 function fedwiki_FetchCitePageJSON wikiDomain
    -- used by "atopia_CreateFederationSitePage"
    put merge ("http://[[wikiDomain]]/view/welcome-visitors") into lineUpURL
@@ -85,6 +519,178 @@ function fedwiki_FetchCitePageJSON wikiDomain
    put the result into pageJSON
    return pageJSON
 end fedwiki_FetchCitePageJSON
+
+command fedwiki_PostJSON someJSON, restURL
+   set the httpheaders to "Content-Type: application/json" -- required for revIgnitor
+   post someJSON to url restURL
+   put it into jsonResult
+   return jsonResult
+end fedwiki_PostJSON
+
+function fedwiki_EncodePost someText, pSomeURL
+   -- {"text":"Ant","html":""}
+   
+   put someText into postArray ["text"]
+   put empty into postArray ["html"]
+   if pSomeURL is not empty then
+      put pSomeURL into postArray ["url"]
+   end if
+   put json_FromArray (postArray) into postJSON
+   return postJSON
+end fedwiki_EncodePost
+
+function fedwiki_ProcessPost pPostJSON
+   /*
+   A Transporter posts json to a REST endpoint with a structure something like:
+   -- {"text":"Ant","html":""}
+   
+   Use this function to extract the text value posted.
+   A tranporter will set the dropped url to the text value, but your own scripts can set it to whatever you like
+   usefull for forwarding values toother transporters
+   */
+   if pPostJSON is empty then put $_POST_RAW into pPostJSON
+   
+   put json_ToArray (pPostJSON) into postArray
+   if postArray is an array then
+      put postArray ["text"] into someText
+   else
+      -- don't post raw text unless you have to
+      -- use fedwiki_EncodePost()
+      put $_POST_RAW into someText
+   end if
+   return someText
+end fedwiki_ProcessPost
+
+
+--> Fedwiki | Sitemap
+-
+function fedwiki_ListSitemapPages wikiDomain
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   put fedwiki_ConstructPageTitleArray (sitemapArray) into pageTitleArray
+   put the keys of pageTitleArray into pageTitles
+   sort pageTitles
+   return pageTitles
+end fedwiki_ListSitemapPages
+
+function fedwiki_ConstructPageTitleArray sitemapArray
+   repeat for each key indexNum in sitemapArray
+      put sitemapArray [indexNum] into indexArray
+      put indexArray ["title"] into pageTitle
+      delete variable indexArray ["title"]
+      put indexArray into pageTitleArray [pageTitle]
+   end repeat
+   return pageTitleArray
+end fedwiki_ConstructPageTitleArray
+
+function fedwiki_SitesWithPage wikiDomains, pTitle
+   if pTitle is empty then return wikiDomains
+   
+   put fedwiki_ConstructSlug (pTitle) into pageSlug
+   repeat for each line wikiDomain in wikiDomains
+      set the cursor to busy
+      put fedwiki_SiteContainsSlug (wikiDomain, pageSlug) into someBoolean
+      if someBoolean is true then
+         put wikiDomain & CR after filteredDomains
+      end if
+   end repeat
+   delete char -1 of filteredDomains
+   --
+   return filteredDomains
+end fedwiki_SitesWithPage
+
+function fedwiki_SiteContainsSlug wikiDomain, pageSlug
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   put fedwiki_SearchSitemapArray (pageSlug, sitemapArray) into indexNum
+   return indexNum is not 0 
+end fedwiki_SiteContainsSlug
+
+
+--> Fedwiki | Construct
+-
+function fedwiki_ConstructSearchForm buttonName, postURL, inputVarName, pInputSize, pInputDefault, pAlign, pHiddenKeyValueArray, pBgColor
+   put inputVarName into pInputArray ["inputVarName"]
+   put pInputSize into pInputArray ["inputSize"]
+   put pInputDefault into pInputArray ["inputDefault"]
+   --
+   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInputArray, empty, pAlign, pBgColor) into formHTML
+   return formHTML
+end fedwiki_ConstructSearchForm
+
+function fedwiki_ConstructButtonForm buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pInline
+   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, empty, pLabel, pAlign, pBgColor, pInline) into formHTML
+   return formHTML
+end fedwiki_ConstructButtonForm
+
+function fedwiki_ConstructForm buttonName, postURL, inputKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline
+   if pAlign is empty then put "right" into pAlign
+   if pBgColor is empty then
+      put "<div align=[[pAlign]]>" & CR into htmlTemplate
+   else
+      put "<div align=[[pAlign]] style='background-color:[[pBgColor]];color:black;padding:12px'>" & CR after htmlTemplate
+   end if
+   put _GetHiddenInput (inputKeyValueArray) into hiddenTemplateBit
+   --
+   if pInline then
+      put "<form action='[[postURL]]' style='display:inline'>" & CR after htmlTemplate
+   else
+      put "<form action='[[postURL]]'>" & CR after htmlTemplate
+   end if
+   --
+   if pLabel is not empty then
+      put "[[pLabel]]: &nbsp;&nbsp;" & CR after htmlTemplate
+   end if
+   --
+   if pInput is not empty then
+      if pInput is an array then
+         put pInput ["inputVarName"] into inputVarName
+         put pInput ["inputSize"] into inputSize
+         put pInput ["inputDefault"] into inputDefault
+      else
+         put pInput into inputVarName
+         put empty into inputDefault
+      end if
+      if inputSize is empty then put 54 into inputSize
+      --
+      put "<input name=[[inputVarName]] value='[[inputDefault]]' size=[[inputSize]]>" & CR after htmlTemplate
+   end if
+   --
+   if hiddenTemplateBit is not empty then
+      put "[[hiddenTemplateBit]]"  & CR after htmlTemplate
+   end if
+   put "<button type='submit'>[[buttonName]]</button>" & CR after htmlTemplate
+   put "</form></div>" after htmlTemplate
+   --
+   replace "'" with quote in htmlTemplate
+   put merge (htmlTemplate) into someHTML
+   return someHTML
+end fedwiki_ConstructForm
+
+private function _GetHiddenInput inputKeyValueArray
+   repeat for each key inputKey in inputKeyValueArray
+      put inputKeyValueArray [inputKey] into inputValue
+      if inputValue is not empty then
+         put _ConstructHiddenBit (inputKey, inputValue) & CR after hiddenTemplateBit
+      end if
+   end repeat
+   delete char -1 of hiddenTemplateBit
+   return hiddenTemplateBit
+end _GetHiddenInput
+
+private function _ConstructHiddenBit inputKey, inputValue
+   put "<input name='[[inputKey]]'" & space into hiddenBit
+   put "value='[[inputValue]]'" & space after hiddenBit
+   put "type='hidden'>" after hiddenBit
+   replace "'" with quote in hiddenBit
+   return merge (hiddenBit)
+end _ConstructHiddenBit
+
+function fedwiki_SlugToTitle pageSlug
+   replace "-" with space in pageSlug
+   put word 1 to -1 of pageSlug into pageTitle
+   -- put text_InitialCaps (pageTitle) into pageTitle
+   put toUpper (char 1 of pageTitle) into char 1 of pageTitle
+   return pageTitle
+end fedwiki_SlugToTitle
 
 function fedwiki_ConstructFlagDropJson lineUpURL
    set the itemdelimiter to slash
@@ -221,19 +827,6 @@ end fedwiki_DeconstructDroppedURL
 
 --> Fedwiki | Transport | Helpers
 -
-function fedwiki_MarkdownIndex someIndex, pExtraWords
-   -- was "fedwiki_ConstructMarkdownIndex"
-   replace comma with CR in someIndex
-   repeat for each line someLine in someIndex
-      put word 1 to -1 of someLine into domainName
-      if domainName is empty then next repeat
-      if pExtraWords is not empty then put space & pExtraWords after domainName
-      put "- [[" & domainName & "]]" & CR after markdownList
-   end repeat
-   delete char -1 of markdownList
-   return markdownList
-end fedwiki_MarkdownIndex
-
 function fedwiki_HkeyMarkdownIndex hkeyIndex
    replace comma with CR in hkeyIndex
    repeat for each line hkey in hkeyIndex
@@ -244,124 +837,6 @@ function fedwiki_HkeyMarkdownIndex hkeyIndex
    delete char -1 of markdownList
    return markdownList
 end fedwiki_HkeyMarkdownIndex
-
-
---> Fedwiki | Sitemap
--
-function fedwiki_GetlastModified wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   put fedwiki_SitemapLastModified (sitemapArray) into lastModified
-   return lastModified
-end fedwiki_GetlastModified
-
-function fedwiki_SitemapLastModified sitemapArray
-   put item 2 of the extents of sitemapArray into maxNum
-   put 0 into maxUpdate
-   repeat with indexNum = 1 to maxNum
-      put sitemapArray [indexNum]["slug"] into pageSlug
-      put sitemapArray [indexNum]["date"] into lastUpdate
-      if lastUpdate > maxUpdate then
-         put lastUpdate into maxUpdate
-      end if
-   end repeat
-   return maxUpdate
-end fedwiki_SitemapLastModified
-
-function fedwiki_ListSitemapPages wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   repeat for each key indexNum in sitemapArray
-      put sitemapArray [indexNum]["title"] into pageTitle
-      put pageTitle & CR after pageTitles
-   end repeat
-   delete char -1 of pageTitles
-   return pageTitles
-end fedwiki_ListSitemapPages
-
-function fedwiki_ListSitemapSlugs wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   repeat for each key indexNum in sitemapArray
-      put sitemapArray [indexNum]["slug"] into pageSlug
-      put pageSlug & CR after pageSlugs
-   end repeat
-   delete char -1 of pageSlugs
-   return pageSlugs
-end fedwiki_ListSitemapSlugs
-
-function fedwiki_SearchSitemapArray pageSlug, siteMapArray
-   -- was "fedwiki_FindSlug"
-   repeat for each key indexNum in siteMapArray
-      if siteMapArray [indexNum]["slug"] is pageSlug then
-         return indexNum
-      end if
-   end repeat
-   return 0
-end fedwiki_SearchSitemapArray
-
-function fedwiki_FetchSitemapArray wikiDomain, pLoad
-   put fedwiki_FetchSitemap (wikiDomain, pLoad) into someJson
-   if someJson is empty then return empty
-   put json_ToArray (someJson) into sitemapArray
-   if sitemapArray is false then return empty
-   return sitemapArray
-end fedwiki_FetchSitemapArray
-
-function fedwiki_FetchSitemap fedwikiDomain, pLoad
-   put fedwiki_JsonSiteMapUrl (fedwikiDomain) into sitemapURL
-   if pLoad is true then load url sitemapURL
-   put url sitemapURL into sitemapJSON
-   return sitemapJSON
-end fedwiki_FetchSitemap
-
-
---> Fedwiki
--
-function fedwiki_GetLinks wikiText
-   local sNum, eNum
-   -- put ".+" into notBracket
-   -- put "\[\[([^\]]+)\|([^\]]+)\]\]" into someReg
-   
-   put "[^\]]+" into notBracket
-   put "\[\[(" & notBracket & ")\]\]" into someReg
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         put char sNum to eNum of wikiText into pageTitle
-         put pageTitle & CR after pageTitles
-         --
-         delete char 1 to eNum of wikiText
-      else 
-         exit repeat
-      end if
-   end repeat
-   delete char -1 of pageTitles
-   return pageTitles
-end fedwiki_GetLinks
-
-command fedwiki_ReplaceExternalLinks @wikiText
-   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
-   put "(\[http.+\])" into someReg
-   
-   local refStart, refEnd
-   put 0 into indexNum
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         add 1 to indexNum
-         put char sNum to eNum of wikiText into extLinkText
-         delete char - 1 of extLinkText
-         delete char 1 of extLinkText
-         put word 1 of extLinkText into extLinkURL
-         put word 2 to -1 of extLinkText into extLinkText
-         --
-         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
-         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
-         put markdownLink into char sNum to eNum of wikiText
-      else
-         exit repeat
-      end if
-   end repeat
-   return indexNum
-end fedwiki_ReplaceExternalLinks
 
 command fedwiki_ForwardAndReturn restURL
    put fedwiki_ForwardJSON (restURL) into pageJSON
@@ -430,7 +905,7 @@ function fedwiki_FetchDroppedPageJson droppedURL, pSlug
          put fedwiki_FetchLastLineUpJson (droppedURL) into pageJson
          break
       default
-         put fedwiki_FetchPageJson (fedwikiDomain, pSlug) into pageJson
+         put pageJson_Fetch (fedwikiDomain, pSlug) into pageJson
    end switch
    return pageJson
 end fedwiki_FetchDroppedPageJson
@@ -444,48 +919,9 @@ function fedwiki_FetchDroppedFlagJson droppedURL
    set the itemdelimiter to "."
    put item 1 of pSlug into pSlug
    --
-   put fedwiki_FetchPageJson (fedwikiDomain, pSlug) into pageJson
+   put pageJson_Fetch (fedwikiDomain, pSlug) into pageJson
    return pageJson
 end fedwiki_FetchDroppedFlagJson
-
-
---> Fedwiki | Fetch
--
-function fedwiki_FetchLastLineUpArray droppedURL, pNotTheseSlugs
-   put fedwiki_FetchLastLineUpJson (droppedURL, pNotTheseSlugs) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   return pageArray
-end fedwiki_FetchLastLineUpArray
-
-function fedwiki_FetchLastLineUpJson droppedURL, pNotTheseSlugs
-   -- does not check that droppedURL is not a ".html" page
-   if pNotTheseSlugs is empty then put "journal-cleaner-transport" into pNotTheseSlugs
-   
-   put fedwiki_ConstructUrlArray (droppedURL) into urlArray
-   if urlArray is false then return false
-   
-   put item 2 of the extents of urlArray into lineUpNum
-   put urlArray [lineUpNum]["pageSlug"] into pageSlug
-   if pageSlug is among the items of pNotTheseSlugs and lineUpNum is not 1 then
-      subtract 1 from lineUpNum
-   end if
-   
-   put fedwiki_FetchLineUpJson (urlArray, lineUpNum) into pageJSON
-   return pageJSON
-end fedwiki_FetchLastLineUpJson
-
-function fedwiki_FetchLineUpJson urlArray, lineUpNum
-   if lineUpNum = -1 then put item 2 of the extents of urlArray into lineUpNum
-   
-   put urlArray [lineUpNum]["pageSlug"] into pageSlug
-   put urlArray [lineUpNum]["someDomain"] into someDomain
-   
-   -- http://forage.david.bovill.me/entry-level-browser.json?random=72428048
-   put "http://" & someDomain & "/" & pageSlug & ".json" into someUrl
-   -- put "?random=" & the milliseconds after someUrl
-   put url someUrl into someJSON
-   return someJSON
-end fedwiki_FetchLineUpJson
 
 
 --> Fedwiki | Exists
@@ -522,53 +958,13 @@ end fedwiki_IsJsonUrl
 function fedwiki_IsFaviconDrop dropJSON
    -- dropJSON is not longer optional
    if dropJSON is empty then return false
-   
-   -- tests depends on different behaviors of browsers
-   if the environment = "server" then
-      rigLoaderLoadLibrary "Useragent"
-      put rigBrowser() into tBrowser
-   else
-      put empty into tBrowser
-   end if
-   
    put fedwiki_GetDroppedArray (dropJSON) into dropArray
    put dropArray ["html"] into droppedHtml
-   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
-   switch tBrowser
-      case "Firefox"
-         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
-         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
-         break
-      case "Safari"
-         put revXMLAttribute (treeID, "/img", "class") into favClass
-         put revXMLAttribute (treeID, "/img", "height") into favHeight
-         break
-         -- case "Chrome"
-      default
-         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
-         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
-         break
-   end switch
-   revDeleteXMLTree treeID
-   put favClass = "favicon" and favHeight = "32px" into isFavicon
+   --
+   put transport_DroppedHtmlIsFavicon (droppedHtml) into isFavicon
    --
    return isFavicon
 end fedwiki_IsFaviconDrop
-
-command fedwiki_FilterCheck @wikiDomains
-   repeat for each line wikiDomain in wikiDomains
-      set the cursor to busy
-      if fedwiki_WikiExists (wikiDomain) is true then
-         put wikiDomain & CR after goodDomains
-      else
-         put wikiDomain & CR after badDomains
-      end if
-   end repeat
-   delete char -1 of goodDomains
-   delete char -1 of badDomains
-   put goodDomains into wikiDomains
-   return badDomains
-end fedwiki_FilterCheck
 
 function fedwiki_IsHtmlUrl wikiPageURL, @errorMsg
    -- http://tools.progressivedemocracy.cc/collaborative-bookmarking.html
@@ -590,20 +986,6 @@ end fedwiki_IsHtmlUrl
 
 --> Fedwiki | List
 -
-function fedwiki_ConstructImageLinkTag pCaptionLinkURL
-   put html_ExtractTLD (pCaptionLinkURL, true) into linkTag
-   switch linkTag
-      case "wikipedia.org"
-         return "wikipedia"
-         break
-      case "wikimedia.org"
-         return "wikimedia"
-         break
-      default
-         return linkTag
-   end switch
-end fedwiki_ConstructImageLinkTag
-
 function fedwiki_HtmlToMarkdown htmlSnippet
    -- depends on lib_Encoding
    -- for now strip and return text
@@ -617,7 +999,7 @@ end fedwiki_HtmlToMarkdown
 function fedwiki_ConstructSlug pageTitle
    -- it is very annoying that "_" is not an allowed character
    replace space with "-" in pageTitle
-   repeat for each char someChar in  "()_|.,:;"
+   repeat for each char someChar in  "()_|.,:;'"
       replace someChar with empty in pageTitle
    end repeat
    put tolower (pageTitle) into pageSlug
@@ -633,94 +1015,6 @@ function fedwiki_ConstructTitle pageSlug
    delete char -1 of pageTitle
    return pageTitle
 end fedwiki_ConstructTitle
-
-
---> Fedwiki | JSON Plugin
--
-function fedwiki_FetchPluginJSON pageSlug, wikiDomain
-   put fedwiki_ConstructPluginJsonUrl (pageSlug, wikiDomain) into restURL
-   put url restURL into someJSON
-   -- put jsonrpc_Get (restURL) into someJSON
-   return someJSON
-end fedwiki_FetchPluginJSON
-
-command fedwiki_PutPluginJSON someJSON, pageSlug, wikiDomain, apiKey
-   -- for http://admin.fedwiki.org/json-plugin.html
-   
-   put fedwiki_ConstructPluginJsonUrl (pageSlug, wikiDomain) into restURL
-   --
-   put "Content-type: application/json" into newHeaders
-   put CR & "Accept: application/json" after newHeaders
-   put CR & "Accept-Charset: utf-8" after newHeaders
-   put CR & "X-Api-Key:" && apiKey after newHeaders
-   set the httpheaders to newHeaders
-   --
-   -- replace "'" with quote in someJSON
-   --
-   put someJSON into url restURL
-   --
-   put the result into putResult
-   /*
-   -- this should return, but is returning only error msg I think
-   {
-   "status": "ok",
-   "writes": 3330,
-   "interval": 299524,
-   "length": 17736
-   }
-   */
-   return putResult
-end fedwiki_PutPluginJSON
-
-function fedwiki_ConstructPluginJsonUrl pageSlug, wikiDomain
-   -- http://admin.fedwiki.org/plugin/json/atopia-fedwiki-sites
-   put "http://" & wikiDomain & "/plugin/json/" & pageSlug into restURL
-   return restURL
-end fedwiki_ConstructPluginJsonUrl
-
-
---> Fedwiki | Post
--
-command fedwiki_PostJSON someJSON, restURL
-   set the httpheaders to "Content-Type: application/json" -- required for revIgnitor
-   post someJSON to url restURL
-   put it into jsonResult
-   return jsonResult
-end fedwiki_PostJSON
-
-function fedwiki_EncodePost someText, pSomeURL
-   -- {"text":"Ant","html":""}
-   
-   put someText into postArray ["text"]
-   put empty into postArray ["html"]
-   if pSomeURL is not empty then
-      put pSomeURL into postArray ["url"]
-   end if
-   put json_FromArray (postArray) into postJSON
-   return postJSON
-end fedwiki_EncodePost
-
-function fedwiki_ProcessPost pPostJSON
-   /*
-   A Transporter posts json to a REST endpoint with a structure something like:
-   -- {"text":"Ant","html":""}
-   
-   Use this function to extract the text value posted.
-   A tranporter will set the dropped url to the text value, but your own scripts can set it to whatever you like
-   usefull for forwarding values toother transporters
-   */
-   if pPostJSON is empty then put $_POST_RAW into pPostJSON
-   
-   put json_ToArray (pPostJSON) into postArray
-   if postArray is an array then
-      put postArray ["text"] into someText
-   else
-      -- don't post raw text unless you have to
-      -- use fedwiki_EncodePost()
-      put $_POST_RAW into someText
-   end if
-   return someText
-end fedwiki_ProcessPost
 
 
 --> Fedwiki | Create
@@ -740,40 +1034,20 @@ function fedwiki_CreateHtmlPageArray pageTitle, someHTML
    return pageArray
 end fedwiki_CreateHtmlPageArray
 
-function fedwiki_CreatePageAndImageArray pageTitle, pageDescription, droppedURL, pImageURL, pShortDescription
-   local pageArray
-   fedwiki_CreateFirstParagraph pageTitle, pageDescription, droppedURL, pageArray
-   put the result into extraLines
-   --
-   if pShortDescription is empty then put pageDescription into pShortDescription
-   fedwiki_AddImageToPageArray pageArray, pImageURL, pShortDescription, droppedURL
-   --
-   fedwiki_AutoAddLines pageArray, extraLines
-   return pageArray
-end fedwiki_CreatePageAndImageArray
-
 command fedwiki_CreateFirstParagraph pageTitle, pageDescription, someURL, @pageArray
-   put html_ExtractTLD (someURL, true) into tldBit
-   --
    put text_SplitIntoParagraphs (pageDescription) into splitText
    put word 1 to -1 of line 1 to 2 of splitText into firstParagraph
    delete line 1 to 2 of splitText
    --
    fedwiki_AddExternalLink firstParagraph, someURL
    --
-   put fedwiki_ConstructNewPageArray (pageTitle, firstParagraph) into pageArray
+   put pageArray_Construct (pageTitle, firstParagraph) into pageArray
    return splitText
 end fedwiki_CreateFirstParagraph
 
 
 --> Fedwiki | Ref Plugin
 -
-function fedwiki_ConstructMarkdownLine someTitle, externalURL
-   fedwiki_AddExternalLink someTitle, externalURL
-   put "-" && someTitle into someMarkdown
-   return someMarkdown
-end fedwiki_ConstructMarkdownLine
-
 function fedwiki_ConstructMarkdownPage someMarkdown, pPageTitle
    put word 1 to -1 of someMarkdown into someMarkdown
    if pPageTitle is empty then
@@ -825,53 +1099,35 @@ function fedwiki_ConstructMarkdownPage someMarkdown, pPageTitle
 end fedwiki_ConstructMarkdownPage
 
 function fedwiki_ConstructNewPageJson pageTitle, pSomeText
-   put fedwiki_ConstructNewPageArray (pageTitle, pSomeText) into pageArray
+   put pageArray_Construct (pageTitle, pSomeText) into pageArray
    put json_FromArray (pageArray) into pageJSON
    return pageJSON
 end fedwiki_ConstructNewPageJson
 
-function fedwiki_ConstructNewPageArray pageTitle, pSomeText, pSourceArray
-   put pageTitle into pageArray ["title"]
-   put pageArray_ConstructJournal (pageTitle, pSourceArray) into pageArray ["journal"] 
-   if pSomeText is empty then
-      pageArray_AddFactory pageArray
-   else
-      pageArray_AddMarkdown pageArray, pSomeText
-   end if
-   return pageArray
-end fedwiki_ConstructNewPageArray
-
 
 --> Fedwiki | Add | Lines
 -
-function fedwiki_ConstructImageHtml imageURL, pCaption, pCaptionLinkURL, pLinkToImage
-   if pCaption is empty then put "Transported Image - " into pCaption
-   if pCaptionLinkURL is empty then put imageURL into pCaptionLinkURL
-   put "100%" into pWidth
-   html_TopAndTailParagraphTags pCaption
-   if char -1 of pCaption = "." then delete char -1 of pCaption
+function fedwiki_ConstructImageHtml srcURL, pCaption, pCaptionLinkURL, pLinkToImage
+   put fedwiki_ConstructImageCaption (pCaption, pCaptionLinkURL, srcURL) into pCaptionText
+   --
+   put pCaptionLinkURL into pImageLink
    
-   put "<div style='padding: 12px; background:#eee; width:96%; align=centered;'>" into someHTML
-   if pLinkToImage is false then
-      put CR & "<a href='" & pCaptionLinkURL & "' target='_blank'>" after someHTML
-   else
-      put CR & "<a href='" & imageURL & "' target='_blank'>" after someHTML
-   end if
+   put "style='padding: 12px; background:#eee; width:96%; align=centered;'" into divClassBit
+   put "data-imagestyle='fullwiki'; style='display:block; margin:auto; width:100%;'" into imgStyleBit
    --
-   put CR & "<img style='display:block; margin:auto; width:" & pWidth & ";'" after someHTML
-   put CR & "src='" & imageURL & "'>" after someHTML
-   --
-   put CR & "</a>" after someHTML
-   put CR after someHTML
-   put CR & "<p class=caption>" after someHTML
-   put CR & pCaption after someHTML
-   --
-   put fedwiki_ConstructImageLinkTag (pCaptionLinkURL) into linkTag
-   put CR & "- [" & pCaptionLinkURL && linkTag & "]" after someHTML
-   --
-   put CR & "</p></div>" after someHTML
+   put _ConstructImageHtml (divClassBit, imgStyleBit, srcURL, pCaptionText, pImageLink) into someHTML
    return someHTML
 end fedwiki_ConstructImageHtml
+
+function fedwiki_ConstructThumbHtml srcURL, pCaption, pCaptionLinkURL, pImageLink
+   put fedwiki_ConstructImageCaption (pCaption, pCaptionLinkURL, srcURL) into pCaptionText
+   --
+   put "class='item image ui-sortable-handle'" into divClassBit
+   put "class='thumbnail' data-imagestyle='thumbwiki'" into imgStyleBit
+   --
+   put _ConstructImageHtml (divClassBit, imgStyleBit, srcURL, pCaptionText, pImageLink) into someHTML
+   return someHTML
+end fedwiki_ConstructThumbHtml
 
 command fedwiki_AutoAddLines @pageArray, someLines
    repeat
@@ -918,9 +1174,9 @@ command fedwiki_AddExternalLinkToFirstSection @fedwikiPageArray, someURL, pLinkT
       -- section was empty
       put "There is no text for this section. Please add some." into itemText
       fedwiki_AddExternalLink itemText, someURL, pLinkText
-      put pageArray_ConstructItemArray (itemText, "markdown") into itemArray
+      put storyArray_ConstructItem (itemText, "markdown") into itemArray
       --
-      fedwiki_StoryInsertInto storyArray, 1, itemArray
+      storyArray_InsertInto storyArray, 1, itemArray
       --
       put storyArray into fedwikiPageArray ["story"]
    else -- could do more checking of itemType
@@ -965,36 +1221,6 @@ function fedwiki_FindFirstPicture fedwikiPageArray
 end fedwiki_FindFirstPicture
 
 
---> Fedwiki | StoryArray | Edit
--
-command fedwiki_StoryInsertAfter @storyArray, afterNum, itemArray
-   put afterNum + 1 into intoNum
-   fedwiki_StoryInsertInto storyArray, intoNum, itemArray
-end fedwiki_StoryInsertAfter
-
-command fedwiki_StoryInsertInto @storyArray, intoNum, itemArray
-   put item 2 of the extents of storyArray into maxItem
-   
-   -- move items below intoNum down 1
-   repeat with itemNumToMove = maxItem down to intoNum
-      put itemNumToMove + 1 into itemNumDestination
-      put storyArray [itemNumToMove] into storyArray [itemNumDestination]
-   end repeat
-   
-   -- now insert itemArray into item intoNum of storyArray
-   put itemArray into storyArray [intoNum]
-end fedwiki_StoryInsertInto
-
-function fedwiki_StoryExtractorderedIDArray storyArray
-   put item 2 of the extents of storyArray into maxItem
-   repeat with itemNum = 1 to maxItem
-      put storyArray [itemNum]["id"] into storyID
-      put storyID into oderedIdArray [itemNum]
-   end repeat
-   return oderedIDArray
-end fedwiki_StoryExtractorderedIDArray
-
-
 --> Fedwiki | Parse
 -
 function fedwiki_ParseHtml someHTML
@@ -1028,7 +1254,7 @@ function fedwiki_ParseHtml someHTML
       add 1 to divNum
    end repeat
    --
-   revDeleteXMLTree treeID
+   revXMLDeleteTree treeID
    return htmlArray
 end fedwiki_ParseHtml
 
@@ -1118,9 +1344,6 @@ command fedwiki_DeconstructCreateArray createArray, @parentTitle, @sectionTitle,
    return sourceArray
 end fedwiki_DeconstructCreateArray
 
-
---> Fedwiki | Lineup
--
 function fedwiki_ExtractFirstStoryItem pageArray, itemType
    put pageArray ["story"] into storyArray
    put item 2 of the extents of storyArray into lastItemNum
@@ -1137,31 +1360,6 @@ end fedwiki_ExtractFirstStoryItem
 
 --> Fedwiki | Add | Image
 -
-command fedwiki_AddImageToPageArray @pageArray, imageURL, pCaption, pCaptionLinkURL
-   if imageURL is  empty then return false
-   if pageArray is not an array then  return false
-   -- put "This is a simple image dropped on to a wiki." into pageText
-   -- put fedwiki_ConstructNewPageArray ("Dropped Image", pageText) into pageArray
-   --
-   if pCaption is empty then
-      put "This is an image" into pCaption
-   else if the number of words of pCaption > 35 then
-      put word 1 to 35 of pCaption & "..." into pCaption
-   else
-      put word 1 to -1 of pCaption into pCaption
-   end if
-   --
-   if pCaptionLinkURL is empty then
-      put imageURL into pCaptionLinkURL
-   end if
-   put html_ExtractTLD (pCaptionLinkURL, true) into tldBit
-   put " -" && tldBit into linkInfo
-   --
-   put fedwiki_ConstructImageHtml (imageURL, pCaption, pCaptionLinkURL, linkInfo) into imageHTML
-   pageArray_AddHtml pageArray, imageHTML
-   return true
-end fedwiki_AddImageToPageArray
-
 command fedwiki_AddExternalLink @someText, someURL, pLinkText
    if someURL is empty then return false
    
@@ -1176,6 +1374,9 @@ command fedwiki_AddExternalLink @someText, someURL, pLinkText
             break
          case item -2 of it = "wikicommons"
             put "wikicommons" into pLinkText
+            break
+         case item -2 of it = "listennotes"
+            put "listen" into pLinkText
             break
          default
             put item -2 to -1 of it into pLinkText
@@ -1281,8 +1482,7 @@ function fedwiki_ConstructEncodedImageArray someImage, imageType, pImageCaption,
    put pImageCaption into imageArray ["text"] 
    put "image" into imageArray ["type"] 
    
-   put "data:image/" & imageType & ";base64," into dataImageUrl
-   put base64encode (someImage) after dataImageUrl
+   put image_toDataImageUrl (someImage, imageType) into dataImageUrl
    put dataImageUrl into imageArray ["url"] 
    
    return imageArray
@@ -1291,16 +1491,6 @@ end fedwiki_ConstructEncodedImageArray
 
 --> Fedwiki | Construct | HTML
 -
-function fedwiki_ConstructLink someText, pExternalURL
-   put word 1 to -1 of line 1 of someText into someText
-   if pExternalURL is empty then
-      return "[[" & someText & "]]"
-   else
-      put word 1 to -1 of pExternalURL into pExternalURL
-      return "[" & pExternalURL && someText & "]"
-   end if
-end fedwiki_ConstructLink
-
 function fedwiki_ConstructImageDiv imageURL, imageHREF
    if imageHREF is empty then
       put "<img src=" & kwote (imageURL) & " width=100%>" into imageHTML
@@ -1331,37 +1521,6 @@ function fedwiki_ConstructSiteMapTitleArray sitemapArray
    return sitemapTitleArray
 end fedwiki_ConstructSiteMapTitleArray
 
-function fedwiki_ConstructUrlArray someUrl
-   set the itemdelimiter to "/"
-   put item 1 to 3 of someUrl into urlStem
-   put item 3 of someUrl into urlDomain
-   
-   put item 4 to -1 of someUrl into pathBit
-   put the number of items of pathBit into maxNum
-   if (maxNum mod 2) is not 0 then 
-      put item -1 of pathBit into extraBit
-      delete item -1 of pathBit
-      return false -- it is not a Fedwiki url ?
-   end if
-   
-   put maxNum/2 into maxLineUpNum
-   repeat with lineUpNum = 1 to maxLineUpNum
-      put 2*lineUpNum - 1 into itemNum
-      put item itemNum of pathBit into viewOrDomain
-      put item (itemNum + 1) of pathBit into pageSlug
-      _stripEndHashFromSlug pageSlug
-      
-      if viewOrDomain = "view" then
-         put urlDomain into someDomain
-      else
-         put viewOrDomain into someDomain
-      end if
-      put pageSlug into urlArray [lineUpNum]["pageSlug"]
-      put someDomain into urlArray [lineUpNum]["someDomain"]
-   end repeat
-   return urlArray
-end fedwiki_ConstructUrlArray
-
 
 --> Fedwiki | PageArray | Construct
 -
@@ -1387,6 +1546,15 @@ function fedwiki_ConstructOpenStreetMapURL mapLat, mapLong, pMapZoom
    return openStreetMapURL
 end fedwiki_ConstructOpenStreetMapURL
 
+function fedwiki_ConstructVideoItemText videoType, videoID, pVideoDescription, pID
+   -- videoType = "VIMEO", "HTML5 mp4"
+   if pVideoDescription is empty then put "This is a video" into pVideoDescription
+   put toUpper (word 1 of videoType) into word 1 of videoType -- first word must be all caps
+   put videoType && videoID into itemText
+   put CR & pVideoDescription after itemText
+   return itemText
+end fedwiki_ConstructVideoItemText
+
 function fedwiki_ConstructCodePageArray pageTitle, someCode, pSomeText, pSourceArray
    put pageTitle into pageArray ["title"]
    if pSomeText is not empty then pageArray_AddText pageArray, pSomeText
@@ -1401,16 +1569,6 @@ function fedwiki_JsonEncode someText
    return utf8Text
 end fedwiki_JsonEncode
 
-function youtube_ConstructWatchUrl videoID
-   put "https://www.youtube.com/watch?v=" & videoID into youtubeURL
-   return youtubeURL
-end youtube_ConstructWatchUrl
-
-function vimeo_ConstructWatchUrl videoID
-   put "https://vimeo.com/" & videoID into vimeoURL
-   return vimeoURL
-end vimeo_ConstructWatchUrl
-
 
 --> Private
 -
@@ -1422,11 +1580,88 @@ end _stripEndHashFromSlug
 
 --> Deps
 -
+function json_FromArray pArray, pForceRootType, pPretty
+   -- put jsonExport (pArray) into someJSON -- not the same
+   
+   repeat for each key tKey in pArray
+      if pArray[tKey] is an array then
+         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
+      end if
+   end repeat
+   return (mergJSONEncode("pArray",pForceRootType,pPretty))
+end json_FromArray
+
+function json_ToArray pJSON
+   local tArray,tKeys
+   if pJSON is empty then return false
+   -- put jsonImport (pJSON) into tArray -- not the same
+   
+   try -- as otherwise an error with non-json causes script to exit
+      if pJSON is empty then return empty
+      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+         put json_ToArray(tArray[tKey]) into tArray[tKey]
+      end repeat
+      if tArray is an array then
+         return tArray
+      else
+         return empty
+      end if
+   catch e
+      return empty
+   end try
+end json_ToArray
+
+function date_MillisecondsToInternetDate someDate
+   put someDate/1000 into iDate
+   convert iDate to internet date
+   return iDate
+end date_MillisecondsToInternetDate
+
 command date_ConvertMilliseconds @someMilliseconds
    put someMilliseconds/1000 into someMilliseconds
    convert someMilliseconds from seconds to long date
    delete item 1 of someMilliseconds
+   put word 1 to -1 of someMilliseconds into someMilliseconds
 end date_ConvertMilliseconds
+
+function date_DaysAgoInSeconds pDaysAgo
+   if pDaysAgo is not a number then return empty
+   --
+   put the date into dayInSeconds
+   convert dayInSeconds to dateItems
+   subtract pDaysAgo from item 3 of dayInSeconds
+   convert dayInSeconds to seconds
+   --
+   return dayInSeconds
+end date_DaysAgoInSeconds
+
+function date_GetSinceSeconds sincePeriod
+   put word 1 of sincePeriod into sinceNum
+   put word 2 of sincePeriod into sinceWord
+   --
+   switch sinceWord
+      case "minute"
+      case "minutes"
+         put sinceNum * 60 into periodInSeconds
+         break
+      case "hour"
+      case "hours"
+         put sinceNum * 60 * 60 into periodInSeconds
+         break
+      case "day"
+      case "days"
+         put sinceNum * 24 * 60 * 60 into periodInSeconds
+         break
+      case "week"
+      case "weeks"
+         put sinceNum * 7 * 24 * 60 * 60 into periodInSeconds
+         break
+   end switch
+   put the seconds into sinceSeconds
+   subtract periodInSeconds from sinceSeconds
+   --
+   return sinceSeconds
+end date_GetSinceSeconds
 
 function google_ConstructCreativeCommonsSearchUrl searchWords
    put urlencode (searchWords) into searchBit
@@ -1443,29 +1678,6 @@ command utf8_Decode @someUTF8
    put uniencode (someUTF8,"UTF8") into someU16
    put unidecode (someU16, "ANSI") into someUTF8
 end utf8_Decode
-
-function json_FromArray pArray, pForceRootType, pPretty
-   repeat for each key tKey in pArray
-      if pArray[tKey] is an array then
-         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
-      end if
-   end repeat
-   return(mergJSONEncode("pArray",pForceRootType,pPretty))
-end json_FromArray
-
-function json_ToArray pJSON
-   if pJSON is empty then return false
-   try -- as otherwise an error with non-json causes script to exit
-      local tArray,tKeys
-      if pJSON is empty then return empty
-      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
-         put json_ToArray(tArray[tKey]) into tArray[tKey]
-      end repeat
-      return tArray
-   catch e
-      return empty
-   end try
-end json_ToArray
 
 command xml_BlankError @xmlBit
    if item 1 of xmlBit = "xmlerr" then put empty into xmlBit
@@ -1510,14 +1722,37 @@ function html_ConstructRefLink someText, someLink, pTarget
 end html_ConstructRefLink
 
 function html_ExtractTLD someURL, pLastTwo
+   set the itemdelimiter to "?"
+   put item 1 of someURL into someURL
+   --
    set the itemdelimiter to slash
    put item 3 of someURL into someTLD
    if pLastTwo is not true then return someTLD
-   
+   --
    set the itemdelimiter to "."
    put item -2 to -1 of someTLD into tldBit
    return tldBit
 end html_ExtractTLD
+
+function text_IsNotEmpty someText
+   switch someText
+      case "null"
+      case empty
+         return false
+      default
+         return true
+   end switch
+end text_IsNotEmpty
+
+command text_ClearNull @someText
+   if someText is "null" then put empty into someText
+end text_ClearNull
+
+function text_ConvertHtml someHTML
+   set the htmltext of the templatefield to someHTML
+   put the text of the templatefield into someText
+   return someText
+end text_ConvertHtml
 
 command text_StripReg @wikiText, someReg, pReplaceText
    local refStart, refEnd
@@ -1639,13 +1874,6 @@ function line_GetCommon index1, index2
    return commonIndex
 end line_GetCommon
 
-function url_ListTopDomains domainNames
-   put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
-   put keys (domainNameArray) into topDomainNames
-   url_SortDomainIndex topDomainNames
-   return topDomainNames
-end url_ListTopDomains
-
 command line_SetUnique @someIndex, pCaseSensitive
    if pCaseSensitive is false then
       split someIndex by CR and tab
@@ -1661,12 +1889,39 @@ command line_SetUnique @someIndex, pCaseSensitive
    end if
 end line_SetUnique
 
+command rest_SetJsonHeaders pOAuthToken, pVersionNum, pExtraHeaders
+   put "Content-type: application/json" into someHeader
+   put CR & "Accept: application/json" after someHeader
+   put CR & "Accept-Charset: utf-8" after someHeader
+   --
+   if pVersionNum is not empty then
+      put "; version=" & pVersionNum after someHeader
+   end if
+   if pExtraHeaders is not empty then
+      put CR & word 1 to -1 of pExtraHeaders after someHeader
+   end if
+   if pOAuthToken is not empty then
+      put CR & "Authorization: Bearer" && pOAuthToken after someHeader
+   end if
+   --
+   set the httpHeaders to someHeader
+   return someHeader
+end rest_SetJsonHeaders
+
 function url_ListTopDomains domainNames
    put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
    put keys (domainNameArray) into topDomainNames
    url_SortDomainIndex topDomainNames
    return topDomainNames
 end url_ListTopDomains
+
+function url_FileEnding droppedURL
+   set the itemdelimiter to "?"
+   get item 1 of droppedURL
+   set the itemdelimiter to "."
+   put item -1 of it into qEnd
+   return qEnd
+end url_FileEnding
 
 function url_ConstructTopLevelDomainArray domainNames
    /*
@@ -1747,19 +2002,47 @@ end url_CheckDomainIndex
 command url_SortDomainIndex @domainNames
    set the itemdelimiter to "."
    sort domainNames by item -2 of each & item -3 of each & item -4 of each & item -5 of each
+   put word 1 to -1 of domainNames into domainNames
    line_DeleteTail domainNames
    return domainNames
 end url_SortDomainIndex
 
-command url_FilterDomainIndex @domainIndex, topDomain
-   if topDomain is empty then return empty
+function url_ListFilteredDomains domainIndex, topDomains
+   repeat for each item topDomain in topDomains
+      put domainIndex into domainsToFilter
+      url_FilterIndexOnce domainsToFilter, topDomain
+      put domainsToFilter & CR after filteredDomains
+   end repeat
+   delete char -1 of filteredDomains
+   return filteredDomains
+end url_ListFilteredDomains
+
+command url_FilterIndexOnce @domainIndex, topDomain
    put "*." & topDomain into someFilter
    set the wholematches to true
    put topDomain is among the lines of domainIndex into topThere
    filter domainIndex with someFilter
-   if topThere then
-      put topDomain & CR before domainIndex
-   end if
+   --
+   -- url_SortDomainIndex domainIndex
+   
+   -- lets add topDomain back as filter "*." & topDomain will remove it
+   switch
+      case topThere is false
+         return false
+      case topThere and (domainIndex is empty)
+         put topDomain into domainIndex
+         return true
+      case topThere is true
+         put topDomain & CR before domainIndex
+         return true
+   end switch
+end url_FilterIndexOnce
+
+command url_FilterDomainIndex @domainIndex, topDomain
+   url_SortDomainIndex domainIndex
+   if topDomain is empty then return empty
+   --
+   url_FilterIndexOnce domainIndex, topDomain
    return someFilter
 end url_FilterDomainIndex
 

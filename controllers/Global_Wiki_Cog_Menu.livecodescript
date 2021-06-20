@@ -1,8 +1,8 @@
-﻿script "Global_Wiki_Cog_Menu"
+﻿script "Global | Wiki | Cog | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Wiki_Cog_Menu
+name: Global | Wiki | Cog | Menu
 type: controller
 version: 0.3
 

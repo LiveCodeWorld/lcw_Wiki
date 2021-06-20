@@ -15,64 +15,67 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 --> Working on
 -
 
+--> PageArray | PageFold
+-
+command pageArray_TrimToPageFold @pageArray
+   put pageArray_FindItemType ("pagefold", pageArray) into storyItemNum
+   if storyItemNum = 0 then return false
+   put item 2 of the extens of pageArray ["story"] into maxNum
+   repeat with itemNum = (storyItemNum + 1) to maxNum
+      put pageArray ["story"][itemNum]["id"] into deletedItemID
+      pageArray_AddDeleteAction pageArray, deletedItemID
+      delete variable pageArray ["story"][itemNum]
+   end repeat
+end pageArray_TrimToPageFold
+
+command pageArray_Trim @pageArray, maxTrimNum
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxItemNum
+   repeat with itemNum = (maxTrimNum + 1) to maxItemNum
+      delete variable pageArray ["story"][itemNum]
+   end repeat
+end pageArray_Trim
+
+
+--> PageArray | Form
+-
+function pageArray_GetFormValue inputKey, pageArray
+   -- for simple carefully crafted forms
+   put "[\" & quote & "\'" & quote & "]" into someQuote -- https://www.metaltoad.com/blog/regex-quoted-string-escapable-quotes
+   put merge ("<input name='[[inputKey]]' value='(.+)' type='hidden'>") into regExp
+   replace "'" with someQuote in regExp
+   
+   put pageArray ["story"] into storyArray
+   repeat with itemNum =1 to item 2 of the extents of storyArray
+      if storyArray [itemNum]["type"] is not "html" then next repeat
+      --
+      put storyArray [itemNum]["text"] into someHTML
+      if matchText (someHTML, regExp, inputValue) is true then
+         return inputValue
+      end if
+   end repeat
+   return empty
+end pageArray_GetFormValue
+
+
+--> PageArray | First
+-
+function pageArray_GetFirstItem pageArray, itemType
+   put pageArray_FindItemType (itemType, pageArray) into itemNum
+   put pageArray ["story"][itemNum]["text"] into itemText
+   return itemText
+end pageArray_GetFirstItem
+
+command pageArray_SetFirstItem @pageArray, itemType, itemText
+   put pageArray_FindItemType (itemType, pageArray) into itemNum
+   if itemNum = 0 then return 0
+   put itemText into pageArray ["story"][itemNum]["text"]
+   return itemNum
+end pageArray_SetFirstItem
+
 
 --> PageArray | Dates
 -
-function pageArray_ExtractFirstAuthorDate pageArray, wikiDomain
-   put pageArray ["journal"] into journalArray
-   -- put journalArray [1]["date"] into creationDate
-   put 1420938220851 into wikiBirthDay -- last edit of standard welcome-visitors page
-   
-   put journalArray [1]["date"] into creationDate
-   put item 2 of the extents of journalArray into maxItem
-   repeat with checkItemNum = 2 to maxItem -- forget creation event
-      put journalArray [checkItemNum]["date"] into mSeconds
-      if mSeconds > wikiBirthDay then
-         put mSeconds into creationDate
-         put checkItemNum + 1 into nextItemNum
-         if nextItemNum > maxItem then
-            return creationDate
-         end if
-         --
-         repeat with itemNum = nextItemNum to item 2 of the extents of journalArray
-            put journalArray [itemNum]["type"] into actionType
-            if actionType = "fork" then
-               put journalArray [itemNum]["site"] into forkDomain
-               switch
-                  case forkDomain is empty
-                     next repeat
-                     break
-                  case forkDomain = wikiDomain
-                     put journalArray [itemNum]["date"] into creationDate
-                     put true into wasForked
-                     break
-                  default
-                     if wasForked is true then
-                        return creationDate
-                     else
-                        put journalArray [itemNum]["date"] into creationDate
-                        put false into wasForked
-                     end if
-               end switch
-            end if
-         end repeat
-         return creationDate
-      end if
-   end repeat
-   return creationDate
-end pageArray_ExtractFirstAuthorDate
-
-function pageArray_GuessFirstWelcomeDate pageArray
-   put 1420938220851 into wikiBirthDay -- last edit of standard welcome-visitors page
-   put pageArray ["journal"] into journalArray
-   repeat with itemNum = 1 to item 2 of the extents of journalArray
-      put journalArray [itemNum]["date"] into mSeconds
-      if mSeconds > wikiBirthDay then
-         return mSeconds
-      end if
-   end repeat
-end pageArray_GuessFirstWelcomeDate
-
 command pageArray_Combine @pageArray, templatePageArray
    put templatePageArray ["story"] into storyArray
    repeat for each key itemNum in storyArray
@@ -92,10 +95,15 @@ function pageArray_FetchTemplate wikiDomain, templateTitle, newTitle, pForkDomai
    put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
    --
    pageArray_Rename pageArray, newTitle
-   pageArray_StripJournal pageArray
-   pageArray_AddFork pageArray, pForkDomains
+   pageArray_CleanFork pageArray, pForkDomains
+   --
    return pageArray
 end pageArray_FetchTemplate
+
+command pageArray_CleanFork @pageArray, pForkDomains
+   pageArray_StripJournal pageArray
+   pageArray_AddFork pageArray, pForkDomains
+end pageArray_CleanFork
 
 function pageArray_GetTitleText sectionTitle, pageArray
    put pageArray_FindTitle (pageArray, sectionTitle) into itemNum
@@ -189,97 +197,6 @@ function pageArray_GetPageLinkSlugs pageArray
    delete char -1 of pSlugs
    return pSlugs
 end pageArray_GetPageLinkSlugs
-
-
---> PageArray | Section
--
-command pageArray_DeleteSectionBody @pageArray, sectionTitle
-   pageArray_SetSectionOffsets sectionTitle, pageArray, startItemNum, endItemNum
-   if the result is false then return 0
-   put startItemNum + 1 into bodyStartNum
-   repeat with itemNum = bodyStartNum to endItemNum
-      put itemNum & comma after itemNumsToDelete
-   end repeat
-   delete char -1 of itemNumsToDelete
-   pageArray_DeleteItem pageArray, itemNumsToDelete
-   return startItemNum
-end pageArray_DeleteSectionBody
-
-command pageArray_DeleteSection @pageArray, sectionTitle
-   pageArray_SetSectionOffsets sectionTitle, pageArray, startItemNum, endItemNum
-   if the result is false then return 0
-   repeat with itemNum = startItemNum to endItemNum
-      put itemNum & comma after itemNumsToDelete
-   end repeat
-   delete char -1 of itemNumsToDelete
-   pageArray_DeleteItem pageArray, itemNumsToDelete
-   return startItemNum
-end pageArray_DeleteSection
-
-command pageArray_SetSectionOffsets sectionTitle, pageArray, @startItemNum, @endItemNum
-   put pageArray_FindTitle (pageArray, sectionTitle) into startItemNum
-   if startItemNum is 0 then
-      put 0 into secondItemNum
-      return false
-   end if
-   
-   put pageArray_FindTitle (pageArray, "*", startItemNum) into itemNum
-   if itemNum = 0 then
-      put pageArray ["story]"] into storyArray
-      put item 2 of the extents of storyArray into endItemNum
-   else
-      put itemNum-1 into endItemNum
-   end if
-   return true
-end pageArray_SetSectionOffsets
-
-function pageArray_FindTitle pageArray, someTitle, pAfterItemNum
-   if pAfterItemNum is not a number then put 0 into pAfterItemNum
-   repeat
-      put pageArray_FindItemType ("markdown", pageArray, pAfterItemNum) into itemNum
-      if itemNum = 0 then return 0
-      put pageArray ["story"][itemNum]["text"] into markDownText
-      put word 1 to -1 of line 1 of markDownText into maybeTitle
-      
-      switch
-         case someTitle = "*" and char 1 to 2 of maybeTitle = "# "
-         case maybeTitle = "#" && someTitle
-            return itemNum
-         default
-            put itemNum into pAfterItemNum
-      end switch
-   end repeat
-   return 0
-end pageArray_FindTitle
-
-function pageArray_GetFirstCode pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "code" then
-         put storyArray [itemNum]["text"] into itemText
-         return itemText
-      end if
-   end repeat
-   return empty
-end pageArray_GetFirstCode
-
-function pageArray_GetFirstPageFold pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "pagefold" then exit repeat
-      
-      put itemArray into storyArrayHeader [itemNum]
-   end repeat
-   return storyArrayHeader
-end pageArray_GetFirstPageFold
-
-function pageArray_GetLastPageFold pageArray
-   put pageArray ["story"] into storyArray
-   put storyArray_GetLastPageFold (storyArray) into itemNum
-   return itemNum
-end pageArray_GetLastPageFold
 
 
 --> PageArray | Transport
@@ -384,7 +301,7 @@ command pageArray_StripJournal @pageArray
    -- was "fedwiki_StripJournalToCreate" then "pageArray_StripJournal"
    -- reconstruct a new creation array with new time deleting old journal history
    put pageArray ["title"] into pageTitle
-   put pageArray_ConstructCreateArray (pageTitle) into newCreationArray
+   put storyArray_ConstructCreate (pageTitle) into newCreationArray
    delete variable pageArray ["journal"]
    put newCreationArray into pageArray ["journal"][1]
 end pageArray_StripJournal
@@ -409,10 +326,15 @@ command pageArray_CleanJournal @pageArray, pPreserveActions
    end switch
 end pageArray_CleanJournal
 
-command pageArray_Rename @pageArray, newPageTitle
+command pageArray_Rename @pageArray, newPageTitle, pForkDomains
    if newPageTitle is empty then return false
    put newPageTitle into pageArray ["title"]
    put newPageTitle into pageArray ["journal"][1]["item"]["title"]
+   --
+   if pForkDomains is not empty then
+      pageArray_StripJournal pageArray
+      pageArray_AddFork pageArray, pForkDomains
+   end if
    return true
 end pageArray_Rename
 
@@ -429,7 +351,7 @@ end pageArray_SetCreationDate
 
 --> PageArray
 -
-function pageArray_GetItemText @pageArray, itemID
+function pageArray_GetItemText pageArray, itemID
    -- was "fedwiki_GetStoryItemText"
    put pageArray_FindItemID (itemID, pageArray) into itemNum
    if itemNum = 0 then return empty
@@ -444,17 +366,34 @@ command pageArray_SetItemText @pageArray, itemID, itemText
    return itemNum
 end pageArray_SetItemText
 
-function pageArray_GetItemType @pageArray, itemID
+function pageArray_GetItemType pageArray, itemID
    put pageArray_FindItemID (itemID, pageArray) into itemNum
-   put pageArray ["story"][itemNum]["type"] into itemText
-   return itemText
+   put pageArray ["story"][itemNum]["type"] into itemType
+   return itemType
 end pageArray_GetItemType
 
-command pageArray_SetItemType @pageArray, itemID, itemText
+command pageArray_SetItemType @pageArray, itemID, itemType
    put pageArray_FindItemID (itemID, pageArray) into itemNum
-   put itemText into pageArray ["story"][itemNum]["type"]
+   put itemType into pageArray ["story"][itemNum]["type"]
    return itemNum
 end pageArray_SetItemType
+
+
+--> Fedwiki | Item | Find
+-
+function pageArray_GetItemArray pageArray, itemID
+   put pageArray_FindItemID (itemID, pageArray) into itemNum
+   put pageArray ["story"][itemNum] into itemArray
+   return itemArray
+end pageArray_GetItemArray
+
+command pageArray_SetItemArray @pageArray, itemID, itemArray
+   -- was "pageArray_SetItemArray"
+   put pageArray_FindItemID (itemID, pageArray) into itemNum
+   if itemNum > 0 then
+      put itemArray into pageArray ["story"][itemNum]
+   end if
+end pageArray_SetItemArray
 
 
 --> Fedwiki | Item | Find
@@ -532,25 +471,6 @@ function pageArray_ExtractLinkArray pageArray
 end pageArray_ExtractLinkArray
 
 
---> PageArray | Video
--
-command pageArray_AddVideo @pageArray, videoID, videoType, videoDescription, pID
-   -- videoID can be "webm http://xxx"
-   if videoID is empty then return false
-   put pageArray_ConstructVideoArray (videoID, videoType, videoDescription, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
-   return true
-end pageArray_AddVideo
-
-function pageArray_ConstructVideoArray videoID, videoType, videoDescription, pID
-   pageArray_AssignID pID
-   put toUpper (videoType) && videoID & CR & line 1 of videoDescription into itemArray ["text"]
-   put "video" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end pageArray_ConstructVideoArray
-
-
 --> PageArray
 -
 command pageArray_ReplaceGraph @pageArray, dotText
@@ -560,13 +480,6 @@ command pageArray_ReplaceGraph @pageArray, dotText
       put dotText into pageArray ["story"][itemNum]["text"]
    end if
 end pageArray_ReplaceGraph
-
-command pageArray_ReplaceItem @pageArray, itemID, itemArray
-   put pageArray_FindItemID (itemID, pageArray) into itemNum
-   if itemNum > 0 then
-      put itemArray into pageArray ["story"][itemNum]
-   end if
-end pageArray_ReplaceItem
 
 function pageArray_ExtractRefItems fromPageArray
    put fromPageArray ["story"] into fromStoryArray
@@ -582,7 +495,58 @@ function pageArray_ExtractRefItems fromPageArray
 end pageArray_ExtractRefItems
 
 
---> PageArray | Edit
+--> PageArray | Find
+-
+function pageArray_FindTitle pageArray, someTitle, pAfterItemNum
+   if pAfterItemNum is not a number then put 0 into pAfterItemNum
+   repeat
+      put pageArray_FindItemType ("markdown", pageArray, pAfterItemNum) into itemNum
+      if itemNum = 0 then return 0
+      put pageArray ["story"][itemNum]["text"] into markDownText
+      put word 1 to -1 of line 1 of markDownText into maybeTitle
+      
+      switch
+         case someTitle = "*" and char 1 to 2 of maybeTitle = "# "
+         case maybeTitle = "#" && someTitle
+            return itemNum
+         default
+            put itemNum into pAfterItemNum
+      end switch
+   end repeat
+   return 0
+end pageArray_FindTitle
+
+function pageArray_GetFirstCode pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "code" then
+         put storyArray [itemNum]["text"] into itemText
+         return itemText
+      end if
+   end repeat
+   return empty
+end pageArray_GetFirstCode
+
+function pageArray_GetFirstPageFold pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "pagefold" then exit repeat
+      
+      put itemArray into storyArrayHeader [itemNum]
+   end repeat
+   return storyArrayHeader
+end pageArray_GetFirstPageFold
+
+function pageArray_GetLastPageFold pageArray
+   put pageArray ["story"] into storyArray
+   put storyArray_GetLastPageFold (storyArray) into itemNum
+   return itemNum
+end pageArray_GetLastPageFold
+
+
+--> PageArray | StoryArray | Edit
 -
 command pageArray_InsertStory @pageArray, storyArray, afterItemNum
    -- Insert story and reindex. Quick and dirty.
@@ -637,11 +601,11 @@ command pageArray_MoveItem @pageArray, fromItemNum, toItemNum
    if itemArray is empty then return false
    
    -- insert item
-   fedwiki_StoryInsertInto storyArray, toItemNum, itemArray
+   storyArray_InsertInto storyArray, toItemNum, itemArray
    put storyArray into pageArray ["story"]
    
    -- update journal
-   put fedwiki_StoryExtractOrderedIDArray (storyArray) into oderedIDArray
+   put storyArray_ExtractorderedIDArray (storyArray) into oderedIDArray
    put the milliseconds into pMilliseconds
    pageArray_AssignID pID
    
@@ -673,6 +637,33 @@ end pageArray_DeleteItem
 
 --> StoryArray | Parts
 -
+function storyArray_ExtractorderedIDArray storyArray
+   put item 2 of the extents of storyArray into maxItem
+   repeat with itemNum = 1 to maxItem
+      put storyArray [itemNum]["id"] into storyID
+      put storyID into oderedIdArray [itemNum]
+   end repeat
+   return oderedIDArray
+end storyArray_ExtractorderedIDArray
+
+command storyArray_InsertAfter @storyArray, afterNum, itemArray
+   put afterNum + 1 into intoNum
+   storyArray_InsertInto storyArray, intoNum, itemArray
+end storyArray_InsertAfter
+
+command storyArray_InsertInto @storyArray, intoNum, itemArray
+   put item 2 of the extents of storyArray into maxItem
+   
+   -- move items below intoNum down 1
+   repeat with itemNumToMove = maxItem down to intoNum
+      put itemNumToMove + 1 into itemNumDestination
+      put storyArray [itemNumToMove] into storyArray [itemNumDestination]
+   end repeat
+   
+   -- now insert itemArray into item intoNum of storyArray
+   put itemArray into storyArray [intoNum]
+end storyArray_InsertInto
+
 function storyArray_GetLastPageFold storyArray
    -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
    put item 2 of the extents of storyArray into maxNum

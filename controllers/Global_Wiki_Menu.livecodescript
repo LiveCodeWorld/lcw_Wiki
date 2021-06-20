@@ -1,34 +1,86 @@
-﻿script "Global_Wiki_Menu"
+﻿script "Global | Wiki | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Wiki_Menu
+name: Global | Wiki | Menu
 type: controller
 version: 0.4
 
-/*
-This menu is used to control a Livecode wiki browser.
-*/
-command mDoubleUp_DownloadImages displayView, pageTitle
-   _CheckExists pageTitle
-   --
-   wikipedia_DownloadImages pageTitle
-   put the result into imageUrls
-   
-   put the number of lines of imageUrls into iNum
-   lcw_Answer merge ("Downloaded [[iNum]] images for the wiki page '[[pageTitle]]'?")
-end mDoubleUp_DownloadImages
+/*This menu is used to control a Livecode wiki browser.*/
 
-private command _CheckExists pageTitle
-   put dropbox_MediaWikiImageFolder (pageTitle) into someFolder
-   if there is a folder someFolder then
-      lcw_WarnAndExit merge ("There is already an image folder for the wiki page '[[pageTitle]]'?"), true
+
+--> Menu | Props
+-
+getprop dream_Domains
+   put "Jelly Fish" & CR after topDomains
+   put "-" & CR after topDomains
+   put "david.icotopia.io" & CR after topDomains
+   put "trevor.icotopia.io" & CR after topDomains
+   put "video.icotopia.io" & CR after topDomains
+   put "david.culturecollective.cc" & CR after topDomains
+   --
+   delete char -1 of topDomains
+   return topDomains
+end dream_Domains
+
+getprop top_Domains
+   put "Jelly Fish" & CR after topDomains
+   put "Worldscape" & CR after topDomains
+   put "-" & CR after topDomains
+   put "outlandish.academy" & CR after topDomains
+   put "david.outlandish.academy" & CR after topDomains
+   put "nina.outlandish.academy" & CR after topDomains
+   put "trevor.outlandish.academy" & CR after topDomains
+   --
+   delete char -1 of topDomains
+   return topDomains
+end top_Domains
+
+getprop show_HiddenFiles
+   put finder_GetShowInvisibleFiles() into someBoolean
+   return someBoolean
+end show_HiddenFiles
+
+getprop disabled_StartWiki
+   put the openprocesses into oProcesses
+   if "wiki" is among the lines of oProcesses then
+      return "delete"
+   else
+      return false
    end if
-end _CheckExists
+end disabled_StartWiki
+
+getprop disabled_StopWiki
+   put the openprocesses into oProcesses
+   if "wiki" is among the lines of oProcesses then
+      return false
+   else
+      return "delete"
+   end if
+end disabled_StopWiki
+
+function _GetWikiView mTarget
+   -- "browser_View" is on card script of stack "Fedwiki Editor"
+   put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
+   return wikiView
+end _GetWikiView
 
 
 --> Global | Wiki | Menu
 -
+on menu_FetchPageArray wikiView
+   put pageArray_Fetch ("thought.garden", "welcome-visitors") into pageArray
+   set the page_Array of wikiView to pageArray
+end menu_FetchPageArray
+
+on menu_DisplayPageArray wikiView
+   put the page_Array of wikiView into pageArray
+   display_Data pageArray
+end menu_DisplayPageArray
+
+on _
+end _
+
 on menu_DisplayKeywords
    -- "http://carlos.proto.institute/view/welcome-visitors/view/imagine-keywords"
    put pageArray_Fetch ("carlos.proto.institute", "imagine-keywords") into pageArray
@@ -52,11 +104,11 @@ end menu_FetchChromeFedwiki
 on _
 end _
 
-on menu_DisplayJellyBrowser displayView
+on menu_DisplayJellyBrowser
    go to stack "Fedwiki Editor"
 end menu_DisplayJellyBrowser
 
-on menu_DisplayWikiBrowser displayView
+on menu_DisplayWikiBrowser
    go to stack "Wiki"
 end menu_DisplayWikiBrowser
 
@@ -155,10 +207,6 @@ end menu_ImageSearch
 on _
 end _
 
-on submenu_Story
-   return "Global | Wiki | Story | Menu"
-end submenu_Story
-
 on submenu_Medium
    return "Global | Medium | Menu"
 end submenu_Medium
@@ -166,60 +214,6 @@ end submenu_Medium
 on submenu_Dev
    return "Dev | Menu"
 end submenu_Dev
-
-
---> Global | Wiki | Menu | Props
--
-getprop dream_Domains
-   put "Jelly Fish" & CR after topDomains
-   put "-" & CR after topDomains
-   put "david.icotopia.io" & CR after topDomains
-   put "trevor.icotopia.io" & CR after topDomains
-   put "video.icotopia.io" & CR after topDomains
-   put "david.culturecollective.cc" & CR after topDomains
-   --
-   delete char -1 of topDomains
-   return topDomains
-end dream_Domains
-
-getprop top_Domains
-   put "Jelly Fish" & CR after topDomains
-   put "Worldscape" & CR after topDomains
-   put "-" & CR after topDomains
-   put "outlandish.academy" & CR after topDomains
-   put "david.outlandish.academy" & CR after topDomains
-   put "nina.outlandish.academy" & CR after topDomains
-   put "trevor.outlandish.academy" & CR after topDomains
-   --
-   delete char -1 of topDomains
-   return topDomains
-end top_Domains
-
-getprop show_HiddenFiles
-   put finder_GetShowInvisibleFiles() into someBoolean
-   return someBoolean
-end show_HiddenFiles
-
-
---> Global | Wiki | Menu | Disabled
--
-getprop disabled_StartWiki
-   put the openprocesses into oProcesses
-   if "wiki" is among the lines of oProcesses then
-      return "delete"
-   else
-      return false
-   end if
-end disabled_StartWiki
-
-getprop disabled_StopWiki
-   put the openprocesses into oProcesses
-   if "wiki" is among the lines of oProcesses then
-      return false
-   else
-      return "delete"
-   end if
-end disabled_StopWiki
 
 
 --> Dev | Menu
@@ -244,12 +238,3 @@ on menu_RevealWikiModulesFolder
    put wiki_GetModulesFolder() into wikiModulesFolder
    finder_Reveal wikiModulesFolder
 end menu_RevealWikiModulesFolder
-
-
---> Deps
--
-function _GetWikiView mTarget
-   -- "browser_View" is on card script of stack "Fedwiki Editor"
-   put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
-   return wikiView
-end _GetWikiView

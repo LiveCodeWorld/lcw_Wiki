@@ -28,6 +28,19 @@ function pageData_GetItemArray pageData, varName
 end pageData_GetItemArray
 
 
+--> Working on
+-
+function wiki_Merge someText
+   -- old
+   replace "[" with "{{{" in someText
+   replace "]" with "}}}" in someText
+   put merge (someText) into mergedText
+   replace "{{{" with "[" in mergedText
+   replace "}}}" with "]" in mergedText
+   return mergedText
+end wiki_Merge
+
+
 --> Curly | Merge
 -
 command curly_ReplacePageArray @pageArray, curlyKey, curlyReplacement
@@ -64,9 +77,10 @@ command curly_Merge @someText, curlyArray
 end curly_Merge
 
 command curly_ReplaceText @someText, curlyKey, curlyReplacement
-   put "(\{\{\s*" & curlyKey & "\s*\}\})" into someReg
-   text_StripReg someText, someReg, curlyReplacement
-   return the result
+   -- put "(\{\{\s*" & curlyKey & "\s*\}\})" into someReg
+   put "(?Uim)\{\{\s*" & curlyKey & "\s*\}\}" into someReg
+   -- text_StripReg someText, someReg, curlyReplacement
+   put replacetext (someText, someReg, curlyReplacement) into someText
 end curly_ReplaceText
 
 
@@ -88,7 +102,7 @@ command curly_ReplacePageItems @pageArray, curlyData
    put curlyData ["replace"] into replaceArray
    repeat for each key itemID in replaceArray
       put replaceArray [itemID] into itemArray
-      pageArray_ReplaceItem pageArray, itemID, itemArray
+      pageArray_SetItemArray pageArray, itemID, itemArray
    end repeat
 end curly_ReplacePageItems
 

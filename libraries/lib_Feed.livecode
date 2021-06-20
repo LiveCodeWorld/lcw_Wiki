@@ -8,26 +8,408 @@ type: script library
 version: 0.1
 
 
+--> Working on
+-
+private function _CleanRSSContent utf8HTML, pCleanHow, itemNum
+   -- debugging and experiments
+   
+   switch pCleanHow
+      case "raw"
+         -- the content we get from the RSS feed should alreeady be in utf8
+         -- it is also force encoded by "rss_ConstructArray()" via "xml_EncodeString()" to utf8
+         -- but occassionally there are things that megejson() (on the server only) does not like
+         return word 1 to -1 of utf8HTML
+      default
+         put html_MakeSimple (utf8HTML) into safeHTML
+         return safeHTML
+   end switch
+   
+   /*
+   -- varioius experiments here in encoding of supposedly utf8 stuff from RSS feed
+   
+   return "Test"
+   --
+   -- put uniencode (someUtf8, "UTF8") into someUTF16
+   -- set the unicodetext of the templatefield to someUTF16
+   
+   
+   put unidecode (someUTF16, "UTF8") into utf8Text
+   return utf8Text
+   
+   -- put text_HtmlToUtf8 (utf8HTML) into utf8HTML
+   -- put utf8_Encode (aHTML) into aHTML
+   -- if itemNum = 14 then put json_EncodeString (aHTML) into aHTML
+   return word 1 to -1 of utf8HTML
+   */
+end _CleanRSSContent
+
+private function _GetRssItemContent itemArray, pCleanHow, itemNum
+   -- extract the content from a range of possible formats
+   -- brute force rather than rely on xmlns
+   
+   put itemArray ["description[1]"] into aHTML -- short
+   if aHTML is empty then put itemArray ["description[2]"] into aHTML
+   if aHTML is not empty then return _CleanRSSContent (aHTML, pCleanHow, itemNum)
+   
+   put itemArray ["description"] into aHTML
+   if aHTML is not empty then return _CleanRSSContent (aHTML, pCleanHow, itemNum)
+   
+   put itemArray ["content"] into aHTML
+   if aHTML is an array then return empty
+   --
+   return _CleanRSSContent (aHTML, pCleanHow, itemNum)
+end _GetRssItemContent
+
+function html_MakeSimple utf8HTML
+   replace "¬†" with space in utf8HTML
+   replace "‚Äô" with empty in utf8HTML
+   --
+   set the htmltext of the templatefield to utf8HTML
+   -- put the unicodetext of the templatefield into someUTF16
+   put the htmltext of the templatefield into simpleHTML
+   --
+   replace "&acirc;" with empty in simpleHTML
+   replace "&#128;" with empty in simpleHTML
+   replace "&#153;" with empty in simpleHTML
+   replace "&nbsp;" with empty in simpleHTML
+   --
+   return simpleHTML
+end html_MakeSimple
+
+
+--> RSS | Date
+-
+private function _RssItemIsOld aDate, pFilterDate
+   if (aDate is empty OR pFilterDate is empty) then return false
+   -- is aDate earlier than pFilterDate
+   put rss_ConvertDate (aDate) into aDate
+   convert aDate to seconds
+   convert pFilterDate to seconds
+   if (aDate is a number AND pFilterDate is a number) is false then
+      -- something went wrong with date conversion
+      return true
+   end if
+   
+   return aDate <= pFilterDate
+end _RssItemIsOld
+
+private function _GetRssPubDate rssData
+   put rssData ["rss"]["Metadata"]["updated[1]"] into rssLastUpdated
+   if rssLastUpdated is empty then
+      put rssData ["rss"]["Metadata"]["pubdate[1]"] into rssLastUpdated
+   end if
+   if rssLastUpdated is empty then
+      put rssData ["rss"]["Metadata"]["lastBuildDate[1]"] into rssLastUpdated
+   end if
+   --
+   if rssLastUpdated is empty then
+      return internet date
+   end if
+   --
+   put rss_ConvertDate (rssLastUpdated) into universalDate
+   return universalDate
+end _GetRssPubDate
+
+function rss_GetPageArray rssURL, pFilterDate, pTitle, pWikiDomain, pDisplayStyle, pCleanHow
+   put url rssURL into someRSS
+   put rss_ConstructArray (someRSS) into rssData -- now defaults to utf8 encoding
+   if the keys of rssData is not "rss" then return "Error, cannot locate rss"
+   --
+   if pTitle is empty then
+      put rssData ["rss"]["Metadata"]["title[1]"] into rssTitle
+      put rssTitle into pTitle
+   end if
+   put _GetRssPubDate (rssData) into rssLastUpdated
+   if _RssItemIsOld (rssLastUpdated, pFilterDate) then
+      put "There are no new feed items as the feed has not been updated since last import on:" & CR & "-" && rssLastUpdated into someMarkdown
+      put pageArray_Construct (pTitle, someMarkdown) into pageArray
+      return pageArray
+   end if
+   --
+   put _ConstructRssPageArrayHeader (rssURL, pTitle, pWikiDomain, rssLastUpdated) into pageArray
+   --
+   switch pDisplayStyle
+      case "markdown"
+         rss_AddToPageArray pageArray, rssData, pFilterDate
+         break
+      default
+         -- returns single html para for each post
+         rss_AddHtmlToPageArray pageArray, rssData, pFilterDate, pCleanHow
+   end switch
+   --
+   -- if pTitle is not empty then put pTitle into pageArray ["title"]
+   --
+   pageArray_CleanJournal pageArray, false
+   return pageArray
+end rss_GetPageArray
+
+command rss_AddHtmlToPageArray @pageArray, rssData, pFilterDate, pCleanHow
+   put rssData ["rss"]["Metadata"]["version"] into rssVersion
+   put rssData ["rss"]["Metadata"]["xmlns"] into xmlns -- http://www.w3.org/2005/Atom
+   --
+   put rssData ["rss"]["items"] into rssItemArray
+   repeat with itemNum = 1 to item 2 of the extents of rssItemArray
+      put rssItemArray [itemNum] into itemArray
+      --
+      put _GetRssItemTitle (itemArray) into aTitle
+      put _GetRssItemPubdate (itemArray) into aDate
+      --
+      if _RssItemIsOld (aDate, pFilterDate) then next repeat
+      --
+      switch
+         case xmlns is empty
+         case xmlns = "http://www.w3.org/2005/Atom"
+         case xmlns = "http://purl.org/dc/elements/1.1/"
+         case xmlns = "http://purl.org/rss/1.0/modules/content/"
+         case xmlns begins with "http://purl.org/" -- just a guess
+         case xmlns = "http://search.yahoo.com/mrss/"
+         default
+            put _GetRssItemContent (itemArray, pCleanHow, itemNum) into aHTML
+            put _GetRssItemLink (itemArray) into aURL
+            put _GetRssItemThumbnail (itemArray) into thumbURL
+            put itemArray ["origlink"] into originalLink
+            _SetRssItemEnclosure itemArray, mediaURL, mediaType, mediaLength
+      end switch
+      --
+      if originalLink is not empty then
+         fedwiki_AddExternalLink aHTML, originalLink, true
+      else
+         fedwiki_AddExternalLink aHTML, aURL, true
+      end if
+      
+      -- we assume all items are utf8 encodes as above
+      put empty into someHTML
+      --
+      if thumbURL is not empty then
+         put itemArray ["content[1]"]["credit"] into thumbCredit
+         put itemArray ["content[2]"]["@attributes"]["url"] into imageURL
+         --
+         if thumbCredit is empty then
+            put aTitle into thumbCaption
+         else
+            put thumbCredit into thumbCaption
+         end if
+         put CR & fedwiki_ConstructThumbHtml (thumbURL, thumbCaption, aURL) after someHTML
+      end if
+      --
+      put rss_ConvertDate (aDate) into prettyDate
+      convert prettyDate to abbreviated date
+      --
+      put CR & "<h3>" && aTitle & "</h3>" after someHTML
+      put CR & "<p>" & prettyDate & "</p>" after someHTML
+      --
+      put CR & aHTML after someHTML
+      if mediaURL is empty then
+         put CR & "<hr>" after someHTML
+      end if
+      --
+      delete char 1 of someHTML
+      pageArray_AddHTML pageArray, someHTML
+      
+      -- could add html audio player
+      set the itemdelimiter to slash
+      if item 1 of mediaType is "audio" then
+         put aTitle into audioDescription
+         put " on" && prettyDate after audioDescription
+         fedwiki_AddExternalLink audioDescription, aURL
+         pageArray_AddAudio pageArray, mediaURL, audioDescription
+         --
+         pageArray_AddPagefold pageArray, "-"
+      end if
+   end repeat
+   return rssItemArray
+end rss_AddHtmlToPageArray
+
+command rss_AddToPageArray @pageArray, rssURL
+   put url rssURL into someRSS
+   put rss_ConstructArray (someRSS) into rssData -- now defaults to utf8 encoding
+   --
+   put rssData ["rss"]["items"] into rssItemArray
+   if rssItemArray is not an array then
+      return "Error, cannot locate rss"
+   end if
+   --
+   put rssData ["rss"]["Metadata"]["title[1]"] into rssTitle
+   put rssTitle into pageArray ["title"]
+   --
+   put rssData ["rss"]["Metadata"]["updated[1]"] into rssLastUpdated
+   put rssData ["rss"]["Metadata"]["version"] into rssVersion
+   put rssData ["rss"]["Metadata"]["xmlns"] into xmlType -- http://www.w3.org/2005/Atom
+   --
+   repeat with itemNum = 1 to item 2 of the extents of rssItemArray
+      put rssItemArray [itemNum] into itemArray
+      --
+      put itemArray ["title"] into aTitle
+      if aTitle is empty then
+         put word 1 to -1 of itemArray ["title[1]"] into aTitle
+      end if
+      put itemArray ["published"] into aDate
+      --
+      if rssVersion = 2 then
+         put itemArray ["link"] into aURL
+         put itemArray ["description"] into aHTML
+         if aHTML is empty then
+            put itemArray ["description[2]"] into aHTML -- short
+            if aHTML is empty then
+               put itemArray ["description[1]"] into aHTML
+            end if
+         end if
+         put itemArray ["content[1]"]["@attributes"]["url"] into thumbURL
+         if thumbURL is empty then
+            put itemArray ["image"]["@attributes"]["href"] into thumbURL
+         end if
+         --
+         put itemArray ["enclosure"]["@attributes"]["url"] into mediaURL
+         put itemArray ["enclosure"]["@attributes"]["type"] into mediaType
+         put itemArray ["enclosure"]["@attributes"]["length"] into mediaLength
+      else
+         put itemArray ["content"] into aHTML
+         --
+         put itemArray ["link"]["@attributes"]["href"] into gURL
+         set the itemdelimiter to "?"
+         put item 2 to -1 of gURL into aParamArray
+         split aParamArray with "&" and "="
+         put aParamArray ["url"] into aURL
+      end if
+      --
+      if thumbURL is not empty then
+         put itemArray ["content[1]"]["credit"] into thumbCredit
+         put itemArray ["content[2]"]["@attributes"]["url"] into imageURL
+         pageArray_AddThumbnail pageArray, thumbURL, thumbCredit, aURL
+      end if
+      
+      -- we assume all items are utf8 encodes as above
+      put aTitle into cleanTitle
+      put aHTML into aContent
+      fedwiki_AddExternalLink aContent, aURL
+      --
+      -- put "#" && cleanTitle & CR&CR & aContent into someMarkDown
+      put "<h3>" && cleanTitle & "</h3>" & CR&CR & aContent into someHTML
+      if mediaURL is empty then
+         put CR & "___" after someMarkDown
+         put CR & "<hr>" after someHTML
+      end if
+      -- pageArray_AddMarkdown pageArray, someMarkDown
+      pageArray_AddHTML pageArray, someHTML
+      
+      set the itemdelimiter to slash
+      if item 1 of mediaType is "audio" then
+         pageArray_AddAudio pageArray, mediaURL, cleanTitle
+         pageArray_AddPagefold pageArray, "-"
+      end if
+   end repeat
+   return rssItemArray
+end rss_AddToPageArray
+
+private function _GetRssItemPubdate itemArray
+   put itemArray ["published"] into aDate
+   if aDate is empty then
+      put itemArray ["pubDate"] into aDate
+   end if
+   return word 1 to -1 of aDate
+end _GetRssItemPubdate
+
+private function _GetRssItemTitle itemArray
+   put itemArray ["title"] into aTitle
+   if aTitle is empty then
+      put itemArray ["title[1]"] into aTitle
+   end if
+   return word 1 to -1 of aTitle
+end _GetRssItemTitle
+
+private command _SetRssItemEnclosure itemArray, @mediaURL, @mediaType, @mediaLength
+   put itemArray ["enclosure"]["@attributes"]["url"] into mediaURL
+   put itemArray ["enclosure"]["@attributes"]["type"] into mediaType
+   put itemArray ["enclosure"]["@attributes"]["length"] into mediaLength
+   return mediaURL is not empty
+end _SetRssItemEnclosure
+
+private function _GetRssItemThumbnail itemArray
+   put itemArray ["thumnail"]["@attributes"]["href"] into thumbURL
+   if thumbURL is empty then
+      put itemArray ["image"]["@attributes"]["href"] into thumbURL
+      if thumbURL is empty then
+         put itemArray ["content[1]"]["@attributes"]["url"] into thumbURL
+      end if
+   end if
+   return thumbURL
+end _GetRssItemThumbnail
+
+private function _GetRssItemLink itemArray
+   put itemArray ["link"]["@attributes"]["href"] into someURL
+   --
+   switch
+      case someURL is empty
+         put itemArray ["link[1]"]["@attributes"]["href"] into someURL
+         if someURL is empty then
+            put itemArray ["link"] into someURL
+         end if
+         return someURL
+      case someURL begins with "https://www.google.com/url?"
+         -- case someURL begins with "https://www.google.com/alerts/feeds/"
+         set the itemdelimiter to "?"
+         put item 1 of someURL into maybeGoogle
+         put item 2 to -1 of someURL into aParamArray
+         split aParamArray with "&" and "="
+         put aParamArray ["url"] into rssLinkURL
+         if rssLinkURL is empty then
+            return someURL
+         else
+            return rssLinkURL
+         end if
+      default
+         return someURL
+   end switch
+end _GetRssItemLink
+
+private function _ConstructRssPageArrayHeader rssURL, pTitle, pWikiDomain, pRssLastUpdated
+   if pTitle is empty then put "Feed Import" into pTitle
+   put "https://rest.livecode.world/podcast/rss" into importFeedUrl
+   --
+   if (pTitle is not empty) AND (pWikiDomain is not empty) then
+      put fedwiki_ConstructSlug (pTitle) into pageSlug
+      put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+      if pageArray is not empty then
+         pageArray_TrimToPageFold pageArray
+         return pageArray
+      end if
+   end if
+   
+   put pageArray_Construct (pTitle, "Use this page to:") into pageArray
+   put pTitle into hiddenKeyValueArray ["pageTitle"]
+   put pWikiDomain into hiddenKeyValueArray ["wikiDomain"]
+   put rssURL into hiddenKeyValueArray ["rssURL"]
+   put pRssLastUpdated into hiddenKeyValueArray ["rssLastUpdated"]
+   --
+   pageArray_AddButton pageArray, "Import Latest Feed", importFeedUrl, hiddenKeyValueArray
+   pageArray_AddMarkdown pageArray, "Drag the items you wish to keep onto another page."
+   pageArray_AddPagefold pageArray, "Results"
+   --
+   return pageArray
+end _ConstructRssPageArrayHeader
+
+
 --> RSS
 -
 function rss_ConstructArray someRSS, pStoreEncodedAs, pUseValueKey, pTranslateKeyBoolean
-   -- return xml_ToArray (someRSS, pStoreEncodedAs, pUseValueKey)
-   -- display_Lines someRSS
+   local itemArray, rssArray
    
-   local itemArray   
-   put revCreateXMLTree(someRSS, true, true, false) into treeID
+   if pStoreEncodedAs is empty then put "utf8" into pStoreEncodedAs
+   put revXMLCreateTree (someRSS, true, true, false) into treeID
    if treeID is an integer then
       xml_ExtractEncoding someRSS, versionMatch, xmlEncoding
       
-      put revXMLRootNode(treeID) into rootNode
+      put revXMLRootNode (treeID) into rootNode
+      put revXMLAttribute (treeID, rootNode, "xmlns") into rssArray ["rss"]["Metadata"]["xmlns"]
+      --
       switch rootNode
          case "rss"
             put "/rss[1]/channel[1]" into channelNode
             
-            put xml_TreeNodeAttributeArray("rss", treeID) into rssAttributeArray
+            put xml_TreeNodeAttributeArray ("rss", treeID) into rssAttributeArray
             put rssAttributeArray into rssArray ["rss"]["Metadata"]
             
-            put revXMLChildNames(treeID, channelNode, CR, "", true) into nodeNames
+            put revXMLChildNames (treeID, channelNode, CR, "", true) into nodeNames
             filter nodeNames without "item*"
             repeat for each line nodeName in nodeNames
                put channelNode & "/" & nodeName into someNode
@@ -43,7 +425,7 @@ function rss_ConstructArray someRSS, pStoreEncodedAs, pUseValueKey, pTranslateKe
             end repeat
             put itemArray into rssArray ["rss"]["Items"]
             break
-         case "feed"
+         case "feed" 
             put revXMLChildNames(treeID, rootNode, CR, "", true) into nodeNames
             filter nodeNames without "entry*"
             repeat for each line nodeName in nodeNames
@@ -61,8 +443,8 @@ function rss_ConstructArray someRSS, pStoreEncodedAs, pUseValueKey, pTranslateKe
             put itemArray into rssArray ["rss"]["Items"]
             break
       end switch
-      
-      revDeleteXMLTree treeID
+      --
+      revXMLDeleteTree treeID
    end if
    return rssArray
 end rss_ConstructArray
@@ -89,24 +471,24 @@ on rss_ConstructItemArray @itemArray, treeID, itemNum, itemNode, pXMLTreeEncodin
 end rss_ConstructItemArray
 
 function rss_FeedName metaArray
-    return metaArray ["title"]
+   return metaArray ["title"]
 end rss_FeedName
 
 
 --> RSS | Tree ID
 -
 function rss_TreeFeedProperty tagName, treeID
-    put "rss/channel" into startNode
-    put startNode & "/" & tagName into someNode
-    put revXMLNodeContents(treeID, someNode) into nodeContents
-    return nodeContents
+   put "rss/channel" into startNode
+   put startNode & "/" & tagName into someNode
+   put revXMLNodeContents(treeID, someNode) into nodeContents
+   return nodeContents
 end rss_TreeFeedProperty
 
 function rss_TreeItemValue tagName, itemNum, treeID
-    -- was "xml_ExtractNodeItem"
-    put "rss/channel/item[" & itemNum & "]/" & tagName into someNode
-    put revXMLNodeContents(treeID, someNode) into nodeContents
-    return nodeContents
+   -- was "xml_ExtractNodeItem"
+   put "rss/channel/item[" & itemNum & "]/" & tagName into someNode
+   put revXMLNodeContents(treeID, someNode) into nodeContents
+   return nodeContents
 end rss_TreeItemValue
 
 
@@ -118,28 +500,28 @@ These handlers try to deal with RSS without using Livecodes XML functionality.
 
 command rss_Parse tRSSfeed, maxNum
    -- was "rss_Parse"
-    if maxNum is empty then put 50 into maxNum
-    
-    if tRSSfeed is empty then exit rss_Parse
-    put 0 into newsID
-    set the wholematches to false
-    put replacetext(tRSSfeed,"[\t\n\r]"," ") into tRSSfeed
-     
-    put offset("<item>", tRSSfeed) into tStart
-    delete char 1 to (tStart - 1) of tRSSfeed
-    repeat until newsID > maxNum
-        add 1 to newsID
-        put offset("</item>",tRSSfeed) into tOffset
-        if (tOffset+0) is zero then exit repeat
-        put char 1 to (tOffset + 6) of tRSSfeed into tItem
-        
-        delete char 1 to (tOffset + 6) of tRSSfeed
-         
-        rss_DeconstructItem tItem, tTitle, tLink, tGuid, tDescription, tpubDate
-        put tLink into lstLinks[newsID]
-        put tTitle & cr after newsTitles
-    end repeat
-    delete char -1 of newsTitles
+   if maxNum is empty then put 50 into maxNum
+   
+   if tRSSfeed is empty then exit rss_Parse
+   put 0 into newsID
+   set the wholematches to false
+   put replacetext(tRSSfeed,"[\t\n\r]"," ") into tRSSfeed
+   
+   put offset("<item>", tRSSfeed) into tStart
+   delete char 1 to (tStart - 1) of tRSSfeed
+   repeat until newsID > maxNum
+      add 1 to newsID
+      put offset("</item>",tRSSfeed) into tOffset
+      if (tOffset+0) is zero then exit repeat
+      put char 1 to (tOffset + 6) of tRSSfeed into tItem
+      
+      delete char 1 to (tOffset + 6) of tRSSfeed
+      
+      rss_DeconstructItem tItem, tTitle, tLink, tGuid, tDescription, tpubDate
+      put tLink into lstLinks[newsID]
+      put tTitle & cr after newsTitles
+   end repeat
+   delete char -1 of newsTitles
 end rss_Parse
 
 command rss_DeconstructItem tItem, @tTitle, @tLink, @tGuid, @tDescription, @tpubDate
@@ -153,237 +535,246 @@ command rss_DeconstructItem tItem, @tTitle, @tLink, @tGuid, @tDescription, @tpub
 end rss_DeconstructItem
 
 
+--> XML | Extras (from lib_XMLExtras)
+-
+function xml_TreeNodeAttributeArray someNode, treeID
+   put revXMLAttributes(treeID, someNode, tab, return) into attributeTable
+   split attributeTable by return and tab
+   return attributeTable
+end xml_TreeNodeAttributeArray
+
+
 --> OPML
 -
 function opml_ExtractTitleOutline someOPML, @treeID
-    revDeleteAllXMLTrees
-     
-    put revCreateXMLTree(someOPML, false, true, false) into treeID
-     
-    put revXMLNodeContents(treeID, "/opml/head/title") into treeTitle
-    put revXMLNodeContents(treeID, "/opml/head/dateCreated") into treeCreationDate
-    put revXMLNodeContents(treeID, "/opml/head/dateModified") into treeModifiedDate
-    
-    put revXMLText(treeID, "/opml/body") into nodeXml
-     
-    put xml_TreeRecurse(treeID, "/opml/body") into tabbedOutline
-    delete line 1 of tabbedOutline
-    put outline_DecreaseIndent(tabbedOutline, 1) into tabbedOutline
-    return tabbedOutline
+   revDeleteAllXMLTrees
+   
+   put revXMLCreateTree(someOPML, false, true, false) into treeID
+   
+   put revXMLNodeContents(treeID, "/opml/head/title") into treeTitle
+   put revXMLNodeContents(treeID, "/opml/head/dateCreated") into treeCreationDate
+   put revXMLNodeContents(treeID, "/opml/head/dateModified") into treeModifiedDate
+   
+   put revXMLText(treeID, "/opml/body") into nodeXml
+   
+   put xml_TreeRecurse(treeID, "/opml/body") into tabbedOutline
+   delete line 1 of tabbedOutline
+   put outline_DecreaseIndent(tabbedOutline, 1) into tabbedOutline
+   return tabbedOutline
 end opml_ExtractTitleOutline
 
 function opml_FromOutline tabbedOutline, pOpmlHeader, pIndent
-    put "</outline>" into endTag
-    put 0 into extraindent
-    repeat with lineNum = 1 to the number of lines of tabbedOutline
-        put line lineNum of tabbedOutline into someHtmlLine
+   put "</outline>" into endTag
+   put 0 into extraindent
+   repeat with lineNum = 1 to the number of lines of tabbedOutline
+      put line lineNum of tabbedOutline into someHtmlLine
+      
+      html_DeconstructLink someHtmlLine, someLine, someLink
+      
+      put line (lineNum + 1) of tabbedOutline into nextHtmlLine
+      html_DeconstructLink nextHtmlLine, nextLine, nextLineLink
+      
+      if someLine is empty then
+         exit repeat
+      else
+         put word 1 to -1 of someLine into someText
+         if someLink is empty then
+            put empty into linkType
+            put empty into someUrl
+         else
+            put "link" into linkType
+            put someLink into someUrl
+         end if
+         put empty into dateCreated
          
-        html_DeconstructLink someHtmlLine, someLine, someLink
-        
-        put line (lineNum + 1) of tabbedOutline into nextHtmlLine
-        html_DeconstructLink nextHtmlLine, nextLine, nextLineLink
+         put opml_ConstructLine(someText, linkType, someUrl, dateCreated) into opmlLine
          
-        if someLine is empty then
+         if nextLine is empty then
+            put pIndent & opmlLine & CR after opmlOutline
             exit repeat
-        else
-            put word 1 to -1 of someLine into someText
-            if someLink is empty then
-                put empty into linkType
-                put empty into someUrl
+         else
+            put outline_TabLevel(someHtmlLine) into thisTabLevel
+            put outline_TabLevel(nextHtmlLine) into nextTabLevel
+            if nextTabLevel > thisTabLevel then
+               put ">" into char -2 to -1 of opmlLine
+               put pIndent & opmlLine & CR after opmlOutline
+               put tab after pIndent
+               add 1 to extraindent
+            else if nextTabLevel = thisTabLevel then
+               put pIndent & opmlLine & CR after opmlOutline
             else
-                put "link" into linkType
-                put someLink into someUrl
+               put pIndent & opmlLine & CR after opmlOutline
+               delete char -1 of pIndent
+               put pIndent & endTag & CR after opmlOutline
+               subtract 1 from extraindent
             end if
-            put empty into dateCreated
-            
-            put opml_ConstructLine(someText, linkType, someUrl, dateCreated) into opmlLine
-            
-            if nextLine is empty then
-                put pIndent & opmlLine & CR after opmlOutline
-                exit repeat
-            else
-                put outline_TabLevel(someHtmlLine) into thisTabLevel
-                put outline_TabLevel(nextHtmlLine) into nextTabLevel
-                if nextTabLevel > thisTabLevel then
-                    put ">" into char -2 to -1 of opmlLine
-                    put pIndent & opmlLine & CR after opmlOutline
-                    put tab after pIndent
-                    add 1 to extraindent
-                else if nextTabLevel = thisTabLevel then
-                    put pIndent & opmlLine & CR after opmlOutline
-                else
-                    put pIndent & opmlLine & CR after opmlOutline
-                    delete char -1 of pIndent
-                    put pIndent & endTag & CR after opmlOutline
-                    subtract 1 from extraindent
-                end if
-            end if
-        end if
-    end repeat
-    repeat extraindent
-        -- opn_notify "Not balanced!" && extraindent, true
-        delete char -1 of pIndent
-        put pIndent & endTag & CR after opmlOutline
-    end repeat
-    delete last char of opmlOutline
-    
-    return opml_ConstructXml(pOpmlHeader, opmlOutline)
+         end if
+      end if
+   end repeat
+   repeat extraindent
+      -- opn_notify "Not balanced!" && extraindent, true
+      delete char -1 of pIndent
+      put pIndent & endTag & CR after opmlOutline
+   end repeat
+   delete last char of opmlOutline
+   
+   return opml_ConstructXml(pOpmlHeader, opmlOutline)
 end opml_FromOutline
 
 function opml_ConstructXml opmlHeader, opmlOutline
-    put "<?xml version='1.0' encoding='ISO-8859-1'?>" into opml
-    put CR & "<opml version='1.1'>" after opml
-    --
-    put CR & tab & "<head>" after opml
-    put CR & outline_IncreaseIndent(opmlHeader, 2) after opml
-    put CR & tab & "</head>" after opml
-    
-    put CR & tab & "<body>" after opml
-    put CR & outline_IncreaseIndent(opmlOutline, 2) after opml
-    put CR & tab & "</body>" after opml
-    -- 
-    put CR & "</opml>" after opml
-    return opml
+   put "<?xml version='1.0' encoding='ISO-8859-1'?>" into opml
+   put CR & "<opml version='1.1'>" after opml
+   --
+   put CR & tab & "<head>" after opml
+   put CR & outline_IncreaseIndent(opmlHeader, 2) after opml
+   put CR & tab & "</head>" after opml
+   
+   put CR & tab & "<body>" after opml
+   put CR & outline_IncreaseIndent(opmlOutline, 2) after opml
+   put CR & tab & "</body>" after opml
+   -- 
+   put CR & "</opml>" after opml
+   return opml
 end opml_ConstructXml
 
 function opml_ConvertOutline tabbedOutline, startIndent
-    local opmlOutline
-    
-    put startIndent into thisIndent
-    put "</outline>" into endTag
-    put 0 into extraindent
-    repeat with lineNum = 1 to the number of lines of tabbedOutline
-        put line lineNum of tabbedOutline into someLine
-        put line (lineNum + 1) of tabbedOutline into nextLine
-        if someLine is empty then
+   local opmlOutline
+   
+   put startIndent into thisIndent
+   put "</outline>" into endTag
+   put 0 into extraindent
+   repeat with lineNum = 1 to the number of lines of tabbedOutline
+      put line lineNum of tabbedOutline into someLine
+      put line (lineNum + 1) of tabbedOutline into nextLine
+      if someLine is empty then
+         exit repeat
+      else
+         put word 1 to -1 of someLine into someText
+         put empty into linkType
+         put empty into someUrl
+         put empty into dateCreated
+         put opml_ConstructLine(someText, linkType, someUrl, dateCreated) into opmlLine
+         
+         if nextLine is empty then
+            put thisIndent & opmlLine & CR after opmlOutline
             exit repeat
-        else
-            put word 1 to -1 of someLine into someText
-            put empty into linkType
-            put empty into someUrl
-            put empty into dateCreated
-            put opml_ConstructLine(someText, linkType, someUrl, dateCreated) into opmlLine
-             
-            if nextLine is empty then
-                put thisIndent & opmlLine & CR after opmlOutline
-                exit repeat
+         else
+            put outline_TabLevel(someLine) into thisTabLevel
+            put outline_TabLevel(nextLine) into nextTabLevel
+            if nextTabLevel > thisTabLevel then
+               put ">" into char -2 to -1 of opmlLine
+               put thisIndent & opmlLine & CR after opmlOutline
+               put tab after thisIndent
+               add 1 to extraindent
+            else if nextTabLevel = thisTabLevel then
+               put thisIndent & opmlLine & CR after opmlOutline
             else
-                put outline_TabLevel(someLine) into thisTabLevel
-                put outline_TabLevel(nextLine) into nextTabLevel
-                if nextTabLevel > thisTabLevel then
-                    put ">" into char -2 to -1 of opmlLine
-                    put thisIndent & opmlLine & CR after opmlOutline
-                    put tab after thisIndent
-                    add 1 to extraindent
-                else if nextTabLevel = thisTabLevel then
-                    put thisIndent & opmlLine & CR after opmlOutline
-                else
-                    put thisIndent & opmlLine & CR after opmlOutline
-                    delete char -1 of thisIndent
-                    put thisIndent & endTag & CR after opmlOutline
-                    subtract 1 from extraindent
-                end if
+               put thisIndent & opmlLine & CR after opmlOutline
+               delete char -1 of thisIndent
+               put thisIndent & endTag & CR after opmlOutline
+               subtract 1 from extraindent
             end if
-        end if
-    end repeat
-    repeat extraindent
-        -- opn_notify "Not balanced!" && extraindent, true
-        delete char -1 of thisIndent
-        put thisIndent & endTag & CR after opmlOutline
-    end repeat
-    delete last char of opmlOutline
-    return opmlOutline
+         end if
+      end if
+   end repeat
+   repeat extraindent
+      -- opn_notify "Not balanced!" && extraindent, true
+      delete char -1 of thisIndent
+      put thisIndent & endTag & CR after opmlOutline
+   end repeat
+   delete last char of opmlOutline
+   return opmlOutline
 end opml_ConvertOutline
 
 function opml_ConstructLine someText, linkType, someUrl, dateCreated
-    xml_Escape someText
-    put "<outline text=" && kwote(someText) into opmlLine
-    if linkType is not empty then put space & "type=" & kwote(linkType) after opmlLine
-    if someUrl is not empty then put space & "url=" & kwote(someUrl) after opmlLine
-    if dateCreated is not empty then put space & "dateCreated=" & kwote(dateCreated) after opmlLine
-    put "/>" after opmlLine
-    return opmlLine
+   xml_Escape someText
+   put "<outline text=" && kwote(someText) into opmlLine
+   if linkType is not empty then put space & "type=" & kwote(linkType) after opmlLine
+   if someUrl is not empty then put space & "url=" & kwote(someUrl) after opmlLine
+   if dateCreated is not empty then put space & "dateCreated=" & kwote(dateCreated) after opmlLine
+   put "/>" after opmlLine
+   return opmlLine
 end opml_ConstructLine
 
 function opml_ConstructHeader someTitle, dateCreated, dateModified, ownerName, ownerEmail, expansionState, vertScrollState, someRect, indentBit
-    put "<title>[[someTitle]]</title>" into opmlHeader
-    if dateCreated is not empty then put indentBit & "<dateCreated>[[dateCreated]]</dateCreated>" after opmlHeader
-    if dateModified is not empty then put indentBit & "<dateModified>[[dateModified]]</dateModified>" after opmlHeader
-    if ownerName is not empty then put indentBit & "<ownerName>[[ownerName]]</ownerName>" after opmlHeader
-    if ownerEmail is not empty then put indentBit & "<ownerEmail>[[ownerEmail]]</ownerEmail>" after opmlHeader
-    if expansionState is not empty then put indentBit & "<expansionState>[[expansionState]]</expansionState>" after opmlHeader
-    if vertScrollState is not empty then put indentBit & "<vertScrollState>[[vertScrollState]]</vertScrollState>" after opmlHeader
-    
-    if someRect is not empty then 
-        put item 1 of someRect into windowLeft
-        put item 2 of someRect into windowTop
-        put item 3 of someRect into windowRight
-        put item 4 of someRect into windowBottom
-         
-        put indentBit & "<windowTop>[[windowTop]]</windowTop>" after opmlHeader
-        put indentBit & "<windowLeft>[[windowLeft]]</windowLeft>" after opmlHeader
-        put indentBit & "<windowBottom>[[windowBottom]]</windowBottom>" after opmlHeader
-        put indentBit & "<windowRight>[[windowRight]]</windowRight>" after opmlHeader
-    end if
-    return merge(opmlHeader)
+   put "<title>[[someTitle]]</title>" into opmlHeader
+   if dateCreated is not empty then put indentBit & "<dateCreated>[[dateCreated]]</dateCreated>" after opmlHeader
+   if dateModified is not empty then put indentBit & "<dateModified>[[dateModified]]</dateModified>" after opmlHeader
+   if ownerName is not empty then put indentBit & "<ownerName>[[ownerName]]</ownerName>" after opmlHeader
+   if ownerEmail is not empty then put indentBit & "<ownerEmail>[[ownerEmail]]</ownerEmail>" after opmlHeader
+   if expansionState is not empty then put indentBit & "<expansionState>[[expansionState]]</expansionState>" after opmlHeader
+   if vertScrollState is not empty then put indentBit & "<vertScrollState>[[vertScrollState]]</vertScrollState>" after opmlHeader
+   
+   if someRect is not empty then 
+      put item 1 of someRect into windowLeft
+      put item 2 of someRect into windowTop
+      put item 3 of someRect into windowRight
+      put item 4 of someRect into windowBottom
+      
+      put indentBit & "<windowTop>[[windowTop]]</windowTop>" after opmlHeader
+      put indentBit & "<windowLeft>[[windowLeft]]</windowLeft>" after opmlHeader
+      put indentBit & "<windowBottom>[[windowBottom]]</windowBottom>" after opmlHeader
+      put indentBit & "<windowRight>[[windowRight]]</windowRight>" after opmlHeader
+   end if
+   return merge(opmlHeader)
 end opml_ConstructHeader
 
 command opml_ConvertToOutline someOPML, @treeTitle, @tabbedOutline
-    put empty into treeTitle
-    put empty into tabbedOutline
-     
-    put revCreateXMLTree(someOPML, false, true, false) into treeID
-    put revXMLRootNode(treeID) into rootNode
-    if rootNode is not "opml" then
-        opn_Notify "Not a valid OPML file!", true
-    else
-        put "opml/head/" into headRoot
-        put headRoot & "title" into someNode
-        put revXMLNodeContents(treeID, someNode) into treeTitle
-         
-       try
-            put opml_RecurseOutlineNodes(treeID) into tabbedOutline
-            revDeleteXMLTree treeID
-            return true
-        catch someError
-            opn_Notify someError
-        end try
-    end if
-     
-    revDeleteXMLTree treeID
-    return false
+   put empty into treeTitle
+   put empty into tabbedOutline
+   
+   put revXMLCreateTree(someOPML, false, true, false) into treeID
+   put revXMLRootNode(treeID) into rootNode
+   if rootNode is not "opml" then
+      opn_Notify "Not a valid OPML file!", true
+   else
+      put "opml/head/" into headRoot
+      put headRoot & "title" into someNode
+      put revXMLNodeContents(treeID, someNode) into treeTitle
+      
+      try
+         put opml_RecurseOutlineNodes(treeID) into tabbedOutline
+         revXMLDeleteTree treeID
+         return true
+      catch someError
+         opn_Notify someError
+      end try
+   end if
+   
+   revXMLDeleteTree treeID
+   return false
 end opml_ConvertToOutline
 
 function opml_RecurseOutlineNodes treeID, rootNode
-    local newOutline
-    
-    if rootNode is empty then
-        put "opml[1]/body[1]" into rootNode
-    else
-        set the itemdelimiter to"/"
-        put empty into indentBit
-        put the number of items of rootNode - 3 into indentLevel
-        repeat indentLevel
-            put tab after indentBit
-        end repeat
-         
-        put revXMLAttributes(treeID, rootNode, tab, CR) into attributeArray
-        split attributeArray using CR and tab
-        put attributeArray ["text"] into someText
-        put attributeArray ["url"] into someLink
-        put html_ConstructNameLink(someText, someLink) into newLine
-         
-        put indentBit & newLine & Cr after newOutline
-    end if
-     
-    put revXMLChildNames(treeID, rootNode, CR, "outline", true) into childNodes
-    if childNodes is not empty then
-        repeat for each line childNode in childNodes
-            put rootNode & "/" & childNode into childRoot
-            get opml_RecurseOutlineNodes(treeID, childRoot)
-            put it & CR after newOutline
-        end repeat
-    end if
-    delete last char of newOutline
-    return newOutline
+   local newOutline
+   
+   if rootNode is empty then
+      put "opml[1]/body[1]" into rootNode
+   else
+      set the itemdelimiter to"/"
+      put empty into indentBit
+      put the number of items of rootNode - 3 into indentLevel
+      repeat indentLevel
+         put tab after indentBit
+      end repeat
+      
+      put revXMLAttributes(treeID, rootNode, tab, CR) into attributeArray
+      split attributeArray using CR and tab
+      put attributeArray ["text"] into someText
+      put attributeArray ["url"] into someLink
+      put html_ConstructNameLink(someText, someLink) into newLine
+      
+      put indentBit & newLine & Cr after newOutline
+   end if
+   
+   put revXMLChildNames(treeID, rootNode, CR, "outline", true) into childNodes
+   if childNodes is not empty then
+      repeat for each line childNode in childNodes
+         put rootNode & "/" & childNode into childRoot
+         get opml_RecurseOutlineNodes(treeID, childRoot)
+         put it & CR after newOutline
+      end repeat
+   end if
+   delete last char of newOutline
+   return newOutline
 end opml_RecurseOutlineNodes

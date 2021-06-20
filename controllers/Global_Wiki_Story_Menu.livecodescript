@@ -1,13 +1,28 @@
-﻿script "Global_Wiki_Story_Menu"
+﻿script "Global | Wiki | Story | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Wiki_Story_Menu
+name: Global | Wiki | Story | Menu
 type: controller
 version: 0.2
 
---> Objects
+
+--> Menu | Props
 -
+getprop vis_BodyName [mTarget]
+   put the wiki_View of mTarget into wikiView
+   put the body_View of wikiView into bodyView
+   put the visible_Name of bodyView into visBodyName
+   return visBodyName
+end vis_BodyName
+
+getprop vis_BodyNames [mTarget]
+   put the wiki_View of mTarget into wikiView
+   put the body_View of wikiView into bodyView
+   put the visible_Names of bodyView into visBodyNames
+   return visBodyNames
+end vis_BodyNames
+
 function _WikiView mTarget
    -- "browser_View" is on card script of stack "Fedwiki Editor"
    put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
@@ -122,26 +137,6 @@ on submenu_Dev
    return "Dev | Menu"
 end submenu_Dev
 
-
---> Global | Wiki | Story | Menu | Props
--
-getprop vis_BodyName [mTarget]
-   put the wiki_View of mTarget into wikiView
-   put the body_View of wikiView into bodyView
-   put the visible_Name of bodyView into visBodyName
-   return visBodyName
-end vis_BodyName
-
-getprop vis_BodyNames [mTarget]
-   put the wiki_View of mTarget into wikiView
-   put the body_View of wikiView into bodyView
-   put the visible_Names of bodyView into visBodyNames
-   return visBodyNames
-end vis_BodyNames
-
-
---> Global | Wiki | Story | Menu | Disabled
--
 
 --> Wiki | View | Model
 -

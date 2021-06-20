@@ -13,22 +13,6 @@ A library for interfacing with Federated Wiki.
 
 --> Fedwiki | Paths
 -
-function fedwiki_ConstructPath fedwikiDomain, pPageSlug
-   -- .wiki/actual.world/pages/some-page   
-   put fedwiki_RelativeWikiRootFolder() into wikiRootFolder
-   put wikiRootFolder & fedwikiDomain & "/" into wikiPath
-   if pPageSlug is empty then return wikiPath
-   put "pages/" & pPageSlug after wikiPath
-   return wikiPath
-end fedwiki_ConstructPath
-
-function fedwiki_ConstructSitemapPath fedwikiDomain
-   -- .wiki/actual.world/pages/some-page   
-   put fedwiki_RelativeWikiRootFolder() into siteMapFile
-   put fedwiki_JsonSiteMapPathBit (fedwikiDomain) after siteMapFile
-   return siteMapFile
-end fedwiki_ConstructSitemapPath
-   
 function fedwiki_LocalSiteMapFile pFedwikiDomain
    put fedwiki_GetLocalWikiRoot() into siteMapFile
    put fedwiki_JsonSiteMapPathBit (pFedwikiDomain) after siteMapFile
@@ -36,7 +20,7 @@ function fedwiki_LocalSiteMapFile pFedwikiDomain
 end fedwiki_LocalSiteMapFile
 
 function fedwiki_JsonSiteMapPathBit pFedwikiDomain
-   --   .wiki/audio.commons.academy/status/sitemap.json
+   -- .wiki/audio.commons.academy/status/sitemap.json
    if pFedwikiDomain is empty then
       return "status/sitemap.json"
    else
@@ -151,7 +135,7 @@ function fedwiki_ExtractRosterSites
             put word 2 to -1 of someLine into someRef
             put item 1 of someRef into fedwikiDomain
             put item 2 of someRef into pageSlug
-            put fedwiki_FetchPageJson (fedwikiDomain, pageSlug) into pageJson
+            put pageJson_Fetch (fedwikiDomain, pageSlug) into pageJson
             return pageJson
             break
          default
@@ -256,15 +240,6 @@ function fedwiki_ExtractForkLinks pageArray, fromSlug, fromDomain
    end repeat
    return linkArray
 end fedwiki_ExtractForkLinks
-
-
---> Fedwiki | Browser
--
-command fedwiki_OpenBrowser fedwikiDomain, pTitleOrSlug
-   put fedwiki_ConstructSlug (pTitleOrSlug) into pageSlug
-   put fedwiki_PageUrl (fedwikiDomain, pageSlug) into someUrl
-   launch url someUrl
-end fedwiki_OpenBrowser
 
 
 --> Fedwiki | Local | JSON

@@ -17,7 +17,7 @@ This is a library for working with Fedwiki inside of a Livecode desktop or obile
 function fedwiki_ConvertGitHubReadme readmeMarkdown, pageTitle
    put wiki_Merge ("On this page we describe the [[Github]] project {{githubProjectName}}.") into firstPara
    --
-   put fedwiki_ConstructNewPageArray (pageTitle, firstPara) into pageArray
+   put pageArray_Construct (pageTitle, firstPara) into pageArray
    pageArray_AddMarkdown pageArray, readmeMarkdown
    pageArray_AddMarkdown pageArray, "# See also"
    pageArray_AddMarkdown pageArray, "- [[Github]]"
@@ -84,15 +84,6 @@ command wiki_ConvertCSS @someCSS
    put "  bottom: 16px;" into line lineNum of someCSS
    */
 end wiki_ConvertCSS
-
-function wiki_Merge someText
-   replace "[" with "{{{" in someText
-   replace "]" with "}}}" in someText
-   put merge (someText) into mergedText
-   replace "{{{" with "[" in mergedText
-   replace "}}}" with "]" in mergedText
-   return mergedText
-end wiki_Merge
 
 
 --> Wiki | Folder
