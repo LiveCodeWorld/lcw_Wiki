@@ -17,13 +17,18 @@ local LocalArray
 
 --> Menu | Props
 -
-on menu_Init tObject
-   -- called only once for top menu
-   pass menu_Init
-end menu_Init
-
-getprop menu_Target [tObject]
-   put the dv_LinkedDataView of tObject into dView
+getprop menu_Target [tObject]   
+   -- put the dv_LinkedDataView of tObject into dView
+   put the dvControl of tObject into dView
+   if exists (dView) is true then return dView
+   
+   put the displayed_Object of tObject into dObject
+   if exists (dObject) is false then return empty
+   
+   put the dvControl of dObject into dView
+   if exists (dView) is true then return dView
+   
+   put the contract_View of dObject into dView
    return dView
 end menu_Target
 
@@ -120,15 +125,15 @@ end menu_LexonContract
 on _
 end _
 
-on menu_Empty dView
+on menu_EmptyDataView dView
    set the dvData of dView to empty
-end menu_Empty
+end menu_EmptyDataView
 
 on menu_DisplayDataViewData dView
-   put the dvData of dView into tArray
-   put "DataView"  && kwote (the short name of dView) into sTitle
+   put the displayed_Data of dView into dData
    --
-   display_Data tArray, "dvData", sTitle
+   put "DataView"  && kwote (the short name of dView) into sTitle
+   display_Data dData, "dvData", sTitle
 end menu_DisplayDataViewData
 
 on _

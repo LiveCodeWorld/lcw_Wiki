@@ -26,13 +26,7 @@ end menu_Target
 --> Global | Wiki | Markdown | Menu
 -
 on menu_Transfer rowView
-   get the markdown_Text of rowView
-   put line 1 of it into clauseTitle
-   put line 2 to -1 of it into utf8Clause
-   put lexon_CleanClause (utf8Clause) into someClause
-   --
-   put view_GetTemplateObject ("View|Contract|Clause") into templateObject
-   set the clause_Text ["red"] of templateObject to someClause
+   lexon_Transfer rowView
 end menu_Transfer
 
 on menu_TestClause rowView
@@ -68,7 +62,7 @@ end _
 
 on menu_DisplayRowData rowView
    put the dvClickRow of dView into rowNum
-   put the row_Data of rowView into rowData
+   put the dv_RowData of rowView into rowData
    --
    display_Data rowData, rowNum, "Row Data"
 end menu_DisplayRowData

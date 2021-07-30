@@ -4,9 +4,11 @@
 license: GPLv3
 name: model_PageArray
 type: model
-version: 0.2
+version: 0.3
 
 /*
+Should use "textDecode" every time we fetch text?
+
 This is a model for fetching, storing Fedwiki page-array structures derived from the page-json schema.
 It also provides hanlders to to CRUD operations of page-json files.
 
@@ -21,6 +23,14 @@ For now this means domains on the Atopia server.
 
 --> Working on
 -
+function pageArray_FetchItem wikiDomain, pageSlug, itemID
+   -- note use of "textDecode"
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   put pageArray_GetItemText (pageArray, itemID) into binaryData
+   put textDecode (binaryData, "utf8") into sText
+   return sText
+end pageArray_FetchItem
+
 command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
    put pageArray_FindItemType ("json", pageArray) into itemNum
    if itemNum = 0 then

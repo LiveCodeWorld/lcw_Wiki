@@ -32,6 +32,10 @@ end _WikiView
 
 --> Global | Wiki | Story | Menu
 -
+on submenu_Browser
+   return "Global | Browser | Menu"
+end submenu_Browser
+   
 on menu_GoToLink mTarget
    put _WikiView() into wikiView
    --
@@ -350,3 +354,4 @@ on menu_DoubleJson mTarget
    put json_ToArray (someJSON) into someArray
    display_Array someArray
 end menu_DoubleJson
+

@@ -12,7 +12,14 @@ version: 0.2
 
 --> Fedwiki | Launch
 -
+command launch_Fedwiki wikiDomain, pTitle, pProtocol
+   put fedwiki_ConstructURL (wikiDomain, pTitle, pProtocol) into wikiURL
+   launch url wikiURL
+   return wikiURL
+end launch_Fedwiki
+
 command fedwiki_Launch wikiDomain, pTitle, pProtocol
+   -- replace with "launch_Fedwiki"
    put fedwiki_ConstructURL (wikiDomain, pTitle, pProtocol) into wikiURL
    launch url wikiURL
    return wikiURL

@@ -47,7 +47,7 @@ end resizeControl
 --> Props
 -
 getprop html_Text
-   put the row_Value ["text"] of me into someHTML
+   put the dv_RowValue ["text"] of me into someHTML
    return someHTML
 end html_Text
 
@@ -58,7 +58,7 @@ setprop html_Text someHTML
       LayoutControl
       unlock screen
    else
-      set the row_Value ["text"] of me to someHTML
+      set the dv_RowValue ["text"] of me to someHTML
       put the result into dData
       return dData
    end if

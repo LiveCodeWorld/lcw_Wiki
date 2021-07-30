@@ -8,7 +8,7 @@ type: behavior
 version: 0.2
 
 
---> DataView
+--> Hilite
 -
 setProp dvHilite [pHiliteColor] pBoolean
    if pBoolean then
@@ -19,32 +19,44 @@ setProp dvHilite [pHiliteColor] pBoolean
 end dvHilite
 
 
---> Geometry | Props
--
-getprop label_Height
-   return 21
-end label_Height
-
-getprop label_Width
-   return 45
-end label_Width
-
-getprop view_Margin
-   return 0,0,0,8
-end view_Margin
-
-
 --> Events
 -
+on mouseDown
+   put _ViewIcon() into vIcon
+   put the short id of vIcon into vID
+   --
+   if the short id of the target = vID then
+      set the highlight of vIcon to true
+      menu_PullDown "Global | Wiki | Markdown | Menu", "", vIcon
+      set the highlight of vIcon to false
+   else
+      pass mouseDown
+   end if
+end mouseDown
+
+/*
+on mouseLeave
+   set the highlight of _ViewIcon() to false
+end mouseLeave
+
+on mouseUp
+   set the highlight of _ViewIcon() to false
+end mouseUp
+*/
+
 on resizeControl
-   LayoutControl
+   if the long id of the target = the long id of me then
+      LayoutControl
+   else
+      pass resizeControl
+   end if
 end resizeControl
 
 
 --> Props
 -
 getprop markdown_Text
-   put the row_Value ["text"] of me into mdText
+   put the dv_RowValue ["text"] of me into mdText
    return mdText
 end markdown_Text
 
@@ -55,15 +67,11 @@ setprop markdown_Text mdText
       LayoutControl
       unlock screen
    else
-      set the row_Value ["text"] of me to mdText
+      set the dv_RowValue ["text"] of me to mdText
       put the result into dData
       return dData
    end if
 end markdown_Text
-
-setprop label_Text mdText
-   _SetLabelText mdText
-end label_Text
 
 
 --> Form
@@ -72,7 +80,6 @@ on FillInData pDataA, pRow
    -- set the text of field "RowNo" of me to pDataA ["@style"]
    put pDataA ["@style"] into sLabel
    if sLabel = "markdown" then put "mkd" into sLabel
-   _SetLabelText sLabel
    --
    put pDataA ["text"] into mdText
    --
@@ -90,9 +97,29 @@ private command _SetMarkdownText mdText
    return theHTML
 end _SetMarkdownText
 
-private command _SetLabelText sLabel
-   set the text of _LabelField() to sLabel
-end _SetLabelText
+
+--> Geometry | Props
+-
+getprop row_LeftMargin
+   put the dv_LeftMargin of me into leftM
+   if leftM is empty then
+      return 45
+   else
+      return leftM
+   end if
+end row_LeftMargin
+
+getprop icon_Height
+   return 18
+end icon_Height
+
+getprop min_Height
+   return 21
+end min_Height
+
+getprop view_Margin
+   return 0,0,0,8
+end view_Margin
 
 
 --> Geometry
@@ -100,57 +127,53 @@ end _SetLabelText
 on LayoutControl pControlRect
    local tRect
    if pControlRect is empty then put the rect of me into pControlRect
+   put the dv_IconsShowing of me is not false into iconsShowing
    --
    put pControlRect into innerRect
    put the view_Margin of me into viewMargin
    rect_SubtractMargins innerRect, viewMargin
    put item 4 of the result into bMargin
    --
-   _SetTextRect innerRect
-   put item 4 of the result + bMargin into item 4 of pControlRect
+   put _TextRect (innerRect, true) into fieldRect
    --
-   _SetGraphicRect pControlRect
-   _SetLabelRect innerRect
+   put pControlRect into graphicRect
+   put item 4 of fieldRect + bMargin into item 4 of graphicRect
+   --
+   put _IconRect (innerRect) into iconRect
+   --
+   put _ViewIcon() into vIcon
+   set the visible of vIcon to iconsShowing
+   set the rect of vIcon to iconRect
+   set the rect of _GraphicObject() to graphicRect
+   set the rect of _TextField() to fieldRect
+   --
+   set the rect of me to pControlRect
 end LayoutControl
-
-command _SetTextRect pControlRect   
-   put _TextRect (pControlRect, true) into tRect
-   set the rect of _TextField() to tRect
-   return tRect
-end _SetTextRect
-
-command _SetLabelRect pControlRect   
-   put _LabelRect (pControlRect) into labelRect
-   set the rect of _LabelField() to labelRect
-   return labelRect
-end _SetLabelRect
-
-command _SetGraphicRect pControlRect
-   set the rect of _GraphicObject() to pControlRect
-end _SetGraphicRect
 
 
 --> Private
 -
-private function _LabelRect pControlRect
-   put the label_Width of me into labelFieldWidth
-   put the label_Height of me into labelFieldHeight
+private function _IconRect innerRect
+   put the icon_Height of me into iconHeight
    --
-   put rect_FromWidthAndHeight (pControlRect, labelFieldWidth, labelFieldHeight) into labelRect
+   put item 1 of innerRect + iconHeight into item 3 of innerRect
+   put item 2 of innerRect + iconHeight into item 4 of innerRect
    --
-   put 4 into shiftDown
-   add shiftDown to item 2 of labelRect
-   add shiftDown to item 4of labelRect
+   add 12 to item 1 of innerRect
+   add 12 to item 3 of innerRect
+   
+   add 8 to item 2 of innerRect
+   add 8 to item 4 of innerRect
    --
-   return labelRect
-end _LabelRect
+   return innerRect
+end _IconRect
 
 private function _TextRect pControlRect, pUseFormatted
    put _TextField() into fieldObject
    --
    put the view_Margin of me into someMargin
-   put the label_Width of me into labelFieldWidth
-   put the label_Height of me into labelFieldHeight
+   put the row_LeftMargin of me into labelFieldWidth
+   put the min_Height of me into minHeight
    --
    put pControlRect into tRect
    --
@@ -165,7 +188,7 @@ private function _TextRect pControlRect, pUseFormatted
       put item 4 of tRect - fTop into fHeight
    end if
    --
-   put max (labelFieldHeight,fHeight) into fHeight
+   put max (minHeight,fHeight) into fHeight
    put fTop + fHeight into labelBottom
    --
    put labelBottom into item 4 of tRect
@@ -174,23 +197,27 @@ private function _TextRect pControlRect, pUseFormatted
 end _TextRect
 
 
+--> Objects | Private
+-
+private function _TextFieldID
+   return the short id of field "Label" of me
+end _TextFieldID
+
+private function _TextField
+   return the long id of field "Label" of me
+end _TextField
+
+private function _ViewIcon
+   return the long id of widget 1 of me
+end _ViewIcon
+
+private function _GraphicObject
+   return the long id of graphic "Background" of me
+end _GraphicObject
+
+
 --> Objects
 -
 getProp dvRowControl
    return the long id of me
 end dvRowControl
-
-
---> Objects | Private
--
-private function _TextField
-   return the long id of field "Label" of me
-end _TextField
-
-private function _LabelField
-   return the long id of field "RowNo" of me
-end _LabelField
-
-private function _GraphicObject
-   return the long id of graphic "Background" of me
-end _GraphicObject

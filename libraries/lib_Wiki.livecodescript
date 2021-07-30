@@ -4,10 +4,12 @@
 license: GPLv3
 name: lib_Wiki
 type: library
-version: 0.1
+version: 0.2
 
 /*
 This is a library for working with Fedwiki inside of a Livecode desktop or obile application.
+
+There is also a lot of code in the group "Wiki" of the stack "Fedwiki Editor" of project "lcw_Wiki"
 */
 
 

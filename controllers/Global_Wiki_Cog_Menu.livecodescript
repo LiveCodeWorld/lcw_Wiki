@@ -134,14 +134,14 @@ on menu_ActionInspector wikiView
    put the footer_View of wikiView into footerView
    put the action_Widget of footerView into actionWidget
    --
-   object_Inspect actionWidget
+   display_ObjectProperties actionWidget
 end menu_ActionInspector
 
 on menu_RightIconInspector wikiView
    put the footer_View of wikiView into footerView
    put the right_Icon of footerView into rightIcon
    --
-   object_Inspect rightIcon
+   display_ObjectProperties rightIcon
 end menu_RightIconInspector
 
 on _

@@ -6,7 +6,6 @@ type: library
 version: 1.7
 copyright: David Bovill
 licence:  GPLv3
-deps: externals
 externals:  mergJSONEncode
 
 /*

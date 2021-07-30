@@ -1,8 +1,8 @@
-﻿script "Global_SFW_Story_Menu"
+﻿script "Global | SFW | Story | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_SFW_Story_Menu
+name: Global | SFW | Story | Menu
 type: controller
 version: 0.1
 
@@ -92,4 +92,3 @@ end submenu_Dev
 on menu_Dev mTarget
    beep
 end menu_Dev
-
