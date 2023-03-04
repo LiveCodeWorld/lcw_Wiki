@@ -108,13 +108,11 @@ end mDoubleUp_WikiDomain
 -
 command display_WikiPage wikiDomain, pSlug
    put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   display_PageArray pageArray, wikiDomain
+   --
+   _DisplayPageArray pageArray, wikiDomain
    put the result into displayView
    --
-   display_SetInteractions displayView, "Wiki | Page", ""
-   set the wiki_Domain of displayView to wikiDomain
-   set the page_Slug of displayView to pSlug
-   --
+   set the tool_Menus of displayView to "Wiki | Page"
    return displayView
 end display_WikiPage
 
@@ -188,23 +186,6 @@ command display_RecentAtopiaPages pSincePeriod, pDisplayView, pPalette
    return indexView
 end display_RecentAtopiaPages
 
-command display_RecentScrapePages pSincePeriod, pDisplayView, pPalette
-   local mDoubleUp
-   --
-   -- put fedray_FetchRecentSites (pSincePeriod) into modifiedSites
-   put fedray_FetchWardsRecentDomains() into modifiedSites
-   put fedwiki_FetchRecentDomainPageArray (modifiedSites, pSincePeriod) into domainPageArray
-   --
-   put "Global | Federation | Tree | Menu" into mTitle
-   put "Global | Federation | Line | Menu" into mLineTitle
-   --
-   display_Data domainPageArray, "Recent Wiki Pages", "Federation", pDisplayView, pPalette
-   put the result into pDisplayView
-   display_SetIndexMenus pDisplayView, mTitle, mLineTitle, mDoubleUp
-   --
-   return pDisplayView
-end display_RecentScrapePages
-
 
 --> Display | Wiki | Lineup
 -
@@ -223,6 +204,15 @@ end display_WikiLineUp
 --> Display | Wiki
 -
 command display_PageArray pageArray, pDomainTitle
+   _DisplayPageArray pageArray, pDomainTitle
+   --
+   display_SetInteractions displayView, "PageArray", "mDoubleUp_PageArray"
+   set the page_Array of displayView to pageArray
+   --
+   return displayView
+end display_PageArray
+
+private command _DisplayPageArray pageArray, pDomainTitle
    if pDomainTitle is empty then put "Wiki" into pDomainTitle
    put pageArray ["title"] into pTitle
    put pageArray ["story"] into storyArray
@@ -231,11 +221,12 @@ command display_PageArray pageArray, pDomainTitle
    display_Data storyArray, pTitle, pDomainTitle
    put the result into displayView
    --
-   display_SetInteractions displayView, "PageArray", "mDoubleUp_PageArray"
-   set the page_Array of displayView to pageArray
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pSlug
+   set the page_Aray of displayView to pageArray
    --
    return displayView
-end display_PageArray
+end _DisplayPageArray
 
 command display_FedwikiPageJson pageJson
    put json_ToArray (pageJson) into pageArray

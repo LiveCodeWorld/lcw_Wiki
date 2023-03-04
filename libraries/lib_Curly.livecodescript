@@ -87,14 +87,14 @@ end curly_ReplaceText
 --> Curly | PageArray
 -
 command curly_MergePageArray @pageArray, curlyData
-   -- lets merge specific item ids
+   # Merge specific item ids
    put curlyData ["id"] into curlyIdArray
    curly_SetPageItems pageArray, curlyIdArray
    
-   -- let's replace any sections such as ref-item arrays
+   # Replace any sections such as ref-item arrays
    curly_ReplacePageItems pageArray, curlyData
    
-   -- let's merge everything looping through every story item
+   # Merge everything looping through every story item
    curly_MergeAll pageArray, curlyData
 end curly_MergePageArray
 

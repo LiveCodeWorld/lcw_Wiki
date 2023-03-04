@@ -37,7 +37,7 @@ These handlers are also used by "lib_DisplayHkeyDeps"
 
 command graph_LinkArray linkArray, pOverlayStyle, pOverlayFolder, pDotHeaderArray, pGraphPropertyArray
    -- this draws a graph and then creates a Livecode view using overlays
-   put graph_ConstructDotHeaderArray() into pDotHeaderArray
+   put dot_ConstructHeaderArray() into pDotHeaderArray
 
    if linkArray is not an array then return empty
    linkArray_RemoveSelfLinks linkArray

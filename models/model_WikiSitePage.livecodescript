@@ -1,11 +1,11 @@
 ﻿script "model_WikiSitePage"
 --> MetaData
 -
-copyright: Anonymous
+copyright: David Bovill
 license: GPLv3
 name: model_WikiSitePage
 type: model
-version: 0.1
+version: 0.2
 
 
 --> Working on
@@ -92,3 +92,14 @@ command atopia_DeleteFederationSitePage wikiDomain, pRecreateSiteMap
    end if
    return deletionResult
 end atopia_DeleteFederationSitePage
+
+
+--> Deps
+-
+command url_SortDomainIndex @domainNames
+   set the itemdelimiter to "."
+   sort domainNames by item -2 of each & item -3 of each & item -4 of each & item -5 of each
+   put word 1 to -1 of domainNames into domainNames
+   line_DeleteTail domainNames
+   return domainNames
+end url_SortDomainIndex

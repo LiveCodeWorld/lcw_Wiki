@@ -14,6 +14,58 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 
 --> Working on
 -
+function dot_FetchHandlerGraphData hName, pJsonType
+   -- https://graphviz.org/docs/outputs/json/
+   if pJsonType is empty then put "json" into pJsonType -- "json0,dot_json,xdot_json"
+   put merge ("curl -s 'https://rest.livecode.world/graph/viz/[[hName]]' | dot -T[[pJsonType]]") into someShell
+   put shell (someShell) into dotJSON
+   put json_ToArray (dotJSON) into hGraphData
+   return hGraphData
+end dot_FetchHandlerGraphData
+
+function dot_GetArray hkey
+   /*
+   The output produced by these follows the json schema shown below. 
+   Note that the objects array has all of the subgraphs first, followed by all of the nodes. 
+   The _gvid value is the index of the subgraph or node in the objects array. 
+   This also holds true for the edges in the objects array. 
+   Note that this format allows clustered graphs, where edges can connect clusters as well as nodes.
+   */
+   
+   put hkey_DotFile (hKey, "hierarchical") into dotFile
+   -- put url ("file:" & someFile) into dotJSON
+   
+   -- https://graphviz.org/docs/outputs/json/
+   -- put "dot -Txdot_json -ogrpaph.json" && kwote (someFile) into someShell
+   put "dot -Txdot_json" && kwote (dotFile) into someShell
+   put shell (someShell) into dotJSON
+   --
+   put json_ToArray (dotJSON) into dotArray
+   return dotArray
+end dot_GetArray
+
+
+--> PageArray | Graph
+-
+function pageArray_GetSvg pageArray
+   return pageArray_GetGraph (pageArray, "svg")
+end pageArray_GetSvg
+
+function pageArray_GetGraph pageArray, pType
+   if pType is empty then put "dot" into pType
+   put pageArray_FindItemType ("graphviz", pageArray) into itemNum
+   if itemNum = 0 then return empty
+   return pageArray ["story"][itemNum][pType]
+end pageArray_GetGraph
+
+command pageArray_ReplaceGraph @pageArray, dotText
+   -- replaces first graph in pageArray
+   put pageArray_FindItemType ("graphviz", pageArray) into itemNum
+   if itemNum > 0 then
+      put dotText into pageArray ["story"][itemNum]["text"]
+   end if
+end pageArray_ReplaceGraph
+
 
 --> PageArray | PageFold
 -
@@ -241,53 +293,8 @@ command pageArray_CompactRefs @pageArray
 end pageArray_CompactRefs
 
 
---> PageArray | Check
--
-function pageArray_Check pageArray
-   if pageArray is not an array then return false
-   --
-   put pageArray ["title"] into pageTitle
-   put pageArray ["journal"] into journalArray
-   if pageTitle is empty or "story" is not among the keys of pageArray or journalArray is not an array then
-      return false
-   else
-      return true
-   end if
-end pageArray_Check
-
-
 --> PageArray | Story
 -
-command pageArray_AddItemArray itemArray, @pageArray
-   -- was "fedwiki_AddItemArrayToStoryEnd"
-   if itemArray is not an array then return 0
-   
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   put itemArray ["id"] into itemID
-   
-   -- add the item to the end of the story
-   array_AddToEndOfIndex itemArray, storyArray
-   -- figure out what we just added it after
-   -- this can be empty if it is the first entry
-   put the result into afterID
-   put storyArray into pageArray ["story"]
-   
-   -- 3) Now let's add the edit or add to the journal
-   -- make the factory have the same id as the item we will add to the story
-   put pageArray_ConstructFactory (itemID) into factoryArray
-   -- now add a journal entry for adding after the id of the end paragraph
-   journalArray_Add journalArray, factoryArray, "add", afterID
-   
-   -- finally add the journal entry for editing the factory
-   journalArray_Add journalArray, itemArray, "edit"
-   put journalArray into pageArray ["journal"]
-   
-   put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into lastItemNum
-   return lastItemNum
-end pageArray_AddItemArray
-
 command pageArray_AssignID @pID
    if pID is empty then 
       put uuid () into pID
@@ -470,17 +477,6 @@ function pageArray_ExtractLinkArray pageArray
    return linkArray
 end pageArray_ExtractLinkArray
 
-
---> PageArray
--
-command pageArray_ReplaceGraph @pageArray, dotText
-   -- replaces first graph in pageArray
-   put pageArray_FindItemType ("graphviz", pageArray) into itemNum
-   if itemNum > 0 then
-      put dotText into pageArray ["story"][itemNum]["text"]
-   end if
-end pageArray_ReplaceGraph
-
 function pageArray_ExtractRefItems fromPageArray
    put fromPageArray ["story"] into fromStoryArray
    put 1 into newItemNum
@@ -546,95 +542,6 @@ function pageArray_GetLastPageFold pageArray
 end pageArray_GetLastPageFold
 
 
---> PageArray | StoryArray | Edit
--
-command pageArray_InsertStory @pageArray, storyArray, afterItemNum
-   -- Insert story and reindex. Quick and dirty.
-   -- We do not check story item ids, nor do we journal individual edits
-   -- Should check itemIDs with "pageArray_CheckUniqueItemIds" beforehand
-   put pageArray ["story"] into oldStoryArray
-   
-   -- add first bit of old story
-   repeat with itemNum = 1 to afterItemNum
-      put oldStoryArray [itemNum] into newStoryArray [itemNum]
-   end repeat
-   
-   -- insert new story
-   put item 2 of the extents of storyArray into lastStoryItemNum
-   put itemNum into insertItemNum
-   repeat with itemNum = 1 to lastStoryItemNum
-      put newStoryArray [insertItemNum]["id"] into afterID
-      add 1 to insertItemNum
-      --
-      put storyArray [itemNum] into itemArray
-      put itemArray into newStoryArray [insertItemNum]
-      --
-      pageArray_AddAddAction pageArray, itemArray, afterID
-      -- put the result into actionArray
-   end repeat
-   
-   -- add last bit of old story
-   put afterItemNum + 1 into oldStart
-   put item 2 of the extents of oldStoryArray into oldEnd
-   repeat with itemNum = oldStart to oldEnd
-      add 1 to insertItemNum
-      put oldStoryArray [itemNum] into newStoryArray [insertItemNum]
-   end repeat
-   --
-   put newStoryArray into pageArray ["story"]
-   return newStoryArray
-end pageArray_InsertStory
-
-command pageArray_MoveItem @pageArray, fromItemNum, toItemNum
-   -- was "fedwiki_MoveStoryItem"
-   -- should check if fromItemNum and toItemNum are within bounds first
-   if fromItemNum = toItemNum then return false
-   if fromItemNum = 0 or toItemNum = 0 then return false
-   if fromItemNum is not a number or toItemNum is not a number then return false
-   
-   local pID
-   put pageArray ["story"] into storyArray
-   
-   -- delete item
-   storyArray_DeleteItem storyArray, fromItemNum
-   put the result into itemArray
-   if itemArray is empty then return false
-   
-   -- insert item
-   storyArray_InsertInto storyArray, toItemNum, itemArray
-   put storyArray into pageArray ["story"]
-   
-   -- update journal
-   put storyArray_ExtractorderedIDArray (storyArray) into oderedIDArray
-   put the milliseconds into pMilliseconds
-   pageArray_AssignID pID
-   
-   put pageArray ["journal"] into journalArray
-   put "move" into journalEntryArray ["type"]
-   put pMilliseconds into journalEntryArray ["date"]
-   put pID into journalEntryArray ["id"]
-   put oderedIDArray into journalEntryArray ["order"]
-   array_AddToEndOfIndex journalEntryArray, journalArray
-   put journalArray into pageArray ["journal"]
-   
-   return true
-end pageArray_MoveItem
-
-command pageArray_DeleteItem @pageArray, itemNumsToDelete
-   replace CR with comma in itemNumsToDelete
-   put pageArray ["story"] into storyArray
-   sort numeric items of itemNumsToDelete
-   repeat with itemNum = the number of items of itemNumsToDelete down to 1
-      put item itemNum of itemNumsToDelete into itemNumToDelete
-      storyArray_DeleteItem storyArray, itemNumToDelete
-      put the result into deletedItemArray
-      put deletedItemArray ["id"] into deletedItemID
-      pageArray_AddDeleteAction pageArray, deletedItemID
-   end repeat
-   put storyArray into pageArray ["story"]
-end pageArray_DeleteItem
-
-
 --> StoryArray | Parts
 -
 function storyArray_ExtractorderedIDArray storyArray
@@ -685,6 +592,9 @@ end storyArray_AddDividerToEnd
 
 command storyArray_DeleteItem @storyArray, itemNumToDelete
    put storyArray [ItemNumToDelete] into deletedItemArray
+   --
+   array_IndexDelete storyArray, itemNumToDelete
+   /*
    put item 2 of the extents of storyArray into maxItem
    if maxItem is not a number then return empty
    repeat with itemNumToMove = (itemNumToDelete + 1) to maxItem
@@ -692,5 +602,7 @@ command storyArray_DeleteItem @storyArray, itemNumToDelete
       put storyArray [itemNumToMove] into storyArray [itemNumDestination]
    end repeat
    delete variable storyArray [maxItem]
+   */
+   
    return deletedItemArray
 end storyArray_DeleteItem

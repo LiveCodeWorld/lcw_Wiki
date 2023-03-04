@@ -99,6 +99,7 @@ function pageJson_Fetch wikiDomain, pSlug
 end pageJson_Fetch
 
 function pageJson_ConstructUrl fedwikiDomain, pSlug
+   put tolower (pSlug) into pSlug -- just in case
    if pSlug is empty then
       -- http://c0de.academy/welcome-visitors.json?random=95b9c89e
       put "http://" & fedwikiDomain & "/welcome-visitors.json" into someUrl
@@ -291,6 +292,7 @@ command pageArray_StoreLastUpdated wikiDomain, pSlug, pDateInSeconds
    pageArray_SetFirstItem pageArray, "code", lastUpDate
    --
    pageArray_Store wikiDomain, pSlug, pageArray, true
+   return the result
 end pageArray_StoreLastUpdated
 
 
@@ -401,6 +403,18 @@ command pageArray_Delete wikiDomain, pageSlug
    return empty
 end pageArray_Delete
 
+function pageArray_Check pageArray
+   if pageArray is not an array then return false
+   --
+   put pageArray ["title"] into pageTitle
+   put pageArray ["journal"] into journalArray
+   if pageTitle is empty or "story" is not among the keys of pageArray or journalArray is not an array then
+      return false
+   else
+      return true
+   end if
+end pageArray_Check
+
 
 --> PageArray | Set
 -
@@ -408,17 +422,45 @@ command pageArray_SetTitle @pageArray, someTitle, pID
    if someTitle is  empty then return false
    put "#" && someTitle into someMarkdown
    pageArray_AddMarkdown pageArray, someMarkdown, pID
+   put the result into itemNum
+   --
+   put pageArray ["story"][itemNum] into newItemArray
+   pageArray_AddEditAction pageArray, itemNum
    return true
 end pageArray_SetTitle
 
+command pageArray_EditItem @pageArray, sText, itemNum, pMilliseconds
+   put sText into pageArray ["story"][itemNum]["text"]
+   pageArray_AddedEditAction pageArray, itemNum, pMilliseconds
+   put the result into actionArray
+   return actionArray
+end pageArray_EditItem
 
---> PageArray | Add
+command pageArray_AddedEditAction @pageArray, itemNum, pMilliseconds
+   if pMilliseconds is empty then put the milliseconds into pMilliseconds
+   put pageArray ["story"][itemNum] into newItemArray
+   put newItemArray ["id"] into itemID
+   pageArray_AddEditAction pageArray, newItemArray, itemID, pMilliseconds
+   put the result into actionArray
+   return actionArray
+end pageArray_AddedEditAction
+
+
+--> PageArray | Actions
 -
-command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pID
-   put fedwiki_ConstructButtonForm (buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor) into formHTML
-   pageArray_AddHTML pageArray, formHTML, pID
-   return formHTML
-end pageArray_AddButton
+command pageArray_AddEditAction @pageArray, newItemArray, itemID, pMilliseconds
+   if pMilliseconds is empty then put the milliseconds into pMilliseconds
+   put pageArray ["journal"] into journalArray
+   --
+   put "edit" into actionArray ["type"]
+   put pMilliseconds into actionArray ["date"]
+   put itemID into actionArray ["id"]
+   put newItemArray into actionArray ["item"]
+   --
+   array_AddToEndOfIndex actionArray, journalArray
+   put journalArray into pageArray ["journal"]
+   return actionArray
+end pageArray_AddEditAction
 
 command pageArray_AddAddAction @pageArray, itemArray, afterID, pMilliseconds
    if pMilliseconds is empty then put the milliseconds into pMilliseconds
@@ -446,6 +488,45 @@ command pageArray_AddDeleteAction @pageArray, deletedItemID, pMilliseconds
    array_AddToEndOfIndex actionArray, journalArray
    put journalArray into pageArray ["journal"]
 end pageArray_AddDeleteAction
+
+
+--> PageArray | Add
+-
+command pageArray_AddItemArray itemArray, @pageArray
+   -- was "fedwiki_AddItemArrayToStoryEnd"
+   if itemArray is not an array then return 0
+   
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   put itemArray ["id"] into itemID
+   
+   -- add the item to the end of the story
+   array_AddToEndOfIndex itemArray, storyArray
+   -- figure out what we just added it after
+   -- this can be empty if it is the first entry
+   put the result into afterID
+   put storyArray into pageArray ["story"]
+   
+   -- 3) Now let's add the edit or add to the journal
+   -- make the factory have the same id as the item we will add to the story
+   put pageArray_ConstructFactory (itemID) into factoryArray
+   -- now add a journal entry for adding after the id of the end paragraph
+   journalArray_Add journalArray, factoryArray, "add", afterID
+   
+   -- finally add the journal entry for editing the factory
+   journalArray_Add journalArray, itemArray, "edit"
+   put journalArray into pageArray ["journal"]
+   
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into lastItemNum
+   return lastItemNum
+end pageArray_AddItemArray
+
+command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pID
+   put fedwiki_ConstructButtonForm (buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor) into formHTML
+   pageArray_AddHTML pageArray, formHTML, pID
+   return formHTML
+end pageArray_AddButton
 
 command pageArray_AddMarkdown @pageArray, someMarkdown, pID
    if someMarkdown is empty then return 0

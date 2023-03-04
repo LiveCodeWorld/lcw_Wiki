@@ -18,20 +18,29 @@ local LocalArray
 
 --> Menu | Props
 -
-on menu_Init tObject
-   -- called only once for top menu
-  pass menu_Init
-end menu_Init
-
---  getprop menu_Target [tObject]
-   -- called once for each menu
-   put the 
-   return tObject
+getprop menu_Target [tObject]
+   put the display_View of tObject into displayView
+   --
+   put the wiki_Domain of displayView into wikiDomain
+   put the page_Slug of displayView into pSlug
+   put the page_Aray of displayView into pageArray
+   --
+   return displayView
 end menu_Target
+
+on mDoubleUp_WikiPage displayView, someLine
+   breakpoint
+   put the title_Text of displayView into someTitle
+end mDoubleUp_WikiPage
 
 
 --> Global | Wiki | Page | Menu
 -
+on menu_PageArray displayView
+   put the page_Aray of displayView into pageArray
+   display_Data pageArray, "pageArray"
+end menu_PageArray
+
 on menu_Refresh displayView
    put the title_Text of displayView into pageTitle
    put the wiki_Domain of displayView into wikiDomain
@@ -51,7 +60,7 @@ end submenu_Dev
 
 --> Dev | Menu
 -
-on menu_Experiment displayView
+on _Experiment displayView
    put "fedwiki.org" into wikiDomain
    -- put the wiki_Domain of displayView into wikiDomain
    put lcw_Ask ("What domain?", wikiDomain)into wikiDomain
@@ -69,4 +78,4 @@ on menu_Experiment displayView
    put fedwiki_FetchPluginData (pageSlug, wikiDomain) into pData
    put pluginResult
    display_Data pData
-end menu_Experiment
+end _Experiment
