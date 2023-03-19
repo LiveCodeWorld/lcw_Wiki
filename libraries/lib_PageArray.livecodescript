@@ -593,16 +593,6 @@ end storyArray_AddDividerToEnd
 command storyArray_DeleteItem @storyArray, itemNumToDelete
    put storyArray [ItemNumToDelete] into deletedItemArray
    --
-   array_IndexDelete storyArray, itemNumToDelete
-   /*
-   put item 2 of the extents of storyArray into maxItem
-   if maxItem is not a number then return empty
-   repeat with itemNumToMove = (itemNumToDelete + 1) to maxItem
-      put itemNumToMove - 1 into itemNumDestination
-      put storyArray [itemNumToMove] into storyArray [itemNumDestination]
-   end repeat
-   delete variable storyArray [maxItem]
-   */
-   
+   array_IndexDelete storyArray, itemNumToDelete 
    return deletedItemArray
 end storyArray_DeleteItem
