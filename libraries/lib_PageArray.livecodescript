@@ -593,6 +593,6 @@ end storyArray_AddDividerToEnd
 command storyArray_DeleteItem @storyArray, itemNumToDelete
    put storyArray [ItemNumToDelete] into deletedItemArray
    --
-   array_IndexDelete storyArray, itemNumToDelete 
+   indexArray_Delete storyArray, itemNumToDelete 
    return deletedItemArray
 end storyArray_DeleteItem
