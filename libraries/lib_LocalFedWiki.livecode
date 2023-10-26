@@ -3,7 +3,7 @@
 -
 name: lib_LocalFedwiki
 type: script library
-version: 1.0
+version: 1.1
 copyright: David Bovill
 licence:  GPLv3
 
@@ -302,6 +302,25 @@ function fedwiki_LocalFaviconFile fedwikiDomain, pCreateFolder, pLocalStatusFold
    return someFile
 end fedwiki_LocalFaviconFile
 
+function fedwiki_LocalPageSlugs pFedwikiDomain, pLocalWikiFolder
+   put fedwiki_LocalPagesFolder (pFedwikiDomain, pLocalWikiFolder) into localPagesFolder
+   if there is a folder localPagesFolder then
+      put folder_ShortFiles (localPagesFolder) into pageSlugs
+      return pageSlugs
+   else
+      return empty
+   end if
+end fedwiki_LocalPageSlugs
+
+function fedwiki_LocalPageJsonFile pageSlug, pFedwikiDomain, pCreateFolder, pLocalWikiFolder
+   put fedwiki_LocalPagesFolder (pFedwikiDomain, pLocalWikiFolder) into localPagesFolder
+   if pCreateFolder is true then
+      folder_CreateNested localPagesFolder
+   end if
+   put localPagesFolder & pageSlug into someFile
+   return someFile
+end fedwiki_LocalPageJsonFile
+
 function fedwiki_LocalSiteMapJson pFedwikiDomain
    put fedwiki_LocalSiteMapFile (pFedwikiDomain) into someFile
    if there is a file someFile then
@@ -327,3 +346,4 @@ command fedwiki_SetLocalSitemapJson pageSlug, pageJSON, pFedwikiDomain
    put pageJSON into url ("file:" & someFile)
    return someFile
 end fedwiki_SetLocalSitemapJson
+

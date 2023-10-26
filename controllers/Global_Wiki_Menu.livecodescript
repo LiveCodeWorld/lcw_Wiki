@@ -11,6 +11,13 @@ version: 0.4
 
 --> Menu | Props
 -
+local LocalArray
+
+getprop menu_Target [tObject]
+   put wiki_Started() into LocalArray ["wikiStarted"]
+   return the display_View of tObject
+end menu_Target
+
 getprop dream_Domains
    put "Jelly Fish" & CR after topDomains
    put "-" & CR after topDomains
@@ -42,21 +49,11 @@ getprop show_HiddenFiles
 end show_HiddenFiles
 
 getprop disabled_StartWiki
-   put the openprocesses into oProcesses
-   if "wiki" is among the lines of oProcesses then
-      return "delete"
-   else
-      return false
-   end if
+   return LocalArray ["wikiStarted"] is true
 end disabled_StartWiki
 
 getprop disabled_StopWiki
-   put the openprocesses into oProcesses
-   if "wiki" is among the lines of oProcesses then
-      return false
-   else
-      return "delete"
-   end if
+   return LocalArray ["wikiStarted"] is false
 end disabled_StopWiki
 
 function _GetWikiView mTarget
@@ -72,6 +69,17 @@ end _GetDomain
 
 --> Global | Wiki | Menu
 -
+on menu_StartWiki
+   wiki_Start
+end menu_StartWiki
+
+on menu_StopWiki
+   wiki_Stop
+end menu_StopWiki
+
+private on ____
+end ____
+
 on menu_WikiBrowser
    get "http://localhost:3000/view/welcome-visitors/view/livecode-managed-wiki/view/polyglot-authoring-experience/view/obeya-studio/view/complex-problems/view/cynefin-template/view/cynefin/view/sense-maker#"
    display_Browser it, empty, true
@@ -83,33 +91,6 @@ end menu_MatrixChat
 
 private on ___
 end ___
-
-on menu_StartWiki
-   set the cursor to watch
-   open process wiki for update
-   -- Federated Wiki server listening on 3000 in mode: development
-   read from process wiki until "Federated Wiki server listening on 3000 in mode: development"
-   put it into wikiInfoToParse
-   
-   put "http://localhost:3000" into localWikiURL
-   launch url localWikiURL
-end menu_StartWiki
-
-on menu_StopWiki
-   if the platform = "MacOS" then
-      kill process wiki
-   else
-      close process wiki
-   end if
-   -- put the openprocesses
-end menu_StopWiki
-
-private on ____
-end ____
-
-on menu_DownloadIplayer
-   put iplayer_GetDefaultOutupFolder()
-end menu_DownloadIplayer
 
 on menu_IplayerDownloadsFolder
    put _GetDomain() into wikiDomain

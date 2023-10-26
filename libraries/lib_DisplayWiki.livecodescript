@@ -9,6 +9,13 @@ version: 0.2
 
 --> Working on
 -
+command display_Wiki
+   wiki_Start
+   -- go to stack "View|Browser"
+   -- display_Browser "http://localhost:3000"
+   return the result
+end display_Wiki
+
 
 --> Fedwiki | Launch
 -

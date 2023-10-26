@@ -5,7 +5,7 @@ license: GPLv3
 name: Global | Wiki | Dev | Menu
 type: controller
 author: David Bovill
-version: 0.1
+version: 0.2
 
 /*
 Here you can describe this menu.

@@ -4,7 +4,7 @@
 license: GPLv3
 name: lib_Wiki
 type: library
-version: 0.2
+version: 0.3
 
 /*
 This is a library for working with Fedwiki inside of a Livecode desktop or obile application.
@@ -12,25 +12,165 @@ This is a library for working with Fedwiki inside of a Livecode desktop or obile
 There is also a lot of code in the group "Wiki" of the stack "Fedwiki Editor" of project "lcw_Wiki"
 */
 
-
-
---> Display
+--> Paths
 -
-function fedwiki_ConvertGitHubReadme readmeMarkdown, pageTitle
-   put wiki_Merge ("On this page we describe the [[Github]] project {{githubProjectName}}.") into firstPara
-   --
-   put pageArray_Construct (pageTitle, firstPara) into pageArray
-   pageArray_AddMarkdown pageArray, readmeMarkdown
-   pageArray_AddMarkdown pageArray, "# See also"
-   pageArray_AddMarkdown pageArray, "- [[Github]]"
-   --
-   pageArray_CleanJournal pageArray
-   return pageArray
-end fedwiki_ConvertGitHubReadme
+private function _WikiBinFile pWithNvm
+   put "wiki" into wikiBinFile
+   if pWithNvm is true then
+      put "/Users/david/.nvm/versions/node/v21.0.0/bin/" before wikiBinFile
+   end if
+   return wikiBinFile
+end _WikiBinFile
+
+private function _NoHupFile
+   return "/usr/bin/nohup" 
+end _NoHupFile
+
+private function _PipeToNothing
+   return "> /dev/null 2>&1 < /dev/null"
+end _PipeToNothing
+
+function _RedirectBit pLog
+   -- put "> /dev/null 2>&1 < /dev/null" into reDirectOutput
+   if pLog is true then
+      put "> nohup.out 2> error.log &" after reDirectOutput
+   else
+      put "> /dev/null 2>&1 &" after reDirectOutput
+   end if
+   return reDirectOutput
+end _RedirectBit
+
+private function _BackgroundSleep
+   return "& sleep 1"
+end _BackgroundSleep
+
+private function _ReturnJobs
+   return "; jobs -l"
+end _ReturnJobs
+
+private function _ParseWikiShellResult shellResult, pWikiBit
+   -- [1]+ 49160 Done(127)               wiki --security_legacy > /dev/null 2>&1 < /dev/null
+   
+   if pWikiBit is empty then
+      put "wiki --security_legacy > /dev/null 2>&1 < /dev/null" into pWikiBit
+   end if
+   put lineOffset (wikiBit, shellResult) into lineNum
+   put word 2 of line lineNum of shellResult into pid
+   return pid
+end _ParseWikiShellResult
 
 
---> Props
+--> Working on
 -
+function wiki_Started
+   return wiki_ProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wiki_Started
+
+function wiki_ProcessIds
+   put shell ("ps aux | grep 'wiki --security_legacy'") into shellResult
+   put lineOffset ("grep wiki --security_legacy", shellResult) into lineNum
+   delete line lineNum of shellResult
+   --
+   repeat for each line sLine in shellResult
+      put word 2 of sLine into pid
+      put pid & comma after pids
+   end repeat
+   delete char -1 of pids
+   return pids
+end wiki_ProcessIds
+
+--> Wiki | Start
+-
+command wiki_Start pLog
+   put wiki_ShellCommand (pLog) into someShell
+   put wiki_DoShell() into wikiProcessID
+   return wikiProcessID
+end wiki_Start
+
+command wiki_Stop pIDs
+   if the platform = "MacOS" then
+      if pIDs is not a number then
+         put wiki_ProcessIds() into pIDs
+      end if
+      --
+      repeat for each item pID in pIDs
+         kill process pID
+      end repeat
+   else
+      close process wiki
+   end if
+end wiki_Stop
+
+function wiki_DoShell pSecurityType, pLog
+   -- put wiki_TerminalCommand() into someShell -- does not work with shell()
+   put wiki_ShellCommand (pSecurityType, pLog) into someShell
+   put shell (someShell) into shellResult
+   -- [1]+  3122 Running                 /usr/bin/nohup /Users/david/.nvm/versions/node/v21.0.0/bin/wiki --security_legacy > /dev/null 2>&1 &
+   put word 2 of shellResult into wikiProcessID
+   return wikiProcessID
+end wiki_DoShell
+
+function wiki_ShellCommand pSecurityType, pLog
+   if pSecurityType is empty then put "security_legacy" into pSecurityType
+   --
+   put _WikiBinFile (true) into wikiBinFile
+   put _NoHupFile() into noHupFile
+   --
+   put merge ("[[noHupFile]] [[wikiBinFile]]") into someShell
+   --
+   if pSecurityType is not empty then put space & "--" & pSecurityType after someShell
+   
+   # Add redirect output bit (log if needed)
+   put _RedirectBit (pLog) into reDirectOutput
+   put space & reDirectOutput after someShell
+   put space & "jobs -l" after someShell
+   --
+   return someShell
+end wiki_ShellCommand
+
+function wiki_TerminalCommand
+   -- Does not work with Shell as it exits
+   put "wiki --security_legacy" into someShell
+   
+   # Redirect output
+   put  space & _PipeToNothing() after someShell
+   
+   # Background and return jobs
+   -- put wikiBit && "& sleep 1; jobs -l" into someShell
+   put space & _BackgroundSleep() after someShell
+   put space & _ReturnJobs() after someShell
+   --
+   return someShell
+end wiki_TerminalCommand
+
+
+--> Wiki | Start | Alternative
+-
+command wiki_StartUsingXterm pXtermBrowser, pLog
+   -- put wiki_ShellCommand (pLog) into someShell
+   put wiki_TerminalCommand() into someShell -- Does not work with Shell
+   --
+   ttyd_Execute someShell, pXtermBrowser
+   return pXtermBrowser
+end wiki_StartUsingXterm
+
+command wiki_OpenProcess pBrowserView
+   breakpoint
+   set the cursor to watch
+   open process wiki for update
+   
+   ## Federated Wiki server listening on 3000 in mode: development
+   read from process wiki until "Federated Wiki server listening on 3000 in mode: development"
+   put it into wikiInfoToParse
+   put "http://localhost:3000" into wikiURL
+   
+   ## Display
+   if exists (pBrowserView) then
+      set the browser_Url of pBrowserView to wikiURL
+   end if
+   return wikiURL
+end wiki_OpenProcess
 
 
 --> Wiki
@@ -49,7 +189,7 @@ command wiki_ConvertCSS @someCSS
    put ".searchbox {float: left}" into csssTweak
    put CR & ".menu {float: left}" after csssTweak
    put csssTweak & CR & CR before line lineNum of someCSS
-      
+   
    /*
    -- this scales everything
    put 0.91 into hScale

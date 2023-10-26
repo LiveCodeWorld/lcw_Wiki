@@ -14,6 +14,13 @@ getprop project_Deps
 end project_Deps
 
 
+--> Custom
+-
+command project_CustomInit
+   display_Wiki
+end project_CustomInit
+
+
 --> Events
 -
 on preOpenStack 
