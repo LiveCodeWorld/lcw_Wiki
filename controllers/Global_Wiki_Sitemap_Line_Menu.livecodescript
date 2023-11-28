@@ -5,7 +5,7 @@ copyright: Anonymous
 license: GPLv3
 name: Global | Wiki | Sitemap | Line | Menu
 type: controller
-version: 0.1
+version: 0.2
 
 /*Here you can describe this menu.
 Full help text should be provided on the linked wiki.*/
@@ -18,55 +18,49 @@ local LocalArray
 
 --> Menu | Init
 -
-on menu_Init tObject   
-   -- do something when the menu first loads
-end menu_Init
-
-getprop test_Param [mTarget]
-  return "b"
-end test_Param
-
-getprop test_Params [mTarget]
-   return "a,b,c"
-end test_Params
-
 getprop menu_CheckTarget [mTarget]
   return true
 end menu_CheckTarget
 
-getprop checked_TestChecked
-   return true
-end checked_TestChecked
+private function _GetSlug arrayView
+   put _GetTopData (arrayView) into topData
+   put keys (topData) into pageTitle
+   put topData [pageTitle] into pageData
+   --
+   return pageData ["slug"]
+end _GetSlug
 
-getprop disabled_Test
-  return false -- true, "delete"
-end disabled_Test
+private function _GetTopData arrayView
+   put the selected_TopData of arrayView into topData
+   return topData
+end _GetTopData
 
 
 --> Global | Wiki | Sitemap | Line | Menu
 -
-on menu_Test mTarget, abc
-   put mTarget & CR & abc
-end menu_Test
+on menu_FetchPageArray arrayView
+   put the title_Text of arrayView into wikiDomain
+   put _GetSlug (arrayView) into pSlug
+   --
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   --
+   display_PageArray pageArray, wikiDomain
+end menu_FetchPageArray
 
-on menu_TestChecked
-  put menu_GetChecked (the params)
-end menu_TestChecked
+on menu_SaveToDefaultPages arrayView
+   put the title_Text of arrayView into wikiDomain
+   put _GetSlug (arrayView) into pSlug
+   --
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   --
+   pageArray_SetDefault pageArray
+end menu_SaveToDefaultPages
 
-on _
-end _
+on menu_SetDefaultHome arrayView
+   put the title_Text of arrayView into wikiDomain
+   put _GetSlug (arrayView) into pSlug
+   --
+   put empty into forkDomains
+   fedwiki_SetDefaultHome arrayView, forkDomains
+end menu_SetDefaultHome
 
-on submenu_Dev
-   return "Dev | Menu"
-end submenu_Dev
-
-
---> Dev | Menu
--
-on menu_Experiment mTarget
-   put mTarget
-end menu_Experiment
-
-
---> Deps
--

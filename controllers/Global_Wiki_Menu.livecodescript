@@ -15,7 +15,8 @@ local LocalArray
 
 getprop menu_Target [tObject]
    put wiki_Started() into LocalArray ["wikiStarted"]
-   return the display_View of tObject
+   return display_MenuTarget (tObject)
+   -- return the display_View of tObject
 end menu_Target
 
 getprop dream_Domains
@@ -56,6 +57,14 @@ getprop disabled_StopWiki
    return LocalArray ["wikiStarted"] is false
 end disabled_StopWiki
 
+getprop disabled_WikiBrowser
+   return LocalArray ["wikiStarted"] is false
+end disabled_WikiBrowser
+
+getprop checked_Ngrok
+   return ngrok_ListProcessIds() is not empty
+end checked_Ngrok
+
 function _GetWikiView mTarget
    -- "browser_View" is on card script of stack "Fedwiki Editor"
    put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
@@ -69,6 +78,26 @@ end _GetDomain
 
 --> Global | Wiki | Menu
 -
+on menu_TestFaasd
+   post "Hello world" to url "https://faasd.platform.earth/function/activity"
+   put it
+end menu_TestFaasd
+
+on menu_WikiBrowser
+   display_WikiBrowser
+end menu_WikiBrowser
+
+on menu_ListLocalWikis
+  display_LocalWikis
+end menu_ListLocalWikis
+
+on submenu_ObeyaStudio
+   return "Global | Obeya | Studio | Menu"
+end submenu_ObeyaStudio
+
+private on _
+end _
+
 on menu_StartWiki
    wiki_Start
 end menu_StartWiki
@@ -77,72 +106,33 @@ on menu_StopWiki
    wiki_Stop
 end menu_StopWiki
 
-private on ____
-end ____
+private on __
+end __
 
-on menu_WikiBrowser
-   get "http://localhost:3000/view/welcome-visitors/view/livecode-managed-wiki/view/polyglot-authoring-experience/view/obeya-studio/view/complex-problems/view/cynefin-template/view/cynefin/view/sense-maker#"
-   display_Browser it, empty, true
-end menu_WikiBrowser
+on menu_Xterm
+   display_Xterm true
+end menu_Xterm
 
-on menu_MatrixChat
-   display_Browser "https://app.element.io/#/room/#fedwiki:matrix.org"
-end menu_MatrixChat
-
-private on ___
-end ___
-
-on menu_IplayerDownloadsFolder
-   put _GetDomain() into wikiDomain
-   put fedwiki_LocalAssetsFolder (wikiDomain) into assetsFolder
+on menu_XtermClear browserView
+   put line 1 of xterm_ListBrowsers() into xtermView
+   if exists (xtermView) is false then
+      display_Xterm true
+      put the result into xtermView
+   end if
    --
-   answer folder "Iplayer downloads..." with assetsFolder
-   put it into dFolder
-   --
-   iplayer_SetDefaultOutupFolder dFolder
-end menu_IplayerDownloadsFolder
-
-on menu_AssetsFolder
-   put _GetDomain() into wikiDomain
-   put fedwiki_LocalAssetsFolder (wikiDomain) into assetsFolder
-   finder_Reveal assetsFolder
-end menu_AssetsFolder
-
-on menu_WikiRootFolder
-   put fedwiki_GetLocalWikiRoot() into wikiRootFolder
-   finder_Reveal wikiRootFolder
-end menu_WikiRootFolder
+   ttyd_Execute "clear", xtermView
+end menu_XtermClear
 
 private on ____
 end ____
 
-on menu_ImageSearch
-   -- https://commons.wikimedia.org/w/api.php?action=query&generator=images&prop=imageinfo&gimlimit=500&redirects=1&titles=Cat&iiprop=timestamp|user|userid|comment|canonicaltitle|url|size|dimensions|sha1|mime|thumbmime|mediatype|bitdepth
-   -- /w/api.php?action=query&format=json&origin=*&titles=North%20Africa&generator=allimages
-   put lcw_Ask ("What do you want to search for", "Cat") into someTitle
-   put urlencode (someTitle) into encodedTitle
-   -- replace "+" with "%20" in encodedTitle
-   --
-   put "https://commons.wikimedia.org" into restURL
-   put "/w/api.php?action=query&generator=images&prop=imageinfo" after restURL
-   put "&gimlimit=100"  after restURL
-   put "&redirects=1"  after restURL
-   
-   -- put "/w/api.php?action=query&format=json&origin=*&generator=allimages" after restURL
-   put "&titles=" & encodedTitle after restURL
-   put "&iiprop=timestamp|user|userid|comment|canonicaltitle|url|size|dimensions|sha1|mime|thumbmime|mediatype|bitdepth" after restURL
-   put "&format=json" after restURL
-   
-   put url restURL into someJSON
-   display_JSON  someJSON
-end menu_ImageSearch
+on submenu_Tunnel
+   return "Global | Tunnel | Menu"
+end submenu_Tunnel
 
-on _
-end _
-
-on submenu_Medium
-   return "Global | Medium | Menu"
-end submenu_Medium
+on submenu_InstallWiki
+   return "Global | Wiki | Install | Menu"
+end submenu_InstallWiki
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Menu")

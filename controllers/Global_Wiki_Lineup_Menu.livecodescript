@@ -89,7 +89,7 @@ on menu_SetDefaultHome displayView, pageTitle
    pageArray_StripJournal pageArray
    pageArray_AddFork pageArray, "proto.institute,fedwiki.org,orientation.fedwiki.org"
    --
-   pageArray_Store wikiDomain, "welcome-visitors", pageArray
+   pageArray_Set wikiDomain, "welcome-visitors", pageArray
    -- atopia_StoreDefaultHomePageArray pageArray
    --
    return the result

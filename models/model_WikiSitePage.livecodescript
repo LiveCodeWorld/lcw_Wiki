@@ -74,7 +74,7 @@ command atopia_CreateFederationSitePage wikiDomain, pDontDeleteSiteMap
    if pageJSON is empty then return false
    --
    put fedwiki_ConstructSlug (wikiDomain) into pageSlug
-   pageJson_Store wikiDomain, pageSlug, pageJSON, true
+   pageJson_Set wikiDomain, pageSlug, pageJSON, true
    --
    return true
 end atopia_CreateFederationSitePage

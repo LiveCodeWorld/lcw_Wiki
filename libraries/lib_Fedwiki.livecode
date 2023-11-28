@@ -75,6 +75,144 @@ function _ConstructImageHtml divClassBit, imgStyleBit, encodedSrcURL, pCaptionTe
    return someHTML
 end _ConstructImageHtml
 
+private command _TrimFullStop @someText, linkBit
+   put word 1 to -1 of someText into someText
+   switch
+      case char -3 to -1 of someText is "..."
+      case char -2 to -1 of someText is ".."
+         break
+      case char -1 of someText is "."
+         delete char -1 of someText
+         break
+   end switch
+   put linkBit after someText
+end _TrimFullStop
+
+
+--> Transport
+-
+command transport_DropTest @droppedURL, @srcImageURL, @qEnd, @isFavicon
+   fedwiki_SetRawJSON rawJSON
+   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
+   put the result into dropArray
+   put transport_DroppedHtmlIsFavicon (droppedHtml) into isFavicon
+   --
+   put url_FileEnding (droppedURL) into qEnd
+   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into imageAttributeArray
+   put imageAttributeArray ["src"] into srcImageURL
+   if srcImageURL is empty then
+      return empty
+   else
+      return imageAttributeArray
+   end if
+end transport_DropTest
+
+function transport_DroppedHtmlIsFavicon droppedHtml
+   -- tests depends on different behaviors of browsers
+   if the environment = "server" then
+      rigLoaderLoadLibrary "Useragent"
+      put rigBrowser() into tBrowser
+   else
+      put empty into tBrowser
+   end if
+   
+   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
+   switch tBrowser
+      case "Firefox"
+         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
+         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
+         break
+      case "Safari"
+         put revXMLAttribute (treeID, "/img", "class") into favClass
+         put revXMLAttribute (treeID, "/img", "height") into favHeight
+         break
+         -- case "Chrome"
+      default
+         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
+         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
+         break
+   end switch
+   revXMLDeleteTree treeID
+   put favClass = "favicon" and favHeight = "32px" into isFavicon
+   --
+   return isFavicon
+end transport_DroppedHtmlIsFavicon
+
+function fedwiki_GetDroppedImageURL 
+   /*
+   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+   <img class="alignnone" src="https://s3.amazonaws.com/codementor_content/2014-Oct-Week4/shellscripting.jpg" alt="" width="186" height="244">
+   -- put debug_GetCommentAbove() into droppedHTML
+   */
+   
+   fedwiki_SetRawJSON rawJSON
+   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
+   --
+   -- put html_ListImageNodes (droppedHTML) into imageNodes
+   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into attributeArray
+   put attributeArray ["src"] into imageURL
+   -- put attributeArray ["height"] into imageH
+   -- put attributeArray ["width"] into imageW
+   return imageURL
+end fedwiki_GetDroppedImageURL
+
+function html_ListImageNodes someHTML, pNode
+   if someHTML is empty then return empty
+   if pNode is empty then put "/" into pNode
+   
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLChildNames (treeID, pNode, CR, "img", true) into childNodes
+   revXMLDeleteTree treeID
+   --
+   repeat for each line childNode in childNodes
+      put pNode & childNode & CR after imageNodes
+   end repeat
+   delete char -1 of imageNodes
+   return imageNodes
+end html_ListImageNodes
+
+function html_GetNodeAttributeArray someNode, someHTML
+   if someHTML is empty then return empty
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLAttributes (treeID, someNode, tab, CR) into attributeTable
+   revXMLDeleteTree treeID
+   --
+   split attributeTable with CR and tab
+   return attributeTable
+end html_GetNodeAttributeArray
+
+function pageArray_FetchNewSite wikiDomain
+   /*
+   put fedwiki_FetchCitePageJSON (wikiDomain) into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   */
+   
+   put pageArray_Fetch (wikiDomain) into pageArray
+   put pageArray ["story"][1]["text"] into firstPara
+   --
+   put pageArray_Construct (wikiDomain, firstPara) into pageArray
+   --
+   put atopia_ConstructNewSiteButton (wikiDomain) into btnHTML
+   pageArray_AddHtml pageArray, btnHTML
+   --
+   put "Welcome Visitors" into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put firstPara into refText
+   pageArray_AddReference pageArray, pageSlug, wikiDomain, refText, pageTitle
+   --
+   -- put pageArray_FetchText (wikiDomain, pageSlug) into siteText
+   put fedwiki_FetchSiteText (wikiDomain) into siteText
+   --
+   put wordcloud_Fetch (siteText) into someImage
+   put  "[[" & wikiDomain & "]]" into imageCaption
+   put merge ("http://[[wikiDomain]]") into pCaptionLinkURL
+   pageArray_AddEmbeddedImage pageArray, someImage, imageCaption, "jpeg"
+   --
+   pageArray_AddMonkeyKeyWordSection pageArray, siteText
+   --
+   return pageArray
+end pageArray_FetchNewSite
+
 function fedwiki_ConstructLinkTag someURL
    switch
       case someURL contains "twitter.com"
@@ -94,66 +232,6 @@ function fedwiki_ConstructLinkTag someURL
          return linkTag
    end switch
 end fedwiki_ConstructLinkTag
-
-
---> Markdown
--
-function md_Link someText
-   put "[[" & word 1 to -1 of someText & "]]" into mdLinkText
-   return mdLinkText
-end md_Link
-
-command md_AddLinkLine @someMarkdown, linkURL, pLinkKey, pLinkLabel
-   put word 1 to -1 of of item 1 of linkURL into linkURL
-   if text_IsNotEmpty (linkURL) then
-      put md_ConstructExternalLinkLine (linkURL, pLinkLabel, pLinkKey) into mdLinkLine
-      
-      put word 1 to -1 of someMarkdown into someMarkdown
-      if someMarkdown is empty then
-         put mdLinkLine into someMarkdown
-      else
-         put CR & mdLinkLine after someMarkdown
-      end if
-      return true
-   else
-      return false
-   end if
-end md_AddLinkLine
-
-function md_ConstructExternalLinkLine linkURL, pLinkLabel, pLinkKey
-   switch
-      case linkURL is empty 
-      case linkURL is "null" 
-         return empty
-      default
-         put fedwiki_ConstructExternalLink (linkURL, pLinkLabel) into externalLink
-         put "-" & space into mdLinkLine
-         if pLinkKey is not empty then 
-            put pLinkKey & space after mdLinkLine
-         end if
-         put externalLink after mdLinkLine
-         return mdLinkLine
-   end switch
-end md_ConstructExternalLinkLine
-
-function md_ConstructKeyWordLinkSection kWords, pListDelim, pExcludeItems
-   if kWords is empty then return empty
-   if pListDelim is empty then put ", " into pListDelim
-   if pExcludeItems is empty then put "Welcome Visitors" into pExcludeItems
-   replace comma with CR in kWords
-   --
-   repeat for each line kWord in kWords
-      if kWord is among the items of pExcludeItems then next repeat
-      --
-      put word 1 to -1 of kWord into kWord
-      put text_InitialCaps (kWord) into kWord
-      put "[[" & kWord & "]]" & pListDelim after kWordSection
-   end repeat
-   --
-   put the number of chars of of pListDelim * -1 into startCharNum
-   delete char startCharNum to -1 of kWordSection
-   return kWordSection
-end md_ConstructKeyWordLinkSection
 
 
 --> Fedwiki | JSON | Plugin
@@ -353,144 +431,6 @@ function fedwiki_ConstructLink someText, pExternalURL
       return "[" & pExternalURL && someText & "]"
    end if
 end fedwiki_ConstructLink
-
-private command _TrimFullStop @someText, linkBit
-   put word 1 to -1 of someText into someText
-   switch
-      case char -3 to -1 of someText is "..."
-      case char -2 to -1 of someText is ".."
-         break
-      case char -1 of someText is "."
-         delete char -1 of someText
-         break
-   end switch
-   put linkBit after someText
-end _TrimFullStop
-
-
---> Transport
--
-command transport_DropTest @droppedURL, @srcImageURL, @qEnd, @isFavicon
-   fedwiki_SetRawJSON rawJSON
-   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
-   put the result into dropArray
-   put transport_DroppedHtmlIsFavicon (droppedHtml) into isFavicon
-   --
-   put url_FileEnding (droppedURL) into qEnd
-   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into imageAttributeArray
-   put imageAttributeArray ["src"] into srcImageURL
-   if srcImageURL is empty then
-      return empty
-   else
-      return imageAttributeArray
-   end if
-end transport_DropTest
-
-function transport_DroppedHtmlIsFavicon droppedHtml
-   -- tests depends on different behaviors of browsers
-   if the environment = "server" then
-      rigLoaderLoadLibrary "Useragent"
-      put rigBrowser() into tBrowser
-   else
-      put empty into tBrowser
-   end if
-   
-   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
-   switch tBrowser
-      case "Firefox"
-         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
-         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
-         break
-      case "Safari"
-         put revXMLAttribute (treeID, "/img", "class") into favClass
-         put revXMLAttribute (treeID, "/img", "height") into favHeight
-         break
-         -- case "Chrome"
-      default
-         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
-         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
-         break
-   end switch
-   revXMLDeleteTree treeID
-   put favClass = "favicon" and favHeight = "32px" into isFavicon
-   --
-   return isFavicon
-end transport_DroppedHtmlIsFavicon
-
-function fedwiki_GetDroppedImageURL 
-   /*
-   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-   <img class="alignnone" src="https://s3.amazonaws.com/codementor_content/2014-Oct-Week4/shellscripting.jpg" alt="" width="186" height="244">
-   -- put debug_GetCommentAbove() into droppedHTML
-   */
-   
-   fedwiki_SetRawJSON rawJSON
-   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
-   --
-   -- put html_ListImageNodes (droppedHTML) into imageNodes
-   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into attributeArray
-   put attributeArray ["src"] into imageURL
-   -- put attributeArray ["height"] into imageH
-   -- put attributeArray ["width"] into imageW
-   return imageURL
-end fedwiki_GetDroppedImageURL
-
-function html_ListImageNodes someHTML, pNode
-   if someHTML is empty then return empty
-   if pNode is empty then put "/" into pNode
-   
-   put revXMLCreateTree (someHTML, false, true, false) into treeID
-   put revXMLChildNames (treeID, pNode, CR, "img", true) into childNodes
-   revXMLDeleteTree treeID
-   --
-   repeat for each line childNode in childNodes
-      put pNode & childNode & CR after imageNodes
-   end repeat
-   delete char -1 of imageNodes
-   return imageNodes
-end html_ListImageNodes
-
-function html_GetNodeAttributeArray someNode, someHTML
-   if someHTML is empty then return empty
-   put revXMLCreateTree (someHTML, false, true, false) into treeID
-   put revXMLAttributes (treeID, someNode, tab, CR) into attributeTable
-   revXMLDeleteTree treeID
-   --
-   split attributeTable with CR and tab
-   return attributeTable
-end html_GetNodeAttributeArray
-
-function pageArray_FetchNewSite wikiDomain
-   /*
-   put fedwiki_FetchCitePageJSON (wikiDomain) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   */
-   
-   put pageArray_Fetch (wikiDomain) into pageArray
-   put pageArray ["story"][1]["text"] into firstPara
-   --
-   put pageArray_Construct (wikiDomain, firstPara) into pageArray
-   --
-   put atopia_ConstructNewSiteButton (wikiDomain) into btnHTML
-   pageArray_AddHtml pageArray, btnHTML
-   --
-   put "Welcome Visitors" into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put firstPara into refText
-   pageArray_AddReference pageArray, pageSlug, wikiDomain, refText, pageTitle
-   --
-   -- put pageArray_FetchText (wikiDomain, pageSlug) into siteText
-   put fedwiki_FetchSiteText (wikiDomain) into siteText
-   --
-   put wordcloud_Fetch (siteText) into someImage
-   put  "[[" & wikiDomain & "]]" into imageCaption
-   put merge ("http://[[wikiDomain]]") into pCaptionLinkURL
-   pageArray_AddEmbeddedImage pageArray, someImage, imageCaption, "jpeg"
-   --
-   pageArray_AddMonkeyKeyWordSection pageArray, siteText
-   --
-   return pageArray
-end pageArray_FetchNewSite
 
 function fedwiki_FetchSiteText wikiDomain
    -- see also "azure_FetchAndConvertSitemap()"

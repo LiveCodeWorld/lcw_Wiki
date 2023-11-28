@@ -23,14 +23,6 @@ For now this means domains on the Atopia server.
 
 --> Working on
 -
-function pageArray_FetchItem wikiDomain, pageSlug, itemID
-   -- note use of "textDecode"
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   put pageArray_GetItemText (pageArray, itemID) into binaryData
-   put textDecode (binaryData, "utf8") into sText
-   return sText
-end pageArray_FetchItem
-
 command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
    put pageArray_FindItemType ("json", pageArray) into itemNum
    if itemNum = 0 then
@@ -85,19 +77,8 @@ command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
 end pageArray_AddJsonArray
 
 
---> Atopia | PageJson | Model
+--> PageJson | Model
 -
-/*
-These handlers are not used very much, except by pageArray_Fetch, pageArray_Store, pageArray_Delete
-*/
-
-function pageJson_Fetch wikiDomain, pSlug
-   -- was "pageJson_Fetch"
-   put pageJson_ConstructUrl (wikiDomain, pSlug) into someUrl
-   put url someUrl into someJSON
-   return someJSON
-end pageJson_Fetch
-
 function pageJson_ConstructUrl fedwikiDomain, pSlug
    put tolower (pSlug) into pSlug -- just in case
    if pSlug is empty then
@@ -110,28 +91,6 @@ function pageJson_ConstructUrl fedwikiDomain, pSlug
    put "?random=" & the milliseconds after someUrl
    return someUrl
 end pageJson_ConstructUrl
-
-command pageJson_Store wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
-   put atopia_ConstructPagePath (wikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_StoreData wikiPagePath, pageJSON
-   --
-   put the result into shellResult
-   if shellResult is not empty then return shellResult
-   if pDeleteSiteMap is not false then -- deleting sitemap is the lazy way to update it
-      atopia_DeleteWikiSitemap wikiDomain
-   end if
-   return shellResult -- should be empty unless an error
-end pageJson_Store
-
-command pageJson_Delete wikiDomain, pageSlug
-   put atopia_ConstructPagePath (wikiDomain, pageSlug) into wikiPagePath
-   --
-   atopia_DeleteFile wikiPagePath
-   --
-   put the result into shellResult
-   return shellResult
-end pageJson_Delete
 
 
 --> PageArray | Image
@@ -291,7 +250,7 @@ command pageArray_StoreLastUpdated wikiDomain, pSlug, pDateInSeconds
    put pageArray_Fetch (wikiDomain, pSlug) into pageArray
    pageArray_SetFirstItem pageArray, "code", lastUpDate
    --
-   pageArray_Store wikiDomain, pSlug, pageArray, true
+   pageArray_Set wikiDomain, pSlug, pageArray, true
    return the result
 end pageArray_StoreLastUpdated
 
@@ -337,7 +296,7 @@ end pageArray_AddRoster
 command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
    put pageArray_Fetch (wikiDomain) into pageArray
    pageArray_SetItemText pageArray, itemID, itemText
-   pageArray_Store wikiDomain, pageSlug, pageArray
+   pageArray_Set wikiDomain, pageSlug, pageArray
    return pageArray
 end fedwiki_UpdatePageItem
 
@@ -353,67 +312,6 @@ function youtube_ConstructWatchUrl videoID
    put "https://www.youtube.com/watch?v=" & videoID into youtubeURL
    return youtubeURL
 end youtube_ConstructWatchUrl
-
-
---> PageArray | Model
--
-function pageArray_FetchByTitle wikiDomain, pTitle
-   put fedwiki_ConstructSlug (pTitle) into pSlug
-   put pageArray_Fetch (wikiDomain, pSlug, true) into pageArray
-   return pageArray
-end pageArray_FetchByTitle
-
-function pageArray_Fetch wikiDomain, pSlug, pDontCheck
-   -- checks for title, journal, and story
-   put pageJson_Fetch (wikiDomain, pSlug) into pageJson
-   --
-   if pageJson is empty then return empty
-   put json_ToArray (pageJson) into pageArray
-   if pDontCheck is true then return pageArray
-   if pageArray_Check (pageArray) then
-      return pageArray
-   else
-      return empty
-   end if
-end pageArray_Fetch
-
-command pageArray_Store wikiDomain, pageSlug, pageArray, pDeleteSiteMap
-   put json_FromArray (pageArray) into pageJSON
-   pageJson_Store wikiDomain, pageSlug, pageJSON
-   put the result into shellResult
-   --
-   if pDeleteSiteMap then
-      atopia_DeleteWikiSitemap wikiDomain
-   end if
-   --
-   if shellResult is empty then
-      put fedwiki_ConstructUrlFromSlug (wikiDomain, pageSlug) into wikiURL
-      return wikiURL
-   else
-      return "Error," && shellResult
-   end if
-end pageArray_Store
-
-command pageArray_Delete wikiDomain, pageSlug
-   pageJson_Delete wikiDomain, pageSlug
-   put the result into shellResult
-   if shellResult is not empty then return shellResult
-   --
-   atopia_DeleteWikiSitemap wikiDomain
-   return empty
-end pageArray_Delete
-
-function pageArray_Check pageArray
-   if pageArray is not an array then return false
-   --
-   put pageArray ["title"] into pageTitle
-   put pageArray ["journal"] into journalArray
-   if pageTitle is empty or "story" is not among the keys of pageArray or journalArray is not an array then
-      return false
-   else
-      return true
-   end if
-end pageArray_Check
 
 
 --> PageArray | Set

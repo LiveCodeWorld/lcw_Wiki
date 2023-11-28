@@ -67,7 +67,7 @@ on menu_TryAndDisableClicks mTarget
    put someJavascript
 end menu_TryAndDisableClicks
 
-on _
+private on _
 end _
 
 -- on menu_VisibleBody mTarget, visBodyName
@@ -86,8 +86,8 @@ on menu_SaveFooterArray mTarget
    set the footer_Array of me to footerArray
 end menu_SaveFooterArray
 
-on _
-end _
+private on __
+end __
 
 on menu_ReplaceFooter mTarget
    put the wiki_View of mTarget into wikiView
@@ -114,8 +114,8 @@ on menu_ResetFooter mTarget
    set the control_Type of footerView to "placeholder"  
 end menu_ResetFooter
 
-on _
-end _
+private on ___
+end ___
 
 on menu_ReplaceBody mTarget
    put the wiki_View of mTarget into wikiView
@@ -139,8 +139,8 @@ on menu_EditBodyBehavior mTarget
    edit the script of bObject
 end menu_EditBodyBehavior
 
-on _
-end _
+private on ____
+end ____
 
 on menu_TestGeometry mTarget
    put the wiki_View of mTarget into wikiView
@@ -188,8 +188,8 @@ on menu_WikiSiteMap dgView
    put fedwiki_FetchSiteExport (fedwikiDomain) into siteJSON
 end menu_WikiSiteMap
 
-on _
-end _
+private on _____
+end _____)
 
 on menu_FindSites mTarget
    put "tigrutigru" into nameStem
@@ -226,8 +226,12 @@ on menu_CreatePage mTarget
    
    put tolower (newTitle) into wikiPageSlug
    replace space with "-" in wikiPageSlug
-   dispatch "fedwiki_StoreData" to stack "Wiki Crawl" with wikiPageSlug, fedwikiDomain, someJson
+   
+   breakpoint
+   -- dispatch "pageJson_Store" to stack "Wiki Crawl" with wikiPageSlug, fedwikiDomain, someJson
+   pageJson_Store
    put the result into someResult
+   
    put someResult
 end menu_CreatePage
 

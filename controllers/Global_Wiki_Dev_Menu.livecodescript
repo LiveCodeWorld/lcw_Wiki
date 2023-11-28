@@ -26,6 +26,59 @@ end menu_Target
 
 --> Global | Wiki | Dev | Menu
 -
+on menu_MatrixChat
+   display_Browser "https://app.element.io/#/room/#fedwiki:matrix.org"
+end menu_MatrixChat
+
+on menu_ImageSearch
+   -- https://commons.wikimedia.org/w/api.php?action=query&generator=images&prop=imageinfo&gimlimit=500&redirects=1&titles=Cat&iiprop=timestamp|user|userid|comment|canonicaltitle|url|size|dimensions|sha1|mime|thumbmime|mediatype|bitdepth
+   -- /w/api.php?action=query&format=json&origin=*&titles=North%20Africa&generator=allimages
+   put lcw_Ask ("What do you want to search for", "Cat") into someTitle
+   put urlencode (someTitle) into encodedTitle
+   -- replace "+" with "%20" in encodedTitle
+   --
+   put "https://commons.wikimedia.org" into restURL
+   put "/w/api.php?action=query&generator=images&prop=imageinfo" after restURL
+   put "&gimlimit=100"  after restURL
+   put "&redirects=1"  after restURL
+   
+   -- put "/w/api.php?action=query&format=json&origin=*&generator=allimages" after restURL
+   put "&titles=" & encodedTitle after restURL
+   put "&iiprop=timestamp|user|userid|comment|canonicaltitle|url|size|dimensions|sha1|mime|thumbmime|mediatype|bitdepth" after restURL
+   put "&format=json" after restURL
+   
+   put url restURL into someJSON
+   display_JSON  someJSON
+end menu_ImageSearch
+
+on submenu_Medium
+   return "Global | Medium | Menu"
+end submenu_Medium
+
+on menu_IplayerDownloadsFolder
+   put _GetDomain() into wikiDomain
+   put fedwiki_LocalAssetsFolder (wikiDomain) into assetsFolder
+   --
+   answer folder "Iplayer downloads..." with assetsFolder
+   put it into dFolder
+   --
+   iplayer_SetDefaultOutupFolder dFolder
+end menu_IplayerDownloadsFolder
+
+on menu_AssetsFolder
+   put _GetDomain() into wikiDomain
+   put fedwiki_LocalAssetsFolder (wikiDomain) into assetsFolder
+   finder_Reveal assetsFolder
+end menu_AssetsFolder
+
+on menu_WikiRootFolder
+   put fedwiki_GetLocalWikiRoot() into wikiRootFolder
+   finder_Reveal wikiRootFolder
+end menu_WikiRootFolder
+
+private on ____
+end ____
+
 on menu_DisplayJellyBrowser
    go to stack "Fedwiki Editor"
 end menu_DisplayJellyBrowser
@@ -111,30 +164,3 @@ on menu_FetchChromeFedwiki
    --
    display_Array pageArray
 end menu_FetchChromeFedwiki
-
-private on __
-end __
-
-on menu_InstallWiki
-   breakpoint
-   set the cursor to watch
-   put shell ("npm install -g wiki")
-end menu_InstallWiki
-
-private on ___
-end ___
-
-on menu_RevealWikiSiteFolder
-   put wiki_GetSiteFolder() into wikiSiteFolder
-   finder_Reveal wikiSiteFolder
-end menu_RevealWikiSiteFolder
-
-on menu_ShowHiddenFiles mTarget, someBoolean
-   finder_SetShowInvisibleFiles someBoolean
-   finder_Restart
-end menu_ShowHiddenFiles
-
-on menu_RevealWikiModulesFolder
-   put wiki_GetModulesFolder() into wikiModulesFolder
-   finder_Reveal wikiModulesFolder
-end menu_RevealWikiModulesFolder

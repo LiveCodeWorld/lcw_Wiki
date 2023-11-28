@@ -4,28 +4,47 @@
 license: GPLv3
 name: lib_Wiki
 type: library
-version: 0.3
+version: 0.4
 
 /*
 This is a library for working with Fedwiki inside of a Livecode desktop or obile application.
-
 There is also a lot of code in the group "Wiki" of the stack "Fedwiki Editor" of project "lcw_Wiki"
 */
 
---> Paths
+--> Working on
 -
-private function _WikiBinFile pWithNvm
-   put "wiki" into wikiBinFile
+function wiki_ShellCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
+   if pSecurityType is empty then put "security_legacy" into pSecurityType
+   --
    if pWithNvm is true then
-      put "/Users/david/.nvm/versions/node/v21.0.0/bin/" before wikiBinFile
+      put nvm_GetBin() into wikiBinFile
+   else
+      put "wiki" into wikiBinFile
    end if
-   return wikiBinFile
-end _WikiBinFile
+   
+   put "/usr/bin/nohup"  into noHupFile
+   --
+   put merge ("[[noHupFile]] [[wikiBinFile]]") into someShell
+   --
+   if pFarm is not false then put space & "--farm" after someShell
+   if pSecurityType is not empty then put space & "--" & pSecurityType after someShell
+   if pPort is empty then
+      put space & "--port 80" after someShell
+   else
+      put space & "--port" && pPort after someShell
+   end if
+   
+   # Add redirect output bit (log if needed)
+   put _RedirectBit (pLog) into reDirectOutput
+   put space & reDirectOutput after someShell
+   put space & "jobs -l" after someShell
+   --
+   return someShell
+end wiki_ShellCommand
 
-private function _NoHupFile
-   return "/usr/bin/nohup" 
-end _NoHupFile
 
+--> Private
+-
 private function _PipeToNothing
    return "> /dev/null 2>&1 < /dev/null"
 end _PipeToNothing
@@ -62,14 +81,21 @@ end _ParseWikiShellResult
 
 --> Working on
 -
+
+--> Wiki
+-
 function wiki_Started
    return wiki_ProcessIds() is not empty
    -- return "wiki" is among the lines of the openprocesses
 end wiki_Started
 
 function wiki_ProcessIds
-   put shell ("ps aux | grep 'wiki --security_legacy'") into shellResult
-   put lineOffset ("grep wiki --security_legacy", shellResult) into lineNum
+   -- put "wiki --security_legacy" into wikiCommand
+   put "wiki" into wikiCommand
+   --
+   put merge ("ps aux | grep '[[wikiCommand]]'") into someShell
+   put shell (someShell) into shellResult
+   put lineOffset (wikiCommand, shellResult) into lineNum
    delete line lineNum of shellResult
    --
    repeat for each line sLine in shellResult
@@ -80,11 +106,22 @@ function wiki_ProcessIds
    return pids
 end wiki_ProcessIds
 
+
 --> Wiki | Start
 -
-command wiki_Start pLog
-   put wiki_ShellCommand (pLog) into someShell
+command wiki_Start pSecurityType, pFarm, pLog
+   put wiki_ProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then return wikiProcessIDs
+   
+   put wiki_ShellCommand (pSecurityType, pFarm, pLog) into someShell
    put wiki_DoShell() into wikiProcessID
+   --
+   put wiki_ListBrowsers() into wikiBrowsers
+   put wiki_DefaultLocalUrl() into wikiURL
+   repeat for each line wikiBrowser in wikiBrowsers
+      set the browser_URL of wikiBrowser to wikiURL
+   end repeat
+   --
    return wikiProcessID
 end wiki_Start
 
@@ -100,34 +137,20 @@ command wiki_Stop pIDs
    else
       close process wiki
    end if
+   --
+   put wiki_ListBrowsers() into wikiBrowsers
+   repeat for each line wikiBrowser in wikiBrowsers
+      set the browser_URL of wikiBrowser to empty
+   end repeat
 end wiki_Stop
 
-function wiki_DoShell pSecurityType, pLog
-   -- put wiki_TerminalCommand() into someShell -- does not work with shell()
-   put wiki_ShellCommand (pSecurityType, pLog) into someShell
+function wiki_DoShell pSecurityType, pFarm, pLog
+   put wiki_ShellCommand (pSecurityType, pFarm, pLog) into someShell
    put shell (someShell) into shellResult
    -- [1]+  3122 Running                 /usr/bin/nohup /Users/david/.nvm/versions/node/v21.0.0/bin/wiki --security_legacy > /dev/null 2>&1 &
    put word 2 of shellResult into wikiProcessID
    return wikiProcessID
 end wiki_DoShell
-
-function wiki_ShellCommand pSecurityType, pLog
-   if pSecurityType is empty then put "security_legacy" into pSecurityType
-   --
-   put _WikiBinFile (true) into wikiBinFile
-   put _NoHupFile() into noHupFile
-   --
-   put merge ("[[noHupFile]] [[wikiBinFile]]") into someShell
-   --
-   if pSecurityType is not empty then put space & "--" & pSecurityType after someShell
-   
-   # Add redirect output bit (log if needed)
-   put _RedirectBit (pLog) into reDirectOutput
-   put space & reDirectOutput after someShell
-   put space & "jobs -l" after someShell
-   --
-   return someShell
-end wiki_ShellCommand
 
 function wiki_TerminalCommand
    -- Does not work with Shell as it exits
@@ -148,7 +171,6 @@ end wiki_TerminalCommand
 --> Wiki | Start | Alternative
 -
 command wiki_StartUsingXterm pXtermBrowser, pLog
-   -- put wiki_ShellCommand (pLog) into someShell
    put wiki_TerminalCommand() into someShell -- Does not work with Shell
    --
    ttyd_Execute someShell, pXtermBrowser
@@ -156,7 +178,8 @@ command wiki_StartUsingXterm pXtermBrowser, pLog
 end wiki_StartUsingXterm
 
 command wiki_OpenProcess pBrowserView
-   breakpoint
+   breakpoint -- old. We now use nohup
+   --
    set the cursor to watch
    open process wiki for update
    
@@ -226,23 +249,6 @@ command wiki_ConvertCSS @someCSS
    put "  bottom: 16px;" into line lineNum of someCSS
    */
 end wiki_ConvertCSS
-
-
---> Wiki | Folder
--
-function wiki_GetSiteFolder
-   put $HOME & "/.wiki/" into wikiSiteFolder
-   return wikiSiteFolder
-end wiki_GetSiteFolder
-
-function wiki_GetWikiClientFolder
-   put wiki_GetModulesFolder() & "wiki-client/" into wikiClientFolder
-   return wikiClientFolder
-end wiki_GetWikiClientFolder
-
-function wiki_GetModulesFolder
-   return "/usr/local/lib/node_modules/wiki"
-end wiki_GetModulesFolder
 
 
 --> Wiki | Javascript
@@ -326,3 +332,4 @@ function wiki_FooterVisibleJavascript someBoolean
    end if
    return someJavascript
 end wiki_FooterVisibleJavascript
+

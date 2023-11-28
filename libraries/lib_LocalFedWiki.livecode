@@ -18,42 +18,15 @@ A library for interfacing with Federated Wiki.
 --> Fedwiki | Paths
 -
 function fedwiki_LocalSiteMapFile pFedwikiDomain
-   put fedwiki_GetLocalWikiRoot() into siteMapFile
-   put fedwiki_JsonSiteMapPathBit (pFedwikiDomain) after siteMapFile
-   return siteMapFile
-end fedwiki_LocalSiteMapFile
-
-function fedwiki_JsonSiteMapPathBit pFedwikiDomain
    -- .wiki/audio.commons.academy/status/sitemap.json
+   put fedwiki_GetLocalWikiRoot() into siteMapFile
    if pFedwikiDomain is empty then
       return "status/sitemap.json"
    else
-      put pFedwikiDomain & "/status/sitemap.json" into pathBit
-      return pathBit
+      put pFedwikiDomain & "/status/sitemap.json" into siteMapFile
+      return siteMapFile
    end if
-end fedwiki_JsonSiteMapPathBit
-
-
---> Fedwiki
--
-command fedwiki_OpenModulesFolder
-   put fedwiki_GetModulesFolder() into fedwikiModulesFolder
-   if fedwikiModulesFolder is empty then return empty
-   
-   finder_Reveal fedwikiModulesFolder
-   return fedwikiModulesFolder
-end fedwiki_OpenModulesFolder
-
-function fedwiki_GetModulesFolder
-   -- it's inside the node modules /wiki/node-modules" folder
-   put node_GetModulesFolder() into nodeModulesFolder
-   if there is not a folder nodeModulesFolder then  return empty
-   
-   put nodeModulesFolder & "wiki/node_modules/" into fedwikiModulesFolder
-   if there is not a folder fedwikiModulesFolder then  return empty
-   
-   return fedwikiModulesFolder
-end fedwiki_GetModulesFolder
+end fedwiki_LocalSiteMapFile
 
 
 --> Fedwiki | Sitemap
@@ -229,39 +202,6 @@ function fedwiki_ExtractForkLinks pageArray, fromSlug, fromDomain
 end fedwiki_ExtractForkLinks
 
 
---> Fedwiki | Local | JSON
--
-function fedwiki_GetLocalPageArray pageSlug, pFedwikiDomain, pLocalWikiFolder
-   put fedwiki_GetLocalPageJson (pageSlug, pFedwikiDomain, pLocalWikiFolder) into pageJSON
-   put json_ToArray (pageJSON) into pageArray 
-   return pageArray
-end fedwiki_GetLocalPageArray
-
-command fedwiki_SetLocalPageArray pageSlug, pageArray, pFedwikiDomain, pLocalWikiFolder, pCreateMilliSeconds
-   -- stores the pageArray as local json and updates the local site map
-   put json_FromArray (pageArray) into pageJSON  
-   fedwiki_SetLocalPageJson pageSlug, pageJSON, pFedwikiDomain, pLocalWikiFolder
-   fedwiki_UpdateLocalSiteMap pageArray, pFedwikiDomain, pCreateMilliSeconds
-   return pageJSON
-end fedwiki_SetLocalPageArray
-
-function fedwiki_GetLocalPageJson pageSlug, pFedwikiDomain, pLocalWikiFolder
-   put fedwiki_LocalPageJsonFile (pageSlug, pFedwikiDomain, false, pLocalWikiFolder) into someFile
-   if there is a file someFile then
-      put url ("file:" & someFile) into pageJSON
-      return pageJSON
-   else
-      return empty
-   end if
-end fedwiki_GetLocalPageJson
-
-command fedwiki_SetLocalPageJson pageSlug, pageJSON, pFedwikiDomain, pLocalWikiFolder
-   put fedwiki_LocalPageJsonFile (pageSlug, pFedwikiDomain, true, pLocalWikiFolder) into someFile
-   put pageJSON into url ("file:" & someFile)
-   return someFile
-end fedwiki_SetLocalPageJson
-
-
 --> Fedwiki | Favicon
 -
 function fedwiki_GetLocalFavicon fedwikiDomain, pLocalStatusFolder
@@ -311,15 +251,6 @@ function fedwiki_LocalPageSlugs pFedwikiDomain, pLocalWikiFolder
       return empty
    end if
 end fedwiki_LocalPageSlugs
-
-function fedwiki_LocalPageJsonFile pageSlug, pFedwikiDomain, pCreateFolder, pLocalWikiFolder
-   put fedwiki_LocalPagesFolder (pFedwikiDomain, pLocalWikiFolder) into localPagesFolder
-   if pCreateFolder is true then
-      folder_CreateNested localPagesFolder
-   end if
-   put localPagesFolder & pageSlug into someFile
-   return someFile
-end fedwiki_LocalPageJsonFile
 
 function fedwiki_LocalSiteMapJson pFedwikiDomain
    put fedwiki_LocalSiteMapFile (pFedwikiDomain) into someFile

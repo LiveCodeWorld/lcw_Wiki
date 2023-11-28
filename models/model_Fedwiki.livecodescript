@@ -9,6 +9,48 @@ version: 0.2
 
 --> Working on
 -
+function fedwiki_FetchPageMarkdown wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   if pageArray is empty then return empty
+   put pageArray ["title"] into pageTitle
+   put pageArray ["story"] into storyArray
+   put fedwiki_ConstructPageMarkdown (pageTitle, storyArray) into pageMarkdown
+   return pageMarkdown
+end fedwiki_FetchPageMarkdown
+
+function fedwiki_ConstructPageMarkdown pageTitle, storyArray
+   -- put fedwiki_ConstructMarkdownPage (someMarkdown, pPageTitle)
+   put "#" && pageTitle & CR into pageMarkdown
+   --
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum]["type"] into itemType
+      put storyArray [itemNum]["text"] into itemText
+      put word 1 to -1 of itemText into itemText
+      
+      -- let's replace external wiki links with normal html links
+      fedwiki_ReplaceExternalLinks itemText
+      --
+      switch itemType
+         case "markdown"
+            if word 1 of itemText = "#" then
+               put "##" into word 1 of itemText
+               put itemText & CR after pageMarkdown
+            else
+               put itemText & CR & CR after pageMarkdown
+            end if
+            break
+         case "video"
+            _AddVideo pageMarkdown, itemText
+            break
+         case "html" -- could convert?
+         case "text"
+         default
+            put itemText & CR & CR after pageMarkdown
+      end switch
+   end repeat
+   return pageMarkdown
+end fedwiki_ConstructPageMarkdown
+
 
 --> Atopia | IsIndexed
 -
@@ -65,15 +107,6 @@ end atopia_ToggleIsInSites
 
 --> Federation | Update
 -
-function fedwiki_FetchPageMarkdown wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   if pageArray is empty then return empty
-   put pageArray ["title"] into pageTitle
-   put pageArray ["story"] into storyArray
-   put fedwiki_ConstructPageMarkdown (pageTitle, storyArray) into pageMarkdown
-   return pageMarkdown
-end fedwiki_FetchPageMarkdown
-
 function federation_ModelDocUrl modelName
    put fedwiki_ConstructSlug (modelName) into pageSlug
    put "http://roster.fedwiki.org/view/welcome-visitors/view/" & pageSlug into launchURL

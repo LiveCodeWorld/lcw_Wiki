@@ -44,6 +44,23 @@ function dot_GetArray hkey
    return dotArray
 end dot_GetArray
 
+function wiki_FetchRefDomains wikiDomain, pageSlug
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   put pageArray_ListReferenceDomains (pageArray) into referenceDomains
+   return referenceDomains
+end wiki_FetchRefDomains
+
+function pageArray_ListReferenceDomains pageArray
+   put pageArray_ExtractRefItems (pageArray) into refItemStoryArray
+   --
+   repeat with itemNum = 1 to item 2 of the extents of refItemStoryArray
+      put refItemStoryArray [itemNum]["site"] into referenceDomain
+      put referenceDomain & CR after referenceDomains
+   end repeat
+   delete char -1 of referenceDomains
+   return referenceDomains
+end pageArray_ListReferenceDomains
+
 
 --> PageArray | Graph
 -

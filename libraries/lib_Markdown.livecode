@@ -14,7 +14,7 @@ function markdownVersion
 end markdownVersion
 
 function markdownAvailable
-   get  markdownVersion()
+   get markdownVersion()
    if it is a number then
       return true
    else
@@ -32,3 +32,65 @@ function markdown pText
    delete file tOutFile
    return tOut
 end markdown
+
+
+--> Markdown
+-
+--> Markdown
+-
+function md_Link someText
+   put "[[" & word 1 to -1 of someText & "]]" into mdLinkText
+   return mdLinkText
+end md_Link
+
+command md_AddLinkLine @someMarkdown, linkURL, pLinkKey, pLinkLabel
+   put word 1 to -1 of of item 1 of linkURL into linkURL
+   if text_IsNotEmpty (linkURL) then
+      put md_ConstructExternalLinkLine (linkURL, pLinkLabel, pLinkKey) into mdLinkLine
+      
+      put word 1 to -1 of someMarkdown into someMarkdown
+      if someMarkdown is empty then
+         put mdLinkLine into someMarkdown
+      else
+         put CR & mdLinkLine after someMarkdown
+      end if
+      return true
+   else
+      return false
+   end if
+end md_AddLinkLine
+
+function md_ConstructExternalLinkLine linkURL, pLinkLabel, pLinkKey
+   switch
+      case linkURL is empty 
+      case linkURL is "null" 
+         return empty
+      default
+         put fedwiki_ConstructExternalLink (linkURL, pLinkLabel) into externalLink
+         put "-" & space into mdLinkLine
+         if pLinkKey is not empty then 
+            put pLinkKey & space after mdLinkLine
+         end if
+         put externalLink after mdLinkLine
+         return mdLinkLine
+   end switch
+end md_ConstructExternalLinkLine
+
+function md_ConstructKeyWordLinkSection kWords, pListDelim, pExcludeItems
+   if kWords is empty then return empty
+   if pListDelim is empty then put ", " into pListDelim
+   if pExcludeItems is empty then put "Welcome Visitors" into pExcludeItems
+   replace comma with CR in kWords
+   --
+   repeat for each line kWord in kWords
+      if kWord is among the items of pExcludeItems then next repeat
+      --
+      put word 1 to -1 of kWord into kWord
+      put text_InitialCaps (kWord) into kWord
+      put "[[" & kWord & "]]" & pListDelim after kWordSection
+   end repeat
+   --
+   put the number of chars of of pListDelim * -1 into startCharNum
+   delete char startCharNum to -1 of kWordSection
+   return kWordSection
+end md_ConstructKeyWordLinkSection

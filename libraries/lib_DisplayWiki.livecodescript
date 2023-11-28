@@ -9,12 +9,307 @@ version: 0.2
 
 --> Working on
 -
-command display_Wiki
+command gitwiki_FixLocalDomain localhostDomain, pDisplayView
+   put wiki_GetFolder (localhostDomain) into wikiFolder
+   put gitwiki_GetFolder (localhostDomain) into gitWikiFolder
+   --
+   put wiki_NumberOfpages (wikiFolder) into wikiPageNum
+   put wiki_NumberOfpages (gitWikiFolder) into gitWikiPageNum
+   --
+   switch
+      case (wikiPageNum = 0) AND (gitWikiPageNum > 0)
+         revDeleteFolder wikiFolder
+         folder_CreateSymLink gitWikiFolder, wikiFolder
+         break
+      case wikiPageNum < 1
+         if folder_IsSymLink (wikiFolder) then
+            breakpoint
+         else
+            revDeleteFolder wikiFolder
+         end if
+         break
+      default
+         breakpoint
+   end switch
+   
+   if exists (pDisplayView) then
+      display_EmptyLocalWikis pDisplayView
+   end if
+end gitwiki_FixLocalDomain
+
+command display_WikiConfig
+   put wiki_GetConfigFile() into wikiConfigFile
+   put text_EditorApplicationPath() into applicationPath
+   launch wikiConfigFile with applicationPath
+end display_WikiConfig
+
+on mDoubleUp_WikiLocal displayView, shortFolder
+   mDoubleUp_WikiLocalIndex displayView, shortFolder
+end mDoubleUp_WikiLocal
+
+on mDoubleUp_WikiLocalIndex displayView, shortFolder
+   if the optionKey is "down" then
+      breakpoint
+      gitwiki_FixLocalDomain shortFolder, displayView
+      exit to top
+      breakpoint
+   end if
+   --
+   if the shiftKey is "down" then
+      launch_LocalhostWiki shortFolder
+   else
+      put wiki_GetFolder (shortFolder) into wikiFolder
+      finder_Reveal wikiFolder
+      
+      /*
+      put display_ListBrowsers ("Local Wiki") into browserViews
+      put line 1 of browserViews into browserView
+      --
+      put wiki_LocalUrl (sDomain) into localWikiUrl
+      display_Browser localWikiUrl, browserView, "Local Wiki"
+      */
+   end if
+end mDoubleUp_WikiLocalIndex
+
+command display_EmptyLocalWikis pDisplayView, pFilter, pTitle
+   if pTitle is empty then put "Empty Local Wikis" into pTitle
+   put "Wiki | Local" into menuBit -- was "Wiki | Git"
+   
+   put wiki_ListEmptyLocalFolders (true) into emptyFolders
+   --
+   display_WikiFolders emptyFolders, menuBit, pDisplayView, pFilter, pTitle, "Local Wikis"
+   put the result into dView
+   return dView
+end display_EmptyLocalWikis dView, pFilter
+
+command display_LocalWithoutAstral dView, pFilter
+   put wiki_RootFolder() into wikiFolder
+   put folder_ListShortAll (wikiFolder) into wikiFolders
+   --
+   put wikiFolders into localhostFolders
+   filter localhostFolders with "*localhost"
+   --
+   repeat for each line localhostDomain in localhostFolders
+      put wiki_AstralFromLocalhost (localhostDomain) into astralDomain
+      if astralDomain is not among the lines of wikiFolders then
+         put localhostDomain & CR after wihtouAstralDomains
+      end if
+   end repeat
+   delete char -1 of wihtouAstralDomains
+   --
+   url_SortDomainIndex wihtouAstralDomains
+   --
+   display_WikiFolders wihtouAstralDomains, "Wiki | Local", dView, pFilter, "Local Without Astral", "Local Wikis"
+   return the result
+end display_LocalWithoutAstral
+
+command display_LocalWikis pDisplayView, pTitle, pFilter
+   if pTitle is empty then put "All" into pTitle
+   put "Local Wikis" into pStackLabel
+   put "Wiki | Local" into menuBit -- was "Wiki | Git"
+   --
+   put wiki_RootFolder() into wikiFolder
+   --
+   switch token 1 of pTitle
+      case "Dynadot"
+         put dynadot_ListAstralDomains() into wikiFolders
+         break
+      case "astral"
+         put folder_ListShortAll (wikiFolder) into localAstralDomains
+         filter localAstralDomains with "*.astralship.wiki"
+         put dynadot_StripSubDomainNames (localAstralDomains, "astralship.wiki") into wikiFolders
+         break
+      case "non"
+         put folder_ListShortNonSymLinked (wikiFolder) into wikiFolders
+         break
+      case "sym"
+         put folder_ListShortSymLinked (wikiFolder) into wikiFolders
+         break
+      default
+         put folder_ListShortAll (wikiFolder) into wikiFolders
+   end switch
+   if pFilter is not empty then filter wikiFolders with pFilter
+   url_SortDomainIndex wikiFolders
+   --
+   display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTitle, pStackLabel
+   put the result into dView
+   return dView
+end display_LocalWikis
+
+command display_GitWikis gitWikiFolders, pDisplayView, pWikiFilter, pTitle
+   if pTitle is empty then put "Git Folders" into pTitle
+   display_WikiFolders gitWikiFolders, "Wiki | Git", pDisplayView, pWikiFilter, pTitle
+   put the result into dView
+   return dView
+end display_GitWikis
+
+command display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTitle, pStackLabel
+   if pStackLabel is empty then put "Wiki" into pStackLabel
+   if exists (pDisplayView) is false then
+      put display_FindIndexView ("Wiki", "Git Folders") into pDisplayView
+   end if
+   if exists (pDisplayView) is true then
+      if pWikiFilter is "none" then
+         put empty into pWikiFilter
+      else if pWikiFilter is empty then
+         put the wiki_Filter of pDisplayView into pWikiFilter
+      end if
+   end if
+   --
+   lock screen
+   display_Data wikiFolders, pTitle, pStackLabel, pDisplayView
+   put the result into dView
+   
+   # Colour lines
+   put dynadot_ListEarthWikis() into dynadotEarthWikis
+   set the coloured_lines ["red"] of dView to dynadotEarthWikis
+   unlock screen
+   --
+   if pWikiFilter is not empty then
+      set the wiki_Filter of dView to pWikiFilter
+   end if
+   --
+   display_SetToolMenus menuBit, dView, "lcw_Wiki"
+   return dView
+end display_WikiFolders
+
+
+--> Events
+-
+on mDoubleUp_WikiGit dView, sDomain
+   if the optionKey is "down" then breakpoint
+   --
+   put gitwiki_GetFolder (sDomain) into gitWikiFolder
+   --
+   switch
+      case the shiftKey is "down"
+         breakpoint
+         
+         put gitwiki_GetFolder ("dead.anarchive.earth") into toFolder
+         --
+         if folder_IsSymLink (gitWikiFolder) then
+            breakpoint
+         end if
+         --
+         if wiki_FolderHasNoPages (wikiFolder) then
+            
+         end if
+         --
+         revMoveFolder gitWikiFolder, toFolder
+         set the deleted_Line of dView to sDomain
+         break
+      case there is not a folder gitWikiFolder
+         breakpoint
+         break
+      default
+         finder_Reveal gitWikiFolder
+         -- launch url ("http://" & sDomain)
+   end switch
+end mDoubleUp_WikiGit
+
+on mDoubleUp_WikiEarth displayView, earthDomain
+   if the optionKey is "down" then breakpoint
+   launch_LocalhostWiki earthDomain
+end mDoubleUp_WikiEarth
+
+command launch_LocalhostWiki wikiDomain
+   put wiki_LocalhostUrl (wikiDomain) into localWikiUrl
+   launch url localWikiUrl
+   return localWikiUrl
+end launch_LocalhostWiki
+
+command launch_LocalWiki sDomain
+   put wiki_LocalUrl (sDomain) into localWikiUrl
+   launch url localWikiUrl
+   return localWikiUrl
+end launch_LocalWiki
+
+function wiki_LocalhostUrl wikiDomain
+   put wiki_LocalHostDomain (wikiDomain) into localhostDomain
+   put wiki_LocalUrl (localhostDomain) into localhostURL
+   return localhostURL
+end wiki_LocalhostUrl
+
+function wiki_LocalUrl sDomain
+   put "http://" & sDomain & ":3000" into localWikiUrl
+   return localWikiUrl
+end wiki_LocalUrl
+
+command display_DynadotWikis domainName, pDisplayView, pFilter
+   if exists (pDisplayView) is false then
+      put display_FindIndexView ("Dynadot", "Earth Wikis") into pDisplayView
+   end if
+   --
+   put dynadot_ListAllSubDomain (domainName) into wikiDomains
+   --
+   if pFilter is not empty then
+      filter wikiDomains with pFilter
+   end if
+   --
+   display_Data wikiDomains, domainName, "Dynadot", pDisplayView
+   put the result into dView
+   display_SetToolMenus "Wiki | Earth", dView, "lcw_Wiki"
+   return dView
+end display_DynadotWikis
+
+command display_SitemapArray wikiDomain, pSincePeriod, pDisplayView, pPalette
+   -- if pSincePeriod is empty then put "1 week" into pSincePeriod
+   put fedwiki_FetchModifiedPageArray (wikiDomain, pSincePeriod) into sitePageArray
+   --
+   display_Data sitePageArray, wikiDomain, "Site Page Array"
+   put the result into displayView
+   set the site_PageArray of displayView to sitePageArray
+   --
+   set the title_Menu of displayView to "Global | Wiki | Sitemap | Tree | Menu"
+   set the line_Menu of displayView to "Global | Wiki | Sitemap | Line | Menu"
+   set the mouse_DoubleUp of displayView to "mDoubleUp_DisplayWikiPage"
+   return displayView
+end display_SitemapArray
+
+
+--> Display | Wiki
+-
+command display_EarthWikis pDisplayView
+   put dynadot_ListEarthWikis() into wikiDomains
+   --
+   if exists (pDisplayView) is false then
+      put display_FindIndexView ("Dynadot", "Earth Wikis") into pDisplayView
+   end if
+   --
+   display_Data wikiDomains, "Earth Wikis", "Dynadot", pDisplayView
+   put the result into dView
+   display_SetToolMenus "Wiki | Earth", dView, "lcw_Wiki"
+   return dView
+end display_EarthWikis
+
+command diplay_GitWikiFolders pDisplayView, pWikiFilter
+   put gitwiki_ListFolders (pWikiFilter, true) into gitWikiFolders
+   --
+   display_WikiFolders gitWikiFolders, pDisplayView, pWikiFilter
+   return the result
+end diplay_GitWikiFolders
+
+command display_Wiki pWikiURL
    wiki_Start
-   -- go to stack "View|Browser"
-   -- display_Browser "http://localhost:3000"
+   --
+   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
+   put line 1 of wiki_ListBrowsers() into browserView
+   send "display_WikiBrowser pWikiURL,browserView" to me in 20 ticks
    return the result
 end display_Wiki
+
+command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
+   if pStackLabel is empty then put "Wiki" into pStackLabel
+   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
+   if pStackStyle is empty then put "toplevel" into pStackStyle
+   --
+   display_Browser pWikiURL, pBrowserView, pStackLabel, pStackStyle, "View|Obeya|Studio"
+   -- display_View "View|Obeya|Studio", pWikiURL, pStackLabel, empty, "browser_URL", pStackStyle
+   put the result into browserView
+   display_SetMenu browserView, "Obeya | Studio", "title_Menu"
+   --
+   return browserView
+end display_WikiBrowser
 
 
 --> Fedwiki | Launch
@@ -126,55 +421,15 @@ end display_WikiPage
 
 --> Display | Wiki | Pages
 -
-command display_WikiDomain wikiDomain, pDisplayView, pPalette
-   set the cursor to watch
-   --
-   atopia_DeleteWikiSitemap wikiDomain
-   --
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   put fedwiki_ConstructSitePageArray (sitemapArray) into sitePageArray
-   --
-   display_Data sitePageArray, wikiDomain, "Wiki", pDisplayView, pPalette
-   put the result into displayView
-   --
-   display_SetInteractions displayView, "Wiki | Pages", "mDoubleUp_DisplayPage"
-   --
-   return displayView
-end display_WikiDomain
-
-
 command display_RecentDomainWikiPages wikiDomain, pSincePeriod, pDisplayView, pPalette
    if pSincePeriod is empty then put "1 week" into pSincePeriod
    --
-   put fedwiki_FetchModifiedPageArray (wikiDomain, pSincePeriod) into sitemapArray
-   put fedwiki_GetModifiedArray (sitemapArray, pSincePeriod) into sitemapArray
-   put fedwiki_ConstructSitePageArray (sitemapArray) into sitePageArray
+   put fedwiki_FetchModifiedPageArray (wikiDomain, pSincePeriod) into sitePageArray
    --
    display_Data sitePageArray, "Recent Pages", wikiDomain, pDisplayView, pPalette
    put the result into displayView
    return displayView
 end display_RecentDomainWikiPages
-
-command display_RecentWikiPages wikiDomains, pSincePeriod, pDisplayView, pPalette
-   local mDoubleUp
-   
-   -- default to display recent site pages in the last week
-   if pSincePeriod is empty then put "1 Week" into pSincePeriod
-   if wikiDomains is empty then
-      put fedray_FetchRecentSites (sincePeriod, true) into wikiDomains
-   end if
-   --
-   put fedwiki_FetchRecentDomainPageArray (wikiDomains, pSincePeriod) into domainPageArray
-   --
-   put "Global | Federation | Tree | Menu" into mTitle
-   put "Global | Federation | Line | Menu" into mLineTitle
-   --
-   display_Data domainPageArray, pSincePeriod, "Recent Federation Pages", pDisplayView, pPalette
-   put the result into pDisplayView
-   display_SetIndexMenus pDisplayView, mTitle, mLineTitle, mDoubleUp
-   --
-   return pDisplayView
-end display_RecentWikiPages
 
 command display_RecentAtopiaPages pSincePeriod, pDisplayView, pPalette
    local mDoubleUp
@@ -212,28 +467,13 @@ end display_WikiLineUp
 -
 command display_PageArray pageArray, pDomainTitle
    _DisplayPageArray pageArray, pDomainTitle
+   put the result into displayView
    --
    display_SetInteractions displayView, "PageArray", "mDoubleUp_PageArray"
    set the page_Array of displayView to pageArray
    --
    return displayView
 end display_PageArray
-
-private command _DisplayPageArray pageArray, pDomainTitle
-   if pDomainTitle is empty then put "Wiki" into pDomainTitle
-   put pageArray ["title"] into pTitle
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   display_Data storyArray, pTitle, pDomainTitle
-   put the result into displayView
-   --
-   set the wiki_Domain of displayView to wikiDomain
-   set the page_Slug of displayView to pSlug
-   set the page_Aray of displayView to pageArray
-   --
-   return displayView
-end _DisplayPageArray
 
 command display_FedwikiPageJson pageJson
    put json_ToArray (pageJson) into pageArray
@@ -246,21 +486,6 @@ command display_WikiPageArray fedwikiDomain, pageSlug
    display_PageArray pageArray
    return the result
 end display_WikiPageArray
-
-command display_PageTitleArray wikiDomain, pSincePeriod
-   -- put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   -- put fedwiki_ConstructSitePageArray (sitemapArray) into pageTitleArray
-   put fedwiki_FetchModifiedPageArray (wikiDomain, pSincePeriod) into sitePageArray
-   --
-   display_Data sitePageArray, wikiDomain, "Site Page Array"
-   put the result into displayView
-   set the site_PageArray of displayView to sitePageArray
-   --
-   set the title_Menu of displayView to "Global | Wiki | Sitemap | Tree | Menu"
-   set the line_Menu of displayView to "Global | Wiki | Sitemap | Line | Menu"
-   set the mouse_DoubleUp of displayView to "mDoubleUp_DisplayWikiPage"
-   return displayView
-end display_PageTitleArray
 
 
 --> Display | Podcasts
@@ -312,153 +537,37 @@ command display_LineUpData lineUpURL
    return displayView
 end display_LineUpData
 
-function fedwiki_FetchLineUpData lineUpURL
-   put fedwiki_GetLineUpData (lineUpURL) into lineUpData
-   put lineUpData ["lineUp"] into lineUpArray
-   repeat with lineUpNum = 1 to item 2 of the extents of lineUpArray
-      put lineUpArray [lineUpNum]["slug"] into pSlug
-      put lineUpArray [lineUpNum]["lineupDomain"] into wikiDomain
-      --
-      put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-      --
-      put pageArray ["title"] into lineUpData ["lineUp"][lineUpNum]["title"]
-      put pageArray ["story"] into lineUpData ["lineUp"][lineUpNum]["story"]
-      put pageArray ["journal"] into lineUpData ["lineUp"][lineUpNum]["journal"]
-   end repeat
-   return lineUpData
-end fedwiki_FetchLineUpData
 
-function fedwiki_GetLineupSlugs lineUpArray
-   -- bit dodgy
-   set the wholeMatches to true
-   repeat with lineUpNum = 1 to item 2 of the extents of lineUpArray
-      put lineUpArray [lineUpNum]["slug"] into pageSlug
-      put lineUpArray [lineUpNum]["lineupDomain"] into lineUpDomain
-      --
-      if pageSlug is among the lines of pageSlugs then
-         put pageSlug && "of" && lineUpDomain & CR after pageSlugs
-      else
-         put pageSlug & CR after pageSlugs
-      end if
-   end repeat
-   delete char -1 of pageSlugs
-   return pageSlugs
-end fedwiki_GetLineupSlugs
+--> Wiki
+-
+function wiki_ListBrowsers
+   return display_List ("View|Browser", "Wiki")
+end wiki_ListBrowsers
 
-function fedwiki_ConstructLineUpURL lineUpArray, wikiDomain
-   put "http://" & wikiDomain & slash into lineUpURL
-   repeat with lineUpNum = 1 to item 2 of the extents of lineUpArray
-      put lineUpArray [lineUpNum]["slug"] into pageSlug
-      put lineUpArray [lineUpNum]["lineupDomain"] into lineUpDomain
-      --
-      if lineUpDomain = wikiDomain then
-         put "view/" after lineUpURL
-      else
-         put lineUpDomain & slash after lineUpURL
-      end if
-      put pageSlug & slash after lineUpURL
-   end repeat
-   delete char -1 of lineUpURL
-   return lineUpURL
-end fedwiki_ConstructLineUpURL
-
-function fedwiki_GetLineUpData lineUpURL
-   set the itemdelimiter to slash
-   put item 3 of lineUpURL into wikiDomain
-   put item 4 to -1 of lineUpURL into lineUpBit
-   --
-   put wikiDomain into lineUpData ["wikiDomain"]
-   put lineUpURL into lineUpData ["lineUpURL"]
-   --
-   put the number of items of lineUpBit / 2 into maxNum
-   put 1 into lineUpNum
-   repeat maxNum
-      put item 1 of lineUpBit into viewOrDomain
-      if viewOrDomain = "view" then
-         put wikiDomain into lineUpDomain
-      else
-         put viewOrDomain into lineUpDomain
-      end if
-      put item 2 of lineUpBit into pageSlug
-      put pageSlug into lineUpData ["lineUp"][lineUpNum]["slug"]
-      put lineUpDomain into lineUpData ["lineUp"][lineUpNum]["lineupDomain"]
-      --
-      add 1 to lineUpNum
-      delete item 1 to 2 of lineUpBit
-   end repeat
-   return lineUpData
-end fedwiki_GetLineUpData
-
-function fedwiki_FetchLastLineUpArray droppedURL, pNotTheseSlugs
-   put fedwiki_FetchLastLineUpJson (droppedURL, pNotTheseSlugs) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   return pageArray
-end fedwiki_FetchLastLineUpArray
-
-function fedwiki_FetchLastLineUpJson droppedURL, pNotTheseSlugs
-   -- does not check that droppedURL is not a ".html" page
-   if pNotTheseSlugs is empty then put "journal-cleaner-transport" into pNotTheseSlugs
-   
-   put fedwiki_ConstructUrlArray (droppedURL) into urlArray
-   if urlArray is false then return false
-   
-   put item 2 of the extents of urlArray into lineUpNum
-   put urlArray [lineUpNum]["slug"] into pageSlug
-   if pageSlug is among the items of pNotTheseSlugs and lineUpNum is not 1 then
-      subtract 1 from lineUpNum
-   end if
-   
-   put fedwiki_FetchLineUpJson (urlArray, lineUpNum) into pageJSON
-   return pageJSON
-end fedwiki_FetchLastLineUpJson
-
-function fedwiki_FetchLineUpJson urlArray, lineUpNum
-   if lineUpNum = -1 then put item 2 of the extents of urlArray into lineUpNum
-   
-   put urlArray [lineUpNum]["slug"] into pageSlug
-   put urlArray [lineUpNum]["someDomain"] into someDomain
-   
-   -- http://forage.david.bovill.me/entry-level-browser.json?random=72428048
-   put "http://" & someDomain & "/" & pageSlug & ".json" into someUrl
-   -- put "?random=" & the milliseconds after someUrl
-   put url someUrl into someJSON
-   return someJSON
-end fedwiki_FetchLineUpJson
-
-function fedwiki_ConstructUrlArray someUrl
-   set the itemdelimiter to "/"
-   put item 1 to 3 of someUrl into urlStem
-   put item 3 of someUrl into urlDomain
-   
-   put item 4 to -1 of someUrl into pathBit
-   put the number of items of pathBit into maxNum
-   if (maxNum mod 2) is not 0 then 
-      put item -1 of pathBit into extraBit
-      delete item -1 of pathBit
-      return false -- it is not a Fedwiki url ?
-   end if
-   
-   put maxNum/2 into maxLineUpNum
-   repeat with lineUpNum = 1 to maxLineUpNum
-      put 2*lineUpNum - 1 into itemNum
-      put item itemNum of pathBit into viewOrDomain
-      put item (itemNum + 1) of pathBit into pageSlug
-      _stripEndHashFromSlug pageSlug
-      
-      if viewOrDomain = "view" then
-         put urlDomain into someDomain
-      else
-         put viewOrDomain into someDomain
-      end if
-      put pageSlug into urlArray [lineUpNum]["slug"]
-      put someDomain into urlArray [lineUpNum]["someDomain"]
-   end repeat
-   return urlArray
-end fedwiki_ConstructUrlArray
+function wiki_DefaultLocalUrl
+   put "http://localhost:3000" into wikiURL
+   return wikiURL
+end wiki_DefaultLocalUrl
 
 
 --> Private
 -
+private command _DisplayPageArray pageArray, pDomainTitle
+   if pDomainTitle is empty then put "Wiki" into pDomainTitle
+   put pageArray ["title"] into pTitle
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   display_Data storyArray, pTitle, pDomainTitle
+   put the result into displayView
+   --
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pSlug
+   set the page_Aray of displayView to pageArray
+   --
+   return displayView
+end _DisplayPageArray
+
 private command _UpdateFedrayDisplay @fedray, pIndexView
    -- if pIndexView exists then update the displayed index display
    -- but don't save to the server
@@ -487,5 +596,4 @@ private command _UpdateFedrayDisplay @fedray, pIndexView
       set the hilited_Lines of indexView to 0
    end if
 end _UpdateFedrayDisplay
-
 
