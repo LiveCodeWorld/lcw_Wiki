@@ -64,7 +64,7 @@ private on __
 end __
 
 on menu_EditWikiConfig
-   display_WikiConfig
+   launch_WikiConfig
 end menu_EditWikiConfig
 
 -- on submenu_Dev

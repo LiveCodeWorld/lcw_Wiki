@@ -134,7 +134,8 @@ function atopia_ListHomeForkHows wikiDomain
    if wikiDomain is empty then
       put empty into subdomainForks
    else
-      put atopia_ListWelcomeFolders (wikiDomain) into subdomainForks
+      put federation_ListDomains (wikiDomain) into subdomainForks
+      -- put atopia_ListWelcomeFolders (wikiDomain) into subdomainForks
       line_Delete wikiDomain, subdomainForks
       replace CR with comma in subdomainForks
    end if

@@ -22,18 +22,7 @@ getprop menu_Target [tObject]
    return the display_View of tObject
 end menu_Target
 
-getprop menu_CheckTarget [cameraView]
-   return exists (cameraView)
-end menu_CheckTarget
-
---> Menu | Props
--
-getprop menu_Target [tObject]
-   -- return display_MenuTarget(tObject)
-   return the display_View of tObject
-end menu_Target
-
-getprop menu_CheckTarget [cameraView]
+-- getprop menu_CheckTarget [cameraView]
    return exists (cameraView)
 end menu_CheckTarget
 
@@ -101,7 +90,7 @@ private function _SymlinkedFolder dView
 end _SymlinkedFolder
 
 private command _Refresh dView
-   display_LocalWikis dView, "Sym-linked Astral", "*astralship.wiki"
+   display_LocalSymWikis dView, "*astralship.wiki", "Sym-linked Astral"
 end _Refresh
 
 command symlink_FolderInfo wikiFolder, @twoExists, @twoDestFolder, @numOfPages
@@ -169,13 +158,13 @@ on menu_FixTwo dView
             breakpoint
             if folder_IsSymLink (twoFolder) then
                put symlink_Destination (twoFolder) into twoDestFolder
-               shell_DeleteSymLink twoFolder
-               folder_CreateSymLink twoDestFolder, fixedFolder
+               symlink_Delete twoFolder
+               symlink_CreateFolder twoDestFolder, fixedFolder
             else
                if wiki_FolderHasNoPages (twoFolder) is true then
                   put symlink_Destination (twoFolder) into twoDestFolder
                   revDeleteFolder twoFolder
-                  folder_CreateSymLink twoDestFolder, twoFolder
+                  symlink_CreateFolder twoDestFolder, twoFolder
                else if wiki_FolderHasNoPages (fixedFolder) is true then
                   put symlink_Destination (twoFolder) into twoDestFolder
                   if twoDestFolder is empty then
@@ -184,7 +173,7 @@ on menu_FixTwo dView
                   end if
                   --
                   revDeleteFolder fixedFolder
-                  folder_CreateSymLink twoDestFolder, fixedFolder
+                  symlink_CreateFolder twoDestFolder, fixedFolder
                else
                   return "Error, fixed folder alreaady exists."
                end if
@@ -229,14 +218,12 @@ on menu_MakeAstralSymLink dView
    --
    wiki_CreateSymLink localhostDomain, symLinkDomain
    --
-   -- lcw_Answer "Created symlink!", dView
-   -- display_LocalWikis dView, "Sym-linked Astral", "*astralship.wiki"
    display_LocalWithoutAstral dView
 end menu_MakeAstralSymLink
 
 on menu_DeleteSymLink dView
    put _SymlinkedFolder(dView) into symLinkedFolder
-   shell_DeleteSymLink symLinkedFolder
+   symlink_Delete symLinkedFolder
    _Refresh dView
 end menu_DeleteSymLink
 
@@ -258,7 +245,7 @@ on menu_TrashFolder dView
    --
    set the deleted_Line of dView to shortWikiFolder
    if the displayed_Index of dView is empty then
-      diplay_GitWikiFolders
+      display_GitWikiFolders
    end if
 end menu_TrashFolder
 

@@ -78,6 +78,12 @@ end _GetDomain
 
 --> Global | Wiki | Menu
 -
+on menu_ToggleEditable browserView
+   put "$('footer span.editEnable').click();" into someJS
+   --
+   set the browser_Javascript of browserView to someJS
+end menu_ToggleEditable
+
 on menu_TestFaasd
    post "Hello world" to url "https://faasd.platform.earth/function/activity"
    put it
@@ -109,6 +115,28 @@ end menu_StopWiki
 private on __
 end __
 
+on menu_DisplayEtcHosts
+   launch_EtcHosts
+   if the shiftKey is "Down" then
+      display_EtcHosts
+   end if
+end menu_DisplayEtcHosts
+
+on menu_UpdateEtcHosts dView
+   display_LocalWikis dView
+   --
+   put the displayed_Index of dView into localHosts
+   filter localHosts with "*localhost" -- just in case
+   --
+   put lcw_Ask ("Enter system password...") into yourPassword
+   put hosts_ConstructText (yourPassword, localHosts) into hostsText
+   --
+   hosts_Set yourPassword, hostsText
+end menu_UpdateEtcHosts
+
+private on ____
+end ____
+
 on menu_Xterm
    display_Xterm true
 end menu_Xterm
@@ -123,8 +151,8 @@ on menu_XtermClear browserView
    ttyd_Execute "clear", xtermView
 end menu_XtermClear
 
-private on ____
-end ____
+private on _____
+end _____
 
 on submenu_Tunnel
    return "Global | Tunnel | Menu"

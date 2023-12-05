@@ -10,50 +10,31 @@ version: 0.1
 
 --> Working on
 -
-command shell_DeleteSymLink symLinkedFolder
-   # Check
-   put "ls -la"&& kwote (symLinkedFolder) into someShell
-   put shell (someShell) into shellResult
-   put symLinkedFolder && "-> " into testBit
-   if shellResult contains "-> " then
-      -- lrw-------  1 david  staff  36 Jan  1  1970 /Users/david/Documents/git-repos/Earth/project.astralship.wiki -> /Users/david/.wiki/project.localhost
-      
-      put "rm" && kwote (symLinkedFolder) into someShell
-      put shell (someShell) into shellResult
-      -- delete file symLinkedFolder -- can;t delete that file
-   end if
-   return shellResult
-end shell_DeleteSymLink
-
-function wiki_RootFolder
-   set the itemdelimiter to slash
-   put env_GetRepoFolder() into wikiRootFolder
-   put "Earth" into item -1 of wikiRootFolder
-   
-   if there is a folder wikiRootFolder then
+function wiki_RootFolder pUseDefault
+   if pUseDefault is true then
+      put $HOME & "/.wiki/" into wikiRootFolder
       return wikiRootFolder
    else
-      return empty
+      set the itemdelimiter to slash
+      put env_GetRepoFolder() into wikiRootFolder
+      put "Earth" into item -1 of wikiRootFolder
+      --
+      if there is a folder wikiRootFolder then
+         return wikiRootFolder
+      else
+         return empty
+      end if
    end if
-   put $HOME & "/.wiki/" into wikiRootFolder
-   return wikiRootFolder
 end wiki_RootFolder
 
-command wiki_CreateSymLink wikiDomain, pSymLinkDomain
-   if pSymLinkDomain is empty then
-      put wikiDomain into pSymLinkDomain
-   end if
-   --
-   put wiki_GetFolder (wikiDomain) into wikiFolder
-   put wiki_ConstructFolder (pSymLinkDomain) into symWikiFolder
-   --
-   folder_CreateSymLink wikiFolder, symWikiFolder
-   --
-   return the result
-end wiki_CreateSymLink
+function gitwiki_RootFolder
+   put env_GetRepoFolder() into repoFolder
+   put repoFolder & "wiki/" into gitWikiFolder
+   return gitWikiFolder
+end gitwiki_RootFolder
 
 
---> Gitwiki
+--> Symlink | Create
 -
 command gitwiki_CreateSymLink gitWikiDomain, pSymLinkDomain
    if pSymLinkDomain is empty then
@@ -63,28 +44,25 @@ command gitwiki_CreateSymLink gitWikiDomain, pSymLinkDomain
    put gitwiki_GetFolder (gitWikiDomain) into gitWikiFolder
    put wiki_ConstructFolder (pSymLinkDomain) into symWikiFolder
    --
-   folder_CreateSymLink gitWikiFolder, symWikiFolder
+   symlink_CreateFolder gitWikiFolder, symWikiFolder
    --
-   return the result
+   if the result is empty then
+      return pSymLinkDomain
+   else
+      breakpoint
+      return "Error," && the result
+   end if
 end gitwiki_CreateSymLink
 
-function gitwiki_ListFolders pListshort
-   put gitwiki_RootFolder() into rootFolder
-   put "fedwiki_owners,dead.anarchive.earth" into notThese
+command wiki_CreateSymLink wikiDomain, pSymLinkDomain
+   if pSymLinkDomain is empty then put wikiDomain into pSymLinkDomain
    --
-   if pListshort is true then
-      put wiki_ListShortFolders (rootFolder, notThese) into gitWikiFolders
-   else
-      put wiki_ListFolders (rootFolder, notThese) into gitWikiFolders
-   end if
-   return gitWikiFolders
-end gitwiki_ListFolders
-
-function gitwiki_ListEmptyFolders pListShort
-   put gitwiki_RootFolder() into rootFolder
-   put wiki_ListEmptyFolders (rootFolder, pListShort, ".git,fedwiki_owners,dead.anarchive.earth") into emptyFolders
-   return emptyFolders
-end gitwiki_ListEmptyFolders
+   put wiki_GetFolder (wikiDomain) into wikiFolder
+   put wiki_ConstructFolder (pSymLinkDomain) into symWikiFolder
+   --
+   symlink_CreateFolder wikiFolder, symWikiFolder
+   return the result
+end wiki_CreateSymLink
 
 
 --> Wiki | config
@@ -104,6 +82,40 @@ function wiki_ConstructConfigFile
    put wikiRootFolder & "config.json" into wikiConfigFile
    return wikiConfigFile
 end wiki_ConstructConfigFile
+
+
+--> Gitwiki | Folders
+-
+function gitwiki_GetFolder sDomain
+   put gitwiki_RootFolder() into gitWikiFolder
+   put gitWikiFolder & sDomain into folderPath 
+   if there is a folder folderPath then
+      return folderPath
+   else
+      return empty
+   end if
+end gitwiki_GetFolder
+
+
+--> Gitwiki | List
+-
+function gitwiki_ListFolders pListshort
+   put gitwiki_RootFolder() into rootFolder
+   put "fedwiki_owners,dead.anarchive.earth" into notThese
+   --
+   if pListshort is true then
+      put wiki_ListShortFolders (rootFolder, notThese) into gitWikiFolders
+   else
+      put wiki_ListFolders (rootFolder, notThese) into gitWikiFolders
+   end if
+   return gitWikiFolders
+end gitwiki_ListFolders
+
+function gitwiki_ListEmptyFolders pListShort
+   put gitwiki_RootFolder() into rootFolder
+   put wiki_ListEmptyFolders (rootFolder, pListShort, ".git,fedwiki_owners,dead.anarchive.earth") into emptyFolders
+   return emptyFolders
+end gitwiki_ListEmptyFolders
 
 
 --> Paths
@@ -194,25 +206,6 @@ function wiki_DefaultPagesFolder
 end wiki_DefaultPagesFolder
 
 
---> Gitwiki | Folders
--
-function gitwiki_GetFolder sDomain
-   put gitwiki_RootFolder() into gitWikiFolder
-   put gitWikiFolder & sDomain into folderPath 
-   if there is a folder folderPath then
-      return folderPath
-   else
-      return empty
-   end if
-end gitwiki_GetFolder
-
-function gitwiki_RootFolder
-   put env_GetRepoFolder() into repoFolder
-   put repoFolder & "wiki/" into gitWikiFolder
-   return gitWikiFolder
-end gitwiki_RootFolder
-
-
 --> Nvm
 -
 function nvm_Directory
@@ -224,3 +217,4 @@ function nvm_GetBin
    get shell ("source ~/.zshrc; echo $NVM_BIN")
    return word 1 to -1 of line 1 of it
 end nvm_GetBin
+

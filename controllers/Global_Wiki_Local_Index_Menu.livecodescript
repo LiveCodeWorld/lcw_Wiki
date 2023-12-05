@@ -57,7 +57,7 @@ on menu_NewAstralWiki dView
    create folder localDomain
    
    # Symlink newDomain
-   folder_CreateSymLink newDomain, localDomain
+   symlink_CreateFolder newDomain, localDomain
    
    # Launch Localhost wiki
    launch_LocalhostWiki localDomain
@@ -66,11 +66,6 @@ end menu_NewAstralWiki
 on menu_EmptyLocalWikis dView
    display_EmptyLocalWikis dView
 end menu_EmptyLocalWikis
-
-on menu_EmptyGitWikis dView
-   put gitwiki_ListEmptyFolders (true) into emptyFolders
-   display_GitWikis emptyFolders, dView, "none", "Empty Local Wikis"
-end menu_EmptyGitWikis
 
 private on ____
 end ____
@@ -81,7 +76,7 @@ on menu_ListDynadotWikis displayView
 end menu_ListDynadotWikis
 
 on menu_DiplayLostWikis
-   diplay_GitWikiFolders empty, "*platform.earth"
+   display_GitWikiFolders empty, "*platform.earth"
 end menu_DiplayLostWikis
 
 private on _
@@ -104,7 +99,7 @@ on menu_DisplayLocalWikis dView
 end menu_DisplayLocalWikis
 
 on menu_DisplaySymWikis dView
-   display_LocalWikis dView, "Sym-Linked"
+   display_LocalSymWikis dView
 end menu_DisplaySymWikis
 
 on menu_DisplayNonSymWikis dView

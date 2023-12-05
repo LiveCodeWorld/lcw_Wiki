@@ -18,6 +18,55 @@ For more complicated data for which using page-json is suitable, we can use the 
 
 --> Working on
 -
+command atopia_ReturnRoster wikiDomains, pTitle, pRosterTitle
+   switch the environment
+      case "development"
+         put wiki_ListAllLocalFolders("*thought.garden") into localFolders
+         repeat for each line wikiDomain in localFolders
+            put wikiDomain & ":3000" & CR after filteredLocalDomains
+         end repeat
+         delete char -1 of filteredLocalDomains
+         --
+         roster_ReturnFiltered filteredLocalDomains, pTitle, pRosterTitle
+         break
+      default
+         -- put atopia_ListWelcomeFolders (wikiDomains) into filteredAtopiaDomains
+         put federation_ListDomains (wikiDomains) into filteredAtopiaDomains
+         roster_ReturnFiltered filteredAtopiaDomains, pTitle, pRosterTitle
+   end switch
+end atopia_ReturnRoster
+
+
+--> Roster | Return
+-
+command roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
+   put roster_ConstructPageArray (wikiDomains, pRosterTitle) into pageArray
+   fedwiki_ReturnPageArray pageArray
+end roster_ReturnFiltered
+
+command atopia_ReturnSitesPageArray wikiDomain, pPageTitle
+   -- put atopia_ListWelcomeFolders (wikiDomain) into rosterDomains
+   put federation_ListDomains (wikiDomain) into rosterDomains
+   put roster_ConstructSitesPageArray (wikiDomain, rosterDomains, pPageTitle) into pageArray
+   --
+   fedwiki_ReturnPageArray pageArray
+end atopia_ReturnSitesPageArray
+
+command roster_ReturnPageArray wikiDomain, pTitle, pRosterTitle
+   -- should return to "federation_ReturnRoster"
+   put fedray_FetchDomains (wikiDomain) into wikiDomains
+   roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
+end roster_ReturnPageArray
+
+command roster_ReturnAtopiaPageArray wikiDomain, pTitle, pRosterTitle
+   put federation_ListDomains (wikiDomain) into wikiDomains
+   --
+   roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
+end roster_ReturnAtopiaPageArray
+
+
+--> Roster | Fetch
+-
 function roster_FetchTemplate pWikiDomain, pPageTitle, pForkDomains
    if pForkDomains is empty then put "fedwiki.org,roster.fedwiki.org,sites.fedwiki.org" into pForkDomains
    --
@@ -105,21 +154,6 @@ command federation_ReturnActivityRoster rosterTitle, pSincePeriod
 end federation_ReturnActivityRoster
 
 
---> Roster | Return
--
-command atopia_ReturnSitesPageArray wikiDomain, pPageTitle
-   put atopia_ListWelcomeFolders (wikiDomain) into rosterDomains
-   put roster_ConstructSitesPageArray (wikiDomain, rosterDomains, pPageTitle) into pageArray
-   --
-   fedwiki_ReturnPageArray pageArray
-end atopia_ReturnSitesPageArray
-
-command atopia_ReturnRoster wikiDomains, pTitle, pRosterTitle
-   put atopia_ListWelcomeFolders (wikiDomains) into filteredAtopiaDomains
-   roster_ReturnFiltered filteredAtopiaDomains, pTitle, pRosterTitle
-end atopia_ReturnRoster
-
-
 --> Roster | Domains
 -
 command roster_AddDomain @rosterText, wikiDomain
@@ -196,30 +230,6 @@ command roster_ReplaceHeader @rosterText, newRosterHeader
       put newRosterHeader & CR & CR before rosterText
    end if
 end roster_ReplaceHeader
-
-
---> Roster
--
-command roster_ReturnPageArray wikiDomain, pTitle, pRosterTitle
-   -- should return to "federation_ReturnRoster"
-   put fedray_FetchDomains (wikiDomain) into wikiDomains
-   roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
-end roster_ReturnPageArray
-
-command roster_ReturnAtopiaPageArray wikiDomain, pTitle, pRosterTitle
-   -- put atopia_FetchRosterDomains (wikiDomain) into atopiaDomains
-   -- put atopia_ListDomainsFromFedray() into atopiaDomains
-   -- put atopia_ListWelcomeFolders (wikiDomain) into atopiaDomains
-   put federation_ListDomains (wikiDomain) into wikiDomains
-   --
-   roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
-end roster_ReturnAtopiaPageArray
-
-command roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
-   -- put fedwiki_SitesWithPage (wikiDomains, pTitle) into filteredDomains
-   put roster_ConstructPageArray (wikiDomains, pRosterTitle) into pageArray
-   fedwiki_ReturnPageArray pageArray
-end roster_ReturnFiltered
 
 
 --> Roster | Filter

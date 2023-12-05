@@ -88,53 +88,27 @@ on menu_RegisterLocalXpose displayView
    breakpoint
    set the itemdelimiter to "."
    put the selected_Line of displayView into gitWikiDomain
-   put item -2 to -1 of gitWikiDomain into tlDomain
+   put domain_GetTld (gitWikiDomain) into tldDomain
    --
-   tunnel_ReserveLocalDomain tlDomain, "eu"
+   tunnel_ReserveLocalDomain tldDomain, "eu"
    put the result into cNameValue
    --
-   dynadot_AddSubdomain tlDomain, "*", cNameValue
-   gitwiki_CreateSymLink tlDomain, tlDomain
+   dynadot_AddSubdomain tldDomain, "*", cNameValue
+   gitwiki_CreateSymLink tldDomain, tlDomain
    --
    display_EarthWikis
    diplay_GitWikiFolders
 end menu_RegisterLocalXpose
 
 on menu_SymLinkAndRegister displayView
-   set the itemdelimiter to "."
    put the selected_Line of displayView into gitWikiDomain
-   put item -2 to -1 of gitWikiDomain into tlDomain
    --
-   put dynadot_ListSubdomains (gitWikiDomain, true) into subDomainNames
-   put item 1 to -3 of dynSubDomain into dynSubDomainName
+   put lcw_Ask ("Create Dynadot CNAME?", gitWikiDomain, "Dynadot", displayView) into dynDomain
    --
-   -- put "yhdhcbundskxzwc.eu.loclx.io" into cNameValue
-   put tunnel_FetchDomainArray() into domainArray
-   put domainArray [gitWikiDomain]["cname"] into cNameValue
+   gitwiki_SymlinkAndRegister gitWikiDomain, dynDomain
    --
-   put lcw_Ask ("Create Dynadot CNAME?", gitWikiDomain, "Dynadot", displayView) into dynSubDomain
-   
-   switch
-      case dynSubDomainName is among the lines of subDomainNames
-         lcw_AnswerWarning  "Subdomain '[[subDomainName]]' already registered!", displayView, dynSubDomainName
-         break 
-      case dynSubDomain = "platform.earth"
-      case dynSubDomain = "together.platform.earth"
-         lcw_AnswerWarning "Reserved subdomain", displayView
-         break
-      case cNameValue is empty
-         breakpoint
-         break
-      case item -2 to -1 of dynSubDomain is "platform.earth"
-         breakpoint
-         dynadot_AddSubdomain gitWikiDomain, dynSubDomainName, cNameValue
-         --
-         gitwiki_CreateSymLink gitWikiDomain, dynSubDomain
-         --
-         display_EarthWikis
-         diplay_GitWikiFolders
-         break
-   end switch
+   display_EarthWikis
+   diplay_GitWikiFolders
 end menu_SymLinkAndRegister
 
 private on _
@@ -150,42 +124,40 @@ on menu_MakeSymLink displayView
    finder_Reveal symWikiFolder
 end menu_MakeSymLink
 
-on menu_AddToDynadot displayView
-   set the itemdelimiter to "."
-   put the selected_Line of displayView into tlDomain
-   if the number of items of tlDomain is not 2 then
-      breakpoint
-      exit to top
-   end if
+on menu_AddTopLevelDomainToDynadot displayView
+   breakpoint
+   put the selected_Line of displayView into sDomain
+   put domain_GetTld (sDomain) into tldDomain
    --
-   put tunnel_GetRegisteredCName (tlDomain) into mainTunnel
+   put tunnel_GetRegisteredCName (tldDomain) into mainTunnel
    if mainTunnel is empty then
       breakpoint
    else
-      dynadot_SetMainDomain tlDomain, mainTunnel
+      dynadot_SetMainDomain tldDomain, mainTunnel
    end if
    --
-   gitwiki_CreateSymLink tlDomain, tlDomain
-   display_DynadotDomain tlDomain
-end menu_AddToDynadot
+   gitwiki_CreateSymLink tldDomain, tlDomain
+   display_DynadotDomain tldDomain
+end menu_AddTopLevelDomainToDynadot
 
 on menu_AddSubdomainToDynadot displayView
    set the itemdelimiter to "."
    put the selected_Line of displayView into wikiSubDomain
    --
-   put item -2 to -1 of wikiSubDomain into tlDomain
-   put "*." & tlDomain into starDomain
+   put domain_GetTld (wikiSubDomain) into tldDomain
+   --
+   put "*." & tldDomain into starDomain
    put tunnel_GetRegisteredCName (starDomain) into subTunnel
    --
    if subTunnel is empty then
       breakpoint
    else
       put item 1 to -3 of wikiSubDomain into subDomainName
-      dynadot_AddSubdomain tlDomain, subDomainName, subTunnel
+      dynadot_AddSubdomain tldDomain, subDomainName, subTunnel
    end if
    --
    gitwiki_CreateSymLink wikiSubDomain, wikiSubDomain
-   display_DynadotDomain tlDomain
+   display_DynadotDomain tldDomain
 end menu_AddSubdomainToDynadot
 
 on menu_MoveToDead dView

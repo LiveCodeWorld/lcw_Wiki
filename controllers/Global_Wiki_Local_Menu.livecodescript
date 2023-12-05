@@ -29,6 +29,17 @@ end menu_CheckTarget
 
 --> Global | Wiki | Local | Menu
 -
+on submenu_LocalWiki
+   return "Global | Wiki | Local | Index | Menu"
+end submenu_LocalWiki
+
+on submenu_GitWiki
+   return menu_Create ("Global | Wiki | Git | Menu")
+end submenu_GitWiki
+
+private on _
+end _
+
 on menu_DisplayThought dView
    display_LocalWikis dView, "Local Thought Domains", "*thought*"
 end menu_DisplayThought
@@ -41,6 +52,62 @@ on menu_DisplayEarth dView
    display_LocalWikis dView, "Local Earth Domains", "*.earth"
    -- display_EarthWikis
 end menu_DisplayEarth
+
+private on __
+end __
+
+on menu_DisplayNumbers dView
+   put the displayed_Index of dView into localhostDomains
+   put wiki_RootFolder() into wikiRootFolder
+   --
+   repeat for each line localhostDomain in localhostDomains
+      display_Spin localhostDomain, dView, "red"
+      --
+      put wikiRootFolder & localhostDomain into localFolder
+      --
+      put symlink_Destination (localFolder) into destFolder
+      switch destFolder
+         case empty
+            -- Not a symlink
+            put wiki_NumberOfpages (localFolder) into numOfPages
+            breakpoint
+            switch
+               case numOfPages is empty
+               case numOfPages < 1
+                  revDeleteFolder localFolder
+                  break
+               default
+                  -- lots of pages
+                  put numOfPages && localhostDomain & CR after numberIndex
+            end switch
+            break
+         case wikiRootFolder
+            put wiki_NumberOfpages (localFolder) into numOfPages
+            switch
+               case numOfPages is empty
+                  breakpoint
+               case numOfPages < 1
+                  breakpoint -- trash?
+                  symlink_Delete localFolder
+                  break
+               default
+                  -- lots of pages
+                  put numOfPages && localhostDomain & CR after numberIndex
+            end switch
+            break
+         default
+            breakpoint
+            if there is not a folder destFolder then
+               symlink_Delete localFolder
+            end if
+      end switch 
+      
+   end repeat
+   delete char -1 of numberIndex
+   --
+   sort numeric localhostDomain by word 1 of each
+   set the displayed_Index of dView to numberIndex
+end menu_DisplayNumbers
 
 on menu_FixGitFolders dView
    put the displayed_Index of dView into localhostDomains
@@ -62,13 +129,13 @@ on menu_RemoveSymLinks dView
       display_Spin wikiDomain, dView, "red"
       --
       put rootFolder & wikiDomain into symLinkedFolder 
-      shell_DeleteSymLink symLinkedFolder
+      symlink_Delete symLinkedFolder
    end repeat
-   display_LocalWikis dView, "Sym-linked Astral", "*astralship.wiki"
+   display_LocalSymWikis dView, "*astralship.wiki", "Sym-linked Astral"
 end menu_RemoveSymLinks
 
-private on _
-end _
+private on ___
+end ___
 
 on menu_LocalWithoutAstral dView
    put empty into sFilter
@@ -94,14 +161,15 @@ on menu_LocalWithoutAstral dView
 end menu_LocalWithoutAstral
 
 on menu_SymAstralWikis dView
-   display_LocalWikis dView, "Sym-linked Astral", "*astralship.wiki"
+   display_LocalSymWikis dView, "*astralship.wiki", "Sym-linked Astral"
 end menu_SymAstralWikis
 
-private on __
-end __
+private on ____
+end ____
 
 on menu_AllLocalAstralWikis dView
-   display_LocalWikis dView, "All Astral", "*astralship.wiki"
+   -- display_LocalWikis dView, "All Astral", "*astralship.wiki"
+   display_LocalAstralWikis dView, false
 end menu_AllLocalAstralWikis
 
 on menu_LocalhostWikis dView
@@ -109,12 +177,8 @@ on menu_LocalhostWikis dView
 end menu_LocalhostWikis
 
 on menu_NonSymAstralWikis dView
-   display_LocalWikis dView, "Non-Symlinked Astral", "*astralship.wiki"
+   display_NonSymLinked dView, "*astralship.wiki", "Non-Symlinked Astral"
 end menu_NonSymAstralWikis
-
-on submenu_LocalWiki
-   return "Global | Wiki | Local | Index | Menu"
-end submenu_LocalWiki
 
 on menu_Refresh displayView
    display_LocalWikis displayView

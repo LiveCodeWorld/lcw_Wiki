@@ -12,10 +12,31 @@ version: 0.1
 
 --> Working on
 -
+command hosts_Add localDomainsToAdd, pSystemPassword, pLaunch
+   if pSystemPassword is empty then
+      put lcw_Ask ("Enter system password...") into pSystemPassword
+   end if
+   --
+   put hosts_ConstructText (pSystemPassword, localDomainsToAdd) into hostsText
+   if item 1 of hostsText = "Error" then return hostsText
+   --
+   if pLaunch is true then
+      set the clipboardData to hostsText
+      launch_EtcHosts
+   else
+      hosts_Set pSystemPassword, hostsText
+   end if
+   return hostsText
+end hosts_Add
+
 function hosts_ConstructText yourPassword, pLocalDomainsToAdd
    replace comma with CR in pLocalDomainsToAdd
    --
-   put hosts_Get(yourPassword) into hostsText
+   put hosts_Get (yourPassword) into hostsText
+   if hostsText contains "Password:Sorry, try again." then
+      return "Error, wrong passowd"
+   end if
+   --
    put hosts_GetArray (hostsText) into hostsArray
    put _MaxExistingDomains (hostsArray) into dNum
    --
@@ -121,6 +142,14 @@ end hosts_Backup
 function hosts_Get yourPassword
    put merge ("echo '[[yourPassword]]' | sudo -S cat /etc/hosts") into someShell
    put shell (someShell) into hostsText
+   
+   # Tweak
+   set the itemdelimiter to ":"
+   if item 1 of hostsText = "Password" then
+      -- Password:
+      delete item 1 of hostsText
+   end if
+   
    return hostsText
 end hosts_Get
 

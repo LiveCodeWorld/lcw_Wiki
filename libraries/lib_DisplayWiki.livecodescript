@@ -7,41 +7,231 @@ type: library
 version: 0.2
 
 
---> Working on
+--> Events
 -
-command gitwiki_FixLocalDomain localhostDomain, pDisplayView
-   put wiki_GetFolder (localhostDomain) into wikiFolder
-   put gitwiki_GetFolder (localhostDomain) into gitWikiFolder
+on mDoubleUp_WikiGit dView, wikiDomain
+   if the optionKey is "down" then breakpoint
    --
-   put wiki_NumberOfpages (wikiFolder) into wikiPageNum
-   put wiki_NumberOfpages (gitWikiFolder) into gitWikiPageNum
-   --
+   put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
+   put wiki_ConstructLocalUrl (wikiDomain) into localURL
    switch
-      case (wikiPageNum = 0) AND (gitWikiPageNum > 0)
-         revDeleteFolder wikiFolder
-         folder_CreateSymLink gitWikiFolder, wikiFolder
+      case there is not a folder gitWikiFolder
+         breakpoint
+         finder_Reveal gitWikiFolder
          break
-      case wikiPageNum < 1
-         if folder_IsSymLink (wikiFolder) then
-            breakpoint
-         else
-            revDeleteFolder wikiFolder
-         end if
+      case the shiftKey is "down"
+         display_Wiki localURL
+         launch url localURL
          break
       default
-         breakpoint
+         put wiki_Browser() into browserView
+         -- put pageArray_Fetch (wikiDomain, "welcome-visitors", "3000") into pageArray
+         put ":3000" after wikiDomain
+         set the display_Page [wikiDomain] of browserView to "welcome-visitors"
    end switch
-   
-   if exists (pDisplayView) then
-      display_EmptyLocalWikis pDisplayView
-   end if
-end gitwiki_FixLocalDomain
+end mDoubleUp_WikiGit
 
-command display_WikiConfig
+on mDoubleUp_WikiEarth displayView, earthDomain
+   if the optionKey is "down" then breakpoint
+   launch_LocalhostWiki earthDomain
+end mDoubleUp_WikiEarth
+
+
+--> Wiki | Url
+-
+function wiki_ConstructLocalUrl localDomain
+   put "http://" & localDomain & ":3000" into localURL
+   return localURL
+end wiki_ConstructLocalUrl
+
+function wiki_DefaultLocalUrl
+   put "http://localhost:3000" into wikiURL
+   return wikiURL
+end wiki_DefaultLocalUrl
+
+function wiki_Browser
+   -- put display_FindCloned ("View|Obeya|Studio", "Wiki") into browserView
+   put line 1 of wiki_ListBrowsers() into browserView
+   return browserView
+end wiki_Browser
+   
+function wiki_ListBrowsers
+   return display_List ("View|Browser,View|Obeya|Studio")
+end wiki_ListBrowsers
+
+
+--> Display | Wiki
+-
+command display_Wiki pWikiURL, pBrowserView, pStackLabel, pStackStyle
+   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
+   if pStackLabel is empty then put pWikiURL into pStackLabel
+   if exists (pBrowserView) is false then
+      put wiki_Browser() into pBrowserView
+   end if
+   --
+   wiki_Start
+   if the result is not empty then wait 20 ticks
+   --
+   display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
+   put the result into browserView
+   return browserView
+end display_Wiki
+
+command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
+   if pStackLabel is empty then put "Wiki" into pStackLabel
+   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
+   if pStackStyle is empty then put "toplevel" into pStackStyle
+   --
+   display_Browser pWikiURL, pBrowserView, pStackLabel, pStackStyle, "View|Obeya|Studio"
+   put the result into browserView
+   display_SetMenu browserView, "Obeya | Studio", "title_Menu"
+   --
+   return browserView
+end display_WikiBrowser
+
+
+--> Display | Wiki | List
+-
+command display_LocalWikis pDisplayView, pTitle, pFilter
+   if pTitle is empty then put "All" into pTitle
+   --
+   put wiki_ListAllLocalFolders (pFilter) into wikiFolders
+   --
+   display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
+   put the result into dView
+   return dView
+end display_LocalWikis
+
+command display_NonSymLinked pDisplayView, pFilter, pTitle
+   breakpoint
+   if pTitle is empty then put "Non-symlinked" into pTitle
+   --
+   put wiki_RootFolder() into wikiFolder
+   put folder_ListShortNonSymLinked (wikiFolder) into wikiFolders
+   url_SortDomainIndex wikiFolders
+   --
+   display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
+   put the result into dView
+   return dView
+end display_NonSymLinked
+
+command display_AstralDynadotWikis pDisplayView
+   put dynadot_ListAstralDomains() into astralDomains
+   url_SortDomainIndex astralDomains
+   --
+   display_WikiFolders astralDomains, "Wiki | Dynadot", pDisplayView, "", "Astral", "Dynadot Wikis"
+   put the result into dView
+   return dView
+end display_AstralDynadotWikis
+
+command display_LocalAstralWikis pDisplayView, pStripDynadot
+   put wiki_ListAllLocalFolders() into localAstralDomains
+   --
+   if pStripDynadot is true then
+      put dynadot_StripSubDomainNames (localAstralDomains, "astralship.wiki") into wikiFolders
+      put "Without Dynadot" into sTitle
+   else
+      put "All Astral" into sTitle
+   end if
+   --
+   display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, "*.astralship.wiki", sTitle, "Local Astral Wikis"
+   put the result into dView
+   return dView
+end display_LocalAstralWikis
+
+command display_LocalSymWikis pDisplayView, pFilter, pTitle
+   if pTitle is empty then put "Symlinked Wikis" into pTitle
+   --
+   put wiki_RootFolder() into wikiFolder
+   put folder_ListShortSymLinked (wikiFolder) into wikiFolders
+   --
+   display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
+   put the result into dView
+   return dView
+end display_LocalSymWikis
+
+command display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTitle, pStackLabel
+   if pStackLabel is empty then put "Wiki" into pStackLabel
+   if exists (pDisplayView) is false then
+      put display_FindIndexView ("Wiki", "Git Folders") into pDisplayView
+   end if
+   --
+   if exists (pDisplayView) is true then
+      if pWikiFilter is "none" then
+         put empty into pWikiFilter
+      else if pWikiFilter is empty then
+         -- put the wiki_Filter of pDisplayView into pWikiFilter
+      end if
+   end if
+   --
+   if pWikiFilter is not empty then
+      filter wikiFolders with pWikiFilter
+   end if
+   --
+   lock screen
+   display_Data wikiFolders, pTitle, pStackLabel, pDisplayView
+   put the result into dView
+   -- set the coloured_lines ["red"] of dView to dynadot_ListEarthWikis()
+   unlock screen
+   --
+   set the wiki_Filter of dView to pWikiFilter
+   --
+   display_SetToolMenus menuBit, dView, "lcw_Wiki"
+   return dView
+end display_WikiFolders
+
+
+--> Working on
+-
+command display_GitWikiFolders pDisplayView, pWikiFilter
+   if pWikiFilter is empty then
+      put "Git Folders" into pTitle
+   else
+      put pWikiFilter into pTitle
+   end if
+   --
+   put gitwiki_ListFolders (true) into gitWikiShortFolders
+   --
+   display_GitWikis gitWikiShortFolders, pDisplayView, pWikiFilter, pTitle
+   put the result into dView
+   return dView
+end display_GitWikiFolders
+
+command display_GitWikis gitWikiShortFolders, pDisplayView, pWikiFilter, pTitle
+   if pTitle is empty then put "Git Folders" into pTitle
+   display_WikiFolders gitWikiShortFolders, "Wiki | Git", pDisplayView, pWikiFilter, pTitle, "Git Wikis"
+   put the result into dView
+   return dView
+end display_GitWikis
+
+command display_EtcHosts pSystemPassword
+   if pSystemPassword is empty then
+      put lcw_Ask ("Enter system password...") into pSystemPassword
+   end if
+   put hosts_Get (pSystemPassword) into hostsText
+   --
+   display_Text hostsText, "Current", "/etc/hosts"
+   return the result
+end display_EtcHosts
+
+command launch_EtcHosts
+   put text_EditorApplicationPath() into applicationPath
+   launch "/etc/hosts" with applicationPath
+   put the result into launchResult
+   return launchResult
+end launch_EtcHosts
+
+command launch_WikiConfig
    put wiki_GetConfigFile() into wikiConfigFile
    put text_EditorApplicationPath() into applicationPath
    launch wikiConfigFile with applicationPath
-end display_WikiConfig
+end launch_WikiConfig
+
+command launch_TunnelConfig
+   put tunnel_GetYamlFile() into yamlFile
+   put text_EditorApplicationPath() into applicationPath
+   launch yamlFile with applicationPath
+end launch_TunnelConfig
 
 on mDoubleUp_WikiLocal displayView, shortFolder
    mDoubleUp_WikiLocalIndex displayView, shortFolder
@@ -102,115 +292,6 @@ command display_LocalWithoutAstral dView, pFilter
    display_WikiFolders wihtouAstralDomains, "Wiki | Local", dView, pFilter, "Local Without Astral", "Local Wikis"
    return the result
 end display_LocalWithoutAstral
-
-command display_LocalWikis pDisplayView, pTitle, pFilter
-   if pTitle is empty then put "All" into pTitle
-   put "Local Wikis" into pStackLabel
-   put "Wiki | Local" into menuBit -- was "Wiki | Git"
-   --
-   put wiki_RootFolder() into wikiFolder
-   --
-   switch token 1 of pTitle
-      case "Dynadot"
-         put dynadot_ListAstralDomains() into wikiFolders
-         break
-      case "astral"
-         put folder_ListShortAll (wikiFolder) into localAstralDomains
-         filter localAstralDomains with "*.astralship.wiki"
-         put dynadot_StripSubDomainNames (localAstralDomains, "astralship.wiki") into wikiFolders
-         break
-      case "non"
-         put folder_ListShortNonSymLinked (wikiFolder) into wikiFolders
-         break
-      case "sym"
-         put folder_ListShortSymLinked (wikiFolder) into wikiFolders
-         break
-      default
-         put folder_ListShortAll (wikiFolder) into wikiFolders
-   end switch
-   if pFilter is not empty then filter wikiFolders with pFilter
-   url_SortDomainIndex wikiFolders
-   --
-   display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTitle, pStackLabel
-   put the result into dView
-   return dView
-end display_LocalWikis
-
-command display_GitWikis gitWikiFolders, pDisplayView, pWikiFilter, pTitle
-   if pTitle is empty then put "Git Folders" into pTitle
-   display_WikiFolders gitWikiFolders, "Wiki | Git", pDisplayView, pWikiFilter, pTitle
-   put the result into dView
-   return dView
-end display_GitWikis
-
-command display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTitle, pStackLabel
-   if pStackLabel is empty then put "Wiki" into pStackLabel
-   if exists (pDisplayView) is false then
-      put display_FindIndexView ("Wiki", "Git Folders") into pDisplayView
-   end if
-   if exists (pDisplayView) is true then
-      if pWikiFilter is "none" then
-         put empty into pWikiFilter
-      else if pWikiFilter is empty then
-         put the wiki_Filter of pDisplayView into pWikiFilter
-      end if
-   end if
-   --
-   lock screen
-   display_Data wikiFolders, pTitle, pStackLabel, pDisplayView
-   put the result into dView
-   
-   # Colour lines
-   put dynadot_ListEarthWikis() into dynadotEarthWikis
-   set the coloured_lines ["red"] of dView to dynadotEarthWikis
-   unlock screen
-   --
-   if pWikiFilter is not empty then
-      set the wiki_Filter of dView to pWikiFilter
-   end if
-   --
-   display_SetToolMenus menuBit, dView, "lcw_Wiki"
-   return dView
-end display_WikiFolders
-
-
---> Events
--
-on mDoubleUp_WikiGit dView, sDomain
-   if the optionKey is "down" then breakpoint
-   --
-   put gitwiki_GetFolder (sDomain) into gitWikiFolder
-   --
-   switch
-      case the shiftKey is "down"
-         breakpoint
-         
-         put gitwiki_GetFolder ("dead.anarchive.earth") into toFolder
-         --
-         if folder_IsSymLink (gitWikiFolder) then
-            breakpoint
-         end if
-         --
-         if wiki_FolderHasNoPages (wikiFolder) then
-            
-         end if
-         --
-         revMoveFolder gitWikiFolder, toFolder
-         set the deleted_Line of dView to sDomain
-         break
-      case there is not a folder gitWikiFolder
-         breakpoint
-         break
-      default
-         finder_Reveal gitWikiFolder
-         -- launch url ("http://" & sDomain)
-   end switch
-end mDoubleUp_WikiGit
-
-on mDoubleUp_WikiEarth displayView, earthDomain
-   if the optionKey is "down" then breakpoint
-   launch_LocalhostWiki earthDomain
-end mDoubleUp_WikiEarth
 
 command launch_LocalhostWiki wikiDomain
    put wiki_LocalhostUrl (wikiDomain) into localWikiUrl
@@ -281,35 +362,6 @@ command display_EarthWikis pDisplayView
    display_SetToolMenus "Wiki | Earth", dView, "lcw_Wiki"
    return dView
 end display_EarthWikis
-
-command diplay_GitWikiFolders pDisplayView, pWikiFilter
-   put gitwiki_ListFolders (pWikiFilter, true) into gitWikiFolders
-   --
-   display_WikiFolders gitWikiFolders, pDisplayView, pWikiFilter
-   return the result
-end diplay_GitWikiFolders
-
-command display_Wiki pWikiURL
-   wiki_Start
-   --
-   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
-   put line 1 of wiki_ListBrowsers() into browserView
-   send "display_WikiBrowser pWikiURL,browserView" to me in 20 ticks
-   return the result
-end display_Wiki
-
-command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
-   if pStackLabel is empty then put "Wiki" into pStackLabel
-   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
-   if pStackStyle is empty then put "toplevel" into pStackStyle
-   --
-   display_Browser pWikiURL, pBrowserView, pStackLabel, pStackStyle, "View|Obeya|Studio"
-   -- display_View "View|Obeya|Studio", pWikiURL, pStackLabel, empty, "browser_URL", pStackStyle
-   put the result into browserView
-   display_SetMenu browserView, "Obeya | Studio", "title_Menu"
-   --
-   return browserView
-end display_WikiBrowser
 
 
 --> Fedwiki | Launch
@@ -536,18 +588,6 @@ command display_LineUpData lineUpURL
    --
    return displayView
 end display_LineUpData
-
-
---> Wiki
--
-function wiki_ListBrowsers
-   return display_List ("View|Browser", "Wiki")
-end wiki_ListBrowsers
-
-function wiki_DefaultLocalUrl
-   put "http://localhost:3000" into wikiURL
-   return wikiURL
-end wiki_DefaultLocalUrl
 
 
 --> Private

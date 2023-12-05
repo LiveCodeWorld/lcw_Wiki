@@ -29,10 +29,109 @@ local LocalArray
 
 --> Working on
 -
+on init_Javascript
+   set the browser_AddJavascriptHandlers of me to "wikiClick_HamburgerMenu,bevent_ExternalLink"
+   --
+   put wikijs_Override() into overrideJS
+   set the browser_Javascript of me to overrideJS
+   return someJavascript
+end init_Javascript
+
+getprop is_Editable
+   -- <span class="editEnable" style="display: none;">✔︎</span>
+end is_Editable
+
+getprop is_Editable
+   -- get "liveCode.myJSHandler(document.title);"
+   put _BrowserWidget() into browserWidget
+   set the browser_AddJavascriptHandlers of browserWidget to "footerVisibleHandler"
+   --
+   -- put scaffold_Get ("footer_visible.js") into jsScript
+   put "liveCode.footerVisibleHandler(window.getComputedStyle(document.querySelector('footer')).visibility);" into jsScript
+   do jsScript in browserWidget
+   put the result into sResult -- sometimes does not work
+   put LocalArray ["sResult"] into sResult
+   --
+   put sResult = "visible" into isVisible
+   return isVisible
+end is_Editable
+
+setprop is_Editable showMe
+   put _BrowserWidget() into browserWidget
+   put showMe is false into hideMe
+   lock screen
+   put wiki_FooterVisibleJavascript (hideMe) into someJavascript
+   put ";" after someJavascript
+   if showMe is false then
+      put wiki_FooterHeightJavascript (18) after someJavascript
+   else
+      put wiki_FooterHeightJavascript (60) after someJavascript
+   end if
+   do someJavascript in browserWidget
+   unlock screen
+end is_Editable
+
+on toggle_Editable
+   set the browser_Javascript of me to "$('footer span.editEnable').click();"
+end toggle_Editable
+
+on footerVisibleHandler sResult
+   put sResult into LocalArray ["sResult"]
+   return sResult
+end footerVisibleHandler
+
+on wikiClick_HamburgerMenu
+   set the display_Page of me to "tools"
+end wikiClick_HamburgerMenu
+   
+on bevent_ExternalLink externalURL
+   display_WikiBrowser externalURL
+end bevent_ExternalLink
+
+on browser_InitResult elementHtml
+   -- put "svg" into elementHtml
+   --
+   delete variable LocalArray ["elementHtml"]
+   put _BrowserWidget() into browserWidget
+   set the browser_AddJavascriptHandlers of browserWidget to "browser_JavascriptResult"
+   --
+   put merge ("var r=document.getElementById('[[elementHtml]]').outerHTML;liveCode.browser_JavascriptResult(r)") into sJavascript
+   replace "'" with quote in sJavascript
+   do sJavascript in browserWidget
+end browser_InitResult
+
+on browser_JavascriptResult elementHtml
+   put elementHtml into LocalArray ["elementHtml"]
+end browser_JavascriptResult
+
+
+--> Javascript
+-
+getprop wiki_Override
+   get the browser_JavascriptHandlers of me
+   switch it
+      case "bevent_ExternalLink"
+         return "external"
+      default
+         return empty
+   end switch 
+end wiki_Override
+
+setprop wiki_Override sWay
+   switch sWay
+      case "Hamburger"
+         break
+      case "external"
+         break
+   end switch
+   --
+   init_Javascript
+end wiki_Override
+
 getprop footer_IsVisible
    -- get "liveCode.myJSHandler(document.title);"
    put _BrowserWidget() into browserWidget
-   set the javascriptHandlers of browserWidget to "footerVisibleHandler"
+   set the browser_AddJavascriptHandlers of browserWidget to "footerVisibleHandler"
    --
    -- put scaffold_Get ("footer_visible.js") into jsScript
    put "liveCode.footerVisibleHandler(window.getComputedStyle(document.querySelector('footer')).visibility);" into jsScript
@@ -43,11 +142,6 @@ getprop footer_IsVisible
    put sResult = "visible" into isVisible
    return isVisible
 end footer_IsVisible
-
-on footerVisibleHandler sResult
-   put sResult into LocalArray ["sResult"]
-   return sResult
-end footerVisibleHandler
 
 setprop footer_IsVisible showMe
    put _BrowserWidget() into browserWidget
@@ -73,30 +167,82 @@ setprop browser_Element elementID
    return the result
 end browser_Element
 
-on browser_InitResult elementHtml
-   -- put "svg" into elementHtml
+setprop browser_Javascript someJavascript
+   -- put "wiki.doInternalLink('Federateed Wiki')" into someJavascript
+   replace CR with empty in someJavascript
    --
-   delete variable LocalArray ["elementHtml"]
    put _BrowserWidget() into browserWidget
-   set the javascriptHandlers of browserWidget to "browser_JavascriptResult"
-   --
-   put merge ("var r=document.getElementById('[[elementHtml]]').outerHTML;liveCode.browser_JavascriptResult(r)") into sJavascript
-   replace "'" with quote in sJavascript
-   do sJavascript in browserWidget
-end browser_InitResult
+   do someJavascript in browserWidget
+   put the result into doResult
+   return doResult
+end browser_Javascript
 
-on browser_JavascriptResult elementHtml
-   put elementHtml into LocalArray ["elementHtml"]
-end browser_JavascriptResult
+setprop browser_AddJavascriptHandlers newHandlers
+   replace comma with CR in newHandlers
+   put _BrowserWidget() into browserWidget
+   --
+   put the javascriptHandlers of browserWidget into handlerIndex
+   line_Add newHandlers, handlerIndex
+   set the javascriptHandlers of browserWidget to handlerIndex
+   return handlerIndex
+end browser_AddJavascriptHandlers
+
+getprop lineup_Data
+   put the lineup_Urls of me into lineupUrls
+   repeat with indexNum = 1 to the number of lines of lineupUrls
+      set the cursor to busy
+      put line indexNum of lineupUrls into lineupUrl
+      --
+      put url lineupUrl into pageJson
+      put json_ToArray (pageJson) into pageArray
+      put pageArray into lineupData [indexNum]
+   end repeat
+   return lineupData
+end lineup_Data
+
+getprop lineup_Urls
+   put _BrowserWidget() into browserWidget
+   set the javascriptHandlers of browserWidget to "wiki_LineupResult"
+   --
+   put "var links = document.querySelectorAll('a.show-page-source');" into someJS
+   put "var hrefs = Array.from(links).map(function(link) {return link.getAttribute('href');});" after someJS
+   put "liveCode.wiki_LineupResult(JSON.stringify(hrefs));" after someJS
+   --
+   do someJS in browserWidget
+   put LocalArray ["lineUpURLs"] into lineUpURLs
+   return lineUpURLs
+end lineup_Urls
+
+on wiki_LineupResult lineupJson
+   put the browser_URL of me into browserURL
+   set the itemdelimiter to slash
+   put item 3 of browserURL into urlDomain
+   --
+   -- put json_ToArray (lineupJson) into lineupArray
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   set the itemdelimiter to comma
+   repeat for each item sLink in lineupJson
+      replace quote with empty in sLink
+      if char 1 to 2 of sLink = "//" then
+         put "http:" & sLink into someURL
+      else
+         put "http://" & urlDomain & sLink into someURL
+      end if
+      put someURL & CR after lineUpURLs
+   end repeat
+   delete char -1 of lineUpURLs
+   put lineUpURLs into LocalArray ["lineUpURLs"]
+end wiki_LineupResult
 
 
 --> Props
 -
-setprop display_Page [remoteDomain] pageSlug
+setprop display_Page [domainAndPort] pageSlug
    if remoteDomain is empty then
       put wiki_InternalLinkJavascript (pageSlug) into someJavascript
    else
-      put wiki_RemoteLinkJavascript (pageSlug, remoteDomain) into someJavascript
+      put wiki_RemoteLinkJavascript (pageSlug, domainAndPort) into someJavascript
    end if
    set the browser_Javascript of me to someJavascript
    put the result into doResult
@@ -113,6 +259,16 @@ setprop ghost_Page pageJSON
    set the browser_Javascript of me to _ConstructJavascript (pageJSON)
    return the result
 end ghost_Page
+
+private function _ConstructJavascript pageJSON
+   if pageJSON is empty then
+      put pageArray_Construct ("Test Ghost Page", "Helo world!") into pageArray
+      put json_FromArray (pageArray) into pageJSON
+   end if
+   --
+   put merge ("wiki.showResult(wiki.newPage([[pageJSON]]))") into someJavascript
+   return someJavascript
+end _ConstructJavascript
 
 getprop wiki_Domain
    put the browser_URL of me into someURL
@@ -182,14 +338,6 @@ end LayoutControl
 
 --> Browser | Props
 -
-setprop browser_Javascript someJavascript
-   -- put "wiki.doInternalLink('Federateed Wiki')" into someJavascript
-   put _BrowserWidget() into browserWidget
-   do someJavascript in browserWidget
-   put the result into doResult
-   return doResult
-end browser_Javascript
-
 getprop browser_Snapshot
    export snapshot from _BrowserWidget() to pictVariable as PNG
    return pictVariable
@@ -206,6 +354,16 @@ setprop browser_JavascriptHandlers handlerList
    return the result
 end browser_JavascriptHandlers
 
+getprop previous_Url
+   put the previous_Url of me into someURL
+   return someURL
+end previous_Url
+
+setprop previous_Url someURL
+   set the previous_Url of me to someURL
+   return the long id of me
+end previous_Url
+
 getprop browser_URL
    put the url of me into someURL
    return someURL
@@ -213,6 +371,7 @@ end browser_URL
 
 setprop browser_URL someURL
    set the url of me to someURL
+   set the previous_Url of me to someURL
    return the long id of me
 end browser_URL
 
@@ -240,3 +399,4 @@ end view_Object
 getprop browser_View
    return the long id of me
 end browser_View
+

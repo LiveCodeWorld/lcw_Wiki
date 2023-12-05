@@ -10,6 +10,22 @@ version: 0.2
 
 --> Working on
 -
+function wiki_ListAllLocalFolders pFilter
+   put wiki_RootFolder() into wikiFolder
+   put folder_ListShortAll (wikiFolder) into shortWikiFolders
+   put _NotTheseWikiFolders() into notThese
+   put _StripNotThese (shortWikiFolders, notThese) into goodShortFolders
+   _FilterAndSort goodShortFolders, pFilter
+   return goodShortFolders
+end wiki_ListAllLocalFolders
+
+private function _NotTheseWikiFolders
+   return "commons,assets"
+end _NotTheseWikiFolders
+
+
+--> Wiki | Pages
+-
 function wiki_FolderHasNoPages wikiFolder, pNum
    if pNum is not a number then put 1 into pNum
    put wiki_NumberOfpages (wikiFolder) into numOfPages
@@ -64,12 +80,12 @@ function wiki_AstralFromLocalhost localhostDomain
 end wiki_AstralFromLocalhost
 
 
-
 --> Wiki | Folder | List | Empty
 -
 function wiki_ListEmptyLocalFolders pListShort
    put wiki_RootFolder() into rootFolder
-   put wiki_ListEmptyFolders (rootFolder, pListShort, "commons,assets") into wikiFolders
+   put _NotTheseWikiFolders into notThese
+   put wiki_ListEmptyFolders (rootFolder, pListShort, notThese) into wikiFolders
    return wikiFolders
 end wiki_ListEmptyLocalFolders
 
@@ -106,13 +122,6 @@ end wiki_ListEmptyFolders
 
 --> Wiki | Folders | List
 -
-function wiki_ListAllLocalFolders pFilter
-   put wiki_RootFolder() into wikiFolder
-   put folder_ListShortAll (wikiFolder) into wikiFolders
-   _FilterAndSort wikiFolders, pFilter
-   return wikiFolders
-end wiki_ListAllLocalFolders
-
 function wiki_ListFolders pRootFolder, pNotTheseShortFolders
    if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
    -- put folder_ListLong (pRootFolder) into wikiFolders
@@ -144,7 +153,7 @@ private function _StripNotThese longOrShortFolders, pNotTheseShortFolders
       switch
          case char 1 of longOrShortFolder = "_"
             next repeat
-         case it is among the lines of cleanNotTheseShortFolder
+         case it is among the lines of cleanNotTheseShortFolders
             next repeat
          default
             put longOrShortFolder & CR after goodLongOrShortFolders
@@ -156,10 +165,10 @@ end _StripNotThese
 
 private function _TidyNotThese pNotTheseShortFolders
    replace comma with CR in pNotTheseShortFolders
-   repeat for each item notThisShortFolder in pNotTheseShortFolders
+   repeat for each line notThisShortFolder in pNotTheseShortFolders
       put word 1 to -1 of notThisShortFolder into notThisShortFolder
       if char -1 of notThisShortFolder is slash then delete char -1 of notThisShortFolder
-      put notThisShortFolder & comma after cleanNotTheseShortFolders
+      put notThisShortFolder & CR after cleanNotTheseShortFolders
    end repeat
    delete char -1 of cleanNotTheseShortFolders
    return cleanNotTheseShortFolders

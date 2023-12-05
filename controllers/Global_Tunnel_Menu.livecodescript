@@ -35,9 +35,9 @@ getprop checked_Login
    return isError is false
 end checked_Login
 
-getprop reservedTunnel_Params
-   put tunnel_ListDomains() into tunnelDomains
-   return tunnelDomains
+-- getprop reservedTunnel_Params
+put tunnel_ListDomains() into tunnelDomains
+return tunnelDomains
 end reservedTunnel_Params
 
 getprop checked_TunnelWithConfig [xtermView]
@@ -73,12 +73,12 @@ private on _
 end _
 
 on menu_EditTunnelConfig
-   display_TunnelConfig
+   launch_TunnelConfig
 end menu_EditTunnelConfig
 
-on menu_ReservedTunnel dView, tunnelDomain
-   put tunnel_GetRegisteredCName (tunnelDomain)
-end menu_ReservedTunnel
+on menu_ReservedTunnels dView
+   display_ReservedTunnels
+end menu_ReservedTunnels
 
 on menu_Login dView
    put line 2 of shell ("loclx account status") into errorLine -- fragile

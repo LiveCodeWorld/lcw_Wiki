@@ -35,32 +35,25 @@ getprop menu_Target [tObject]
    end if
 end menu_Target
 
-getprop disabled_HideFooter [wikiView]
-   return exists (wikiView) is false
-end disabled_HideFooter
-
-getprop checked_HideFooter [wikiView]
-   put the footer_IsVisible of wikiView into sBoolean
-   return sBoolean is false
-end checked_HideFooter
-
 
 --> Global | Obeya | Studio | Dev | Menu
 -
+on menu_TestOneTab
+   put "https://www.one-tab.com/page/xSSyPyCASfymOEwOT634JQ" into oneTabUrl
+   put oneTab_FetchPageArray (oneTabUrl, "markdown") into pageArray
+   --
+   display_PageArray pageArray
+end menu_TestOneTab
+
+private on _
+end _
+
 on menu_AddBrowserMenu wikiView
-   set the browser_JavascriptHandlers of wikiView to "myJSHandler"
-   
-   /*
-   We need to disable event propogation
-   $('.header a')
-   .unbind('click')
-   .click(function( event ) {
-   event.preventDefault();
-   alert ('Hello world');return false;})
-   */
-   
-   // Calling the handler from JavaScript within the browser
-   put "$('.header H1 > a').click(function() { liveCode.myJSHandler('myMessage', 12345) });" into someJavascript
+   put "myJSHandler" into mHandler
+   --
+   set the browser_AddJavascriptHandlers of wikiView to mHandler
+   get "$('.header H1 > a').click(function() { liveCode.myJSHandler('[[mHandler]]', 12345) });"
+   put merge (it) into someJavascript
    set the browser_Javascript of wikiView to someJavascript
 end menu_AddBrowserMenu
 

@@ -22,6 +22,26 @@ See also:
 
 --> Working on
 -
+private command development_ReturnPageArray pageArray, pBrowserView
+   if exists (pBrowserView) is false then
+      put wiki_Browser() into pBrowserView
+   end if
+   --
+   get the lineup_Urls of pBrowserView
+   if it is empty then
+      put the previous_Url of pBrowserView into wikiURL
+      set the browser_Url of pBrowserView to wikiURL
+      wait 20 ticks
+   end if
+   --
+   set the ghost_PageArray of pBrowserView to pageArray
+   --
+   dispatch "toggle_Editable" to pBrowserView
+end development_ReturnPageArray
+
+
+--> Image
+-
 function image_ToDataImageUrl someImage, imageType
    -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
    
@@ -87,6 +107,124 @@ private command _TrimFullStop @someText, linkBit
    end switch
    put linkBit after someText
 end _TrimFullStop
+
+
+--> Fedwiki | Overide
+-
+/*
+These handers are overridden using a a frontscript "behavior_RigLocalOveride" and before handlers for testing purposes
+*/
+
+command fedwiki_ReturnPageArray pageArray
+   if pageArray is not an array then
+      put "PageArray is not an array." into someInfo
+      put CR & CR & pageArray after someInfo
+      put pageArray_Construct ("Error with page array!", someInfo) into pageArray
+      put json_FromArray (pageArray) into someJSON
+   end if
+   put json_FromArray (pageArray) into someJSON
+   
+   switch the environment
+      case "server"
+         fedwiki_ReturnJSON someJSON
+      default
+         development_ReturnPageArray pageArray
+   end switch
+end fedwiki_ReturnPageArray
+
+command fedwiki_ReturnJSON someJSON
+   switch the environment
+      case "server"
+         put new header "Content-Type: application/json; charset=utf-8"
+         put new header "Access-Control-Allow-Origin: *"
+         put new header "Access-Control-Allow-Headers: Accept, Authorization, Content-Type"
+         put new header "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, LINK, UNLINK"
+         --
+         put someJSON
+         break
+      default -- "development"
+         
+   end switch
+end fedwiki_ReturnJSON
+
+function fedwiki_GetDroppedArray
+   -- also good to get a post from a form POST
+   fedwiki_SetRawJSON pRawJSON
+   put json_ToArray (pRawJSON) into dropArray
+   return dropArray
+end fedwiki_GetDroppedArray
+
+function fedwiki_GetDroppedUrl
+   fedwiki_SetRawJSON rawJSON
+   --
+   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
+   fedwiki_CheckDroppedURL droppedURL, droppedHTML, droppedText
+   return droppedURL
+end fedwiki_GetDroppedUrl
+
+command fedwiki_CheckDroppedURL @droppedURL, droppedHTML, droppedText
+   set the itemdelimiter to "."
+   switch
+      case droppedURL is not empty
+         return "url"
+      case droppedHTML is empty
+         -- does it begin with "<meta http-equiv=\'Content-Type\' content=\'text/html;charset=UTF-8\'><a href=\"
+         put droppedText into droppedURL
+         return "text"
+      case item -1 of droppedText = "html"
+         delete item -1 of droppedText
+         set the itemdelimiter to "/"
+         put "/view" after item 3 of droppedText
+         return "html"
+      default
+         put "Not a URL dropped on the page!" into errorText
+         fedwiki_ExitAndReturnError errorText
+         return errorText
+   end switch
+end fedwiki_CheckDroppedURL
+
+command fedwiki_SetRawJSON @rawJSON
+   put $_POST_RAW into rawJSON
+   return true
+end fedwiki_SetRawJSON
+
+command fedwiki_SetDropped dropJSON, @droppedURL, @droppedHTML, @droppedText
+   -- don't use directly as it is used by behavior
+   put json_ToArray (dropJSON) into dropArray
+   --
+   put dropArray ["html"] into droppedHTML
+   put dropArray ["text"] into droppedText
+   put dropArray ["url"] into droppedURL
+   return dropArray
+end fedwiki_SetDropped
+
+
+--> Fedwiki | Overide | Maybe
+-
+command fedwiki_SetDroppedURL @pDroppedURL
+   if pDroppedURL is empty then
+      -- sets from real or locally mocked "$_POST_RAW" 
+      put fedwiki_GetDroppedUrl() into pDroppedURL
+   end if
+end fedwiki_SetDroppedURL
+
+command fedwiki_SetDroppedInfo @dropJSON, @droppedURL, @droppedHTML, @droppedText
+   fedwiki_SetRawJSON dropJSON
+   fedwiki_SetDropped dropJSON, droppedURL, droppedHTML, droppedText
+   put the result into dropArray
+   return dropArray
+end fedwiki_SetDroppedInfo
+
+command fedwiki_DeconstructDroppedURL @pageSlug, @wikiDomain
+   put fedwiki_GetDroppedUrl() into droppedURL
+   --
+   set the itemdelimiter to slash
+   put item 3 of droppedURL into wikiDomain
+   put item -1 of droppedURL into pageSlug
+   --
+   set the itemdelimiter to "."
+   put item 1 of pageSlug into pageSlug
+end fedwiki_DeconstructDroppedURL
 
 
 --> Transport
@@ -654,114 +792,6 @@ command fedwiki_ReturnError someValue, errorText
       fedwiki_ExitAndReturnError errorText, pErrorTitle
    end if
 end fedwiki_ReturnError
-
-
---> Fedwiki | Overide
--
-/*
-These handers are overridden using a a frontscript "behavior_RigLocalOveride" and before handlers for testing purposes
-*/
-
-command fedwiki_ReturnPageArray pageArray
-   if pageArray is not an array then
-      put "PageArray is not an array." into someInfo
-      put CR & CR & pageArray after someInfo
-      put pageArray_Construct ("Error with page array!", someInfo) into pageArray
-      put json_FromArray (pageArray) into someJSON
-   end if
-   
-   put json_FromArray (pageArray) into someJSON
-   fedwiki_ReturnJSON someJSON
-end fedwiki_ReturnPageArray
-
-command fedwiki_ReturnJSON someJSON
-   if the environment = "server" then
-      put new header "Content-Type: application/json; charset=utf-8"
-      put new header "Access-Control-Allow-Origin: *"
-      put new header "Access-Control-Allow-Headers: Accept, Authorization, Content-Type"
-      put new header "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, LINK, UNLINK"
-   end if
-   put someJSON
-end fedwiki_ReturnJSON
-
-function fedwiki_GetDroppedArray
-   -- also good to get a post from a form POST
-   fedwiki_SetRawJSON pRawJSON
-   put json_ToArray (pRawJSON) into dropArray
-   return dropArray
-end fedwiki_GetDroppedArray
-
-function fedwiki_GetDroppedUrl
-   fedwiki_SetRawJSON rawJSON
-   --
-   fedwiki_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
-   fedwiki_CheckDroppedURL droppedURL, droppedHTML, droppedText
-   return droppedURL
-end fedwiki_GetDroppedUrl
-
-command fedwiki_CheckDroppedURL @droppedURL, droppedHTML, droppedText
-   set the itemdelimiter to "."
-   switch
-      case droppedURL is not empty
-         return "url"
-      case droppedHTML is empty
-         -- does it begin with "<meta http-equiv=\'Content-Type\' content=\'text/html;charset=UTF-8\'><a href=\"
-         put droppedText into droppedURL
-         return "text"
-      case item -1 of droppedText = "html"
-         delete item -1 of droppedText
-         set the itemdelimiter to "/"
-         put "/view" after item 3 of droppedText
-         return "html"
-      default
-         put "Not a URL dropped on the page!" into errorText
-         fedwiki_ExitAndReturnError errorText
-         return errorText
-   end switch
-end fedwiki_CheckDroppedURL
-
-command fedwiki_SetRawJSON @rawJSON
-   put $_POST_RAW into rawJSON
-   return true
-end fedwiki_SetRawJSON
-
-command fedwiki_SetDropped dropJSON, @droppedURL, @droppedHTML, @droppedText
-   -- don't use directly as it is used by behavior
-   put json_ToArray (dropJSON) into dropArray
-   --
-   put dropArray ["html"] into droppedHTML
-   put dropArray ["text"] into droppedText
-   put dropArray ["url"] into droppedURL
-   return dropArray
-end fedwiki_SetDropped
-
-
---> Fedwiki | Overide | Maybe
--
-command fedwiki_SetDroppedURL @pDroppedURL
-   if pDroppedURL is empty then
-      -- sets from real or locally mocked "$_POST_RAW" 
-      put fedwiki_GetDroppedUrl() into pDroppedURL
-   end if
-end fedwiki_SetDroppedURL
-
-command fedwiki_SetDroppedInfo @dropJSON, @droppedURL, @droppedHTML, @droppedText
-   fedwiki_SetRawJSON dropJSON
-   fedwiki_SetDropped dropJSON, droppedURL, droppedHTML, droppedText
-   put the result into dropArray
-   return dropArray
-end fedwiki_SetDroppedInfo
-
-command fedwiki_DeconstructDroppedURL @pageSlug, @wikiDomain
-   put fedwiki_GetDroppedUrl() into droppedURL
-   --
-   set the itemdelimiter to slash
-   put item 3 of droppedURL into wikiDomain
-   put item -1 of droppedURL into pageSlug
-   --
-   set the itemdelimiter to "."
-   put item 1 of pageSlug into pageSlug
-end fedwiki_DeconstructDroppedURL
 
 
 --> Fedwiki | Transport | Helpers

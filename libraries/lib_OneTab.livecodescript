@@ -5,29 +5,108 @@ copyright: David Bovill
 license: GPLv3
 name: lib_OneTab
 type: library
-version: 0.1
+version: 0.2
 
-/*Some help*/
+/*
+*/
 
 local MarkDownLinks
 
 
 --> Working on
 -
+on drop_OneTab dView, droppedURL
+   put the displayed_Object of dView into browserView
+   --
+   switch
+      case droppedURL begins with "https://www.one-tab.com"
+         put url droppedURL into someHTML
+         put oneTab_ConstructPageArray (someHtml, "pretty") into pageArray
+         break
+      default
+         put "Not a [[OneTab]] web page. Visit OneTab to start collaborative bookmarking - [https://www.one-tab.com/ one-tab.com]" into someInfo
+         put pageArray_Construct ("Error", someInfo) into pageArray
+   end switch
+   --
+   set the ghost_PageArray of browserView to pageArray
+end drop_OneTab
+
+private command _ParseOneTabHtml someHtml, headerBit, @markDownIndex, @divSection, @tabTitle
+   html_Tidy someHtml
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   --
+   put revXMLRootNode (treeID) into rootNode
+   put word 1 to -1 of revXMLNodeContents (treeID, "/html/head/title") into htmlTitle
+   
+   put revXMLMatchingNode (treeID, "/html/body", "div", "class", "tabGroupLabel", -1) into tabGroupLabelDiv
+   put word 1 to -1 of revXMLNodeContents (treeID, tabGroupLabelDiv) into tabTitle
+   --
+   put htmlTitle into parseArray ["htmlTitle"]
+   put tabTitle into parseArray ["tabTitle"]
+   put headerBit into parseArray ["headerBit"]
+   --
+   put "vertical-align: middle; width:16px; height:16px" into faviconStyle
+   put "vertical-align: middle; padding-left: 10px; padding-right: 12px; text-decoration: none;" into someLinkstyle
+   put "<img src='[[faviconURL]]' style='[[faviconStyle]]' /><a target=_blank style='[[someLinkstyle]]' href='[[someTextURL]]'>[[someTextLink]]</a>" into linkTemplate
+   put "<div style='padding-left: 24px; padding-top: 8px; position: relative; font-size: 13px;'>" into divStart
+   --
+   put revXMLMatchingNode (treeID, "/html/body/div", "div", "class", "tabGroup", 1) into tabGroupDiv 
+   put revXMLChildNames (treeID, tabGroupDiv, CR, "div", true) into tNames
+   
+   put 1 into urlLineNum
+   repeat for each line tName in tNames -- with divNum = 2 to maxNum
+      put tabGroupDiv & slash & tName into divNode
+      if divNode = tabGroupLabelDiv then next repeat
+      --      
+      put divNode & "/img" into imgNode
+      put revXMLAttribute (treeID, imgNode, "src") into faviconURL
+      put divNode & "/a" into aNode
+      put revXMLAttribute (treeID, aNode, "href") into someTextURL
+      put revXMLNodeContents (treeID, aNode) into someTextLink
+      replace CR with space in someTextLink
+      --
+      put revXMLText (treeID, divNode) into linkHTML
+      put _GetTldBit (someTextURL) into tldBit
+      
+      -- construct markDownIndex
+      put _ConstructMarkDownLink (someTextURL, someTextLink) into markDownLine
+      put CR & markDownLine after markDownIndex
+      
+      -- construct divSection
+      put merge (linkTemplate) into htmlLine
+      put divStart & htmlLine & "</div>" into divBit
+      put divBit & CR after divSection
+      --
+      put someTextURL into parseArray ["urls"][urlLineNum]["linkURL"]
+      put faviconURL into parseArray ["urls"][urlLineNum]["faviconURL"]
+      put tldBit into parseArray ["urls"][urlLineNum]["tldBit"]
+      put someTextLink into parseArray ["urls"][urlLineNum]["someTextLink"]
+      put linkHTML into parseArray ["urls"][urlLineNum]["linkHTML"]
+      add 1 to urlLineNum
+   end repeat
+   --
+   revDeleteXMLTree treeID
+   return parseArray
+end _ParseOneTabHtml
 
 
 --> One | Tab
 -
 function oneTab_FetchPageArray oneTabUrl, pType
-   put url oneTabUrl into someHtml
-   --
    put "Below are a collection of links imported from [[OneTab]]. You can view these links here - [" & oneTabUrl && "one-tab.com]:" into headerBit
-   _ParseOneTabHtml someHtml, headerBit, markDownLinks, divSection, tabTitle
+   --
+   put url oneTabUrl into someHtml
+   put oneTab_ConstructPageArray (someHtml, pType, headerBit) into pageArray
+   return pageArray
+end oneTab_FetchPageArray
+
+function oneTab_ConstructPageArray someHtml, pType, pHeaderBit
+   _ParseOneTabHtml someHtml, pHeaderBit, markDownIndex, divSection, tabTitle
    put the result into parseArray
    --
+   -- put parseArray ["headerBit"] into pHeaderBit
    put parseArray ["tabTitle"] into tabTitle
-   put parseArray ["headerBit"] into headerBit
-   put pageArray_Construct (tabTitle, headerBit) into pageArray
+   put pageArray_Construct (tabTitle, pHeaderBit) into pageArray
    --
    switch pType
       case "pretty"
@@ -40,14 +119,14 @@ function oneTab_FetchPageArray oneTabUrl, pType
          _AddHtmlSection pageArray, tabTitle, headerBit, divSection
          break
       case "markdown"
-         _AddMarkdownSection pageArray, tabTitle, markDownLinks
+         _AddMarkdownSection pageArray, tabTitle, markDownIndex
          break
       default
          put _ConstructOneTabPageArray (parseArray) into pageArray
    end switch
    pageArray_StripJournal pageArray
    return pageArray
-end oneTab_FetchPageArray
+end oneTab_ConstructPageArray
 
 command transport_Video @pageArray, videoURL, urlText
    /*
@@ -265,58 +344,6 @@ private function _ConstructOneTabPageArray oneTabUrl
    pageArray_StripJournal pageArray
    return pageArray
 end _ConstructOneTabPageArray
-
-private command _ParseOneTabHtml someHtml, headerBit, @markDownLinks, @divSection, @tabTitle
-   html_Tidy someHtml
-   put revXMLCreateTree (someHTML, false, true, false) into treeID
-   --
-   put revXMLRootNode (treeID) into rootNode
-   put word 1 to -1 of revXMLNodeContents (treeID, "/html/head/title") into htmlTitle
-   put word 1 to -1 of revXMLNodeContents (treeID, "/html/body/div[1]/div[6]") into tabTitle
-   --
-   put htmlTitle into parseArray ["htmlTitle"]
-   put tabTitle into parseArray ["tabTitle"]
-   put headerBit into parseArray ["headerBit"]
-   --
-   put "vertical-align: middle; width:16px; height:16px" into faviconStyle
-   put "vertical-align: middle; padding-left: 10px; padding-right: 12px; text-decoration: none;" into someLinkstyle
-   put "<img src='[[faviconURL]]' style='[[faviconStyle]]' /><a target=_blank style='[[someLinkstyle]]' href='[[someTextURL]]'>[[someTextLink]]</a>" into linkTemplate
-   put "<div style='padding-left: 24px; padding-top: 8px; position: relative; font-size: 13px;'>" into divStart
-   --
-   put revXMLChildNames (treeID, "/html/body/div[1]", CR, "div", true) into tNames
-   repeat with divNum = 7 to (the number of lines of tNames - 1)
-      put "/html/body/div[1]/div[" & divNum & "]" into divNode      
-      put revXMLText (treeID, divNode) into linkHTML
-      --
-      put divNode & "/img" into imgNode
-      put revXMLAttribute (treeID, imgNode, "src") into faviconURL
-      put divNode & "/a" into aNode
-      put revXMLAttribute (treeID, aNode, "href") into someTextURL
-      put revXMLNodeContents (treeID, aNode) into someTextLink
-      replace CR with space in someTextLink
-      --
-      put _GetTldBit (someTextURL) into tldBit
-      
-      -- construct markDownLinks
-      put _ConstructMarkDownLink (someTextURL, someTextLink) into markDownLink
-      put CR & markDownLink after markDownLinks
-      
-      -- construct divSection
-      put merge (linkTemplate) into htmlLine
-      put divStart & htmlLine & "</div>" into divBit
-      put divBit & CR after divSection
-      --
-      put divNum - 6 into urlLineNum
-      put someTextURL into parseArray ["urls"][urlLineNum]["linkURL"]
-      put faviconURL into parseArray ["urls"][urlLineNum]["faviconURL"]
-      put tldBit into parseArray ["urls"][urlLineNum]["tldBit"]
-      put someTextLink into parseArray ["urls"][urlLineNum]["someTextLink"]
-      put linkHTML into parseArray ["urls"][urlLineNum]["linkHTML"]
-   end repeat
-   --
-   revDeleteXMLTree treeID
-   return parseArray
-end _ParseOneTabHtml
 
 private function _GetTldBit someTextURL
    set the itemdelimiter to slash

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drag and Drop URL Handler</title>
+    <style>
+        #drop_zone {
+            width: 300px;
+            height: 100px;
+            border: 2px dashed #0088cc;
+            text-align: center;
+            padding-top: 45px;
+            margin: 20px;
+            transition: background-color 0.5s; /* Smooth transition for background color change */
+        }
+    </style>
+</head>
+<body>
+
+<div id="drop_zone">Drop URL here</div>
+
+<script>
+    function handleDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        let url = event.dataTransfer.getData('text/uri-list');
+        if (url) {
+            customUrlHandler(url);
+            changeDropZoneColorOnSuccess(); // Change color on successful drop
+        }
+    }
+
+    function customUrlHandler(url) {
+        console.log('Dropped URL:', url);
+        // Add custom handling logic here
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+    }
+
+    function changeDropZoneColorOnSuccess() {
+        let dropZone = document.getElementById('drop_zone');
+        dropZone.style.backgroundColor = 'red';
+    }
+
+    let dropZone = document.getElementById('drop_zone');
+    dropZone.addEventListener('dragover', handleDragOver, false);
+    dropZone.addEventListener('drop', handleDrop, false);
+</script>
+
+</body>
+</

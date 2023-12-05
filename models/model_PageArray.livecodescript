@@ -77,22 +77,6 @@ command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
 end pageArray_AddJsonArray
 
 
---> PageJson | Model
--
-function pageJson_ConstructUrl fedwikiDomain, pSlug
-   put tolower (pSlug) into pSlug -- just in case
-   if pSlug is empty then
-      -- http://c0de.academy/welcome-visitors.json?random=95b9c89e
-      put "http://" & fedwikiDomain & "/welcome-visitors.json" into someUrl
-   else
-      -- put url "http://c0de.academy/currently-working-on.json?random=32c053a"
-      put "http://" & fedwikiDomain & "/" & pSlug & ".json" into someUrl
-   end if
-   put "?random=" & the milliseconds after someUrl
-   return someUrl
-end pageJson_ConstructUrl
-
-
 --> PageArray | Image
 -
 function pageArray_ConstructImage imageURL, pPageTitle, pPageDescription, pLinkURL, pImageCaption
@@ -598,3 +582,4 @@ command line_AddToNameArray @nameArray, someIndex
       put empty into nameArray [someLine]
    end repeat
 end line_AddToNameArray
+

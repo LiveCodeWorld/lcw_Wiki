@@ -78,14 +78,15 @@ function pageArray_FetchByTitle wikiDomain, pTitle
    return pageArray
 end pageArray_FetchByTitle
 
-function pageArray_Fetch wikiDomain, pSlug, pDontCheck
-   put pageJson_Fetch (wikiDomain, pSlug) into pageJson
+function pageArray_Fetch wikiDomain, pSlug, pPort
+   put pageJson_Fetch (wikiDomain, pSlug, pPort) into pageJson
    --
    if pageJson is empty then return empty
    put json_ToArray (pageJson) into pageArray
-   if pDontCheck is true then return pageArray
-   
-   # Check pageArray
+   return pageArray
+end pageArray_Fetch
+
+function pageArray_Check pageArray
    if pageArray is not an array then return false
    --
    put pageArray ["title"] into pageTitle
@@ -95,13 +96,36 @@ function pageArray_Fetch wikiDomain, pSlug, pDontCheck
    else
       return pageArray
    end if
-end pageArray_Fetch
+end pageArray_Check
 
-function pageJson_Fetch wikiDomain, pSlug
-   put pageJson_ConstructUrl (wikiDomain, pSlug) into someUrl
+function pageJson_Fetch wikiDomain, pSlug, pPort
+   put pageJson_ConstructUrl (wikiDomain, pSlug, pPort) into someUrl
    put url someUrl into someJSON
    return someJSON
 end pageJson_Fetch
+
+function pageJson_ConstructUrl wikiDomain, pSlug, pPort, pProtocol
+   -- http://film.thought.garden:3000/welcome-visitors.json
+   
+   if pProtocol is empty then put "http" into pProtocol
+   if pSlug is empty then put "welcome-visitors" into pSlug
+   put tolower (pSlug) into pSlug -- just in case
+   
+   # Base URL
+   put pProtocol & "://" & wikiDomain into wikiURL
+   
+   # Add Port
+   if pPort is a number then
+      put ":" & pPort after wikiURL
+   end if
+   
+   # Add Slug
+   put "/" & pSlug & ".json" after wikiURL
+   
+   # For Caching
+   put "?random=" & the milliseconds after wikiURL
+   return wikiURL
+end pageJson_ConstructUrl
 
 
 --> PageArray | Model

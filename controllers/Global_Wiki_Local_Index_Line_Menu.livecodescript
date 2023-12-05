@@ -133,7 +133,7 @@ on menu_SymLinkLocal displayView
          breakpoint
          break
       default
-         folder_CreateSymLink longLocalFolder, longDestFolder --, "paste"
+         symlink_CreateFolder longLocalFolder, longDestFolder --, "paste"
          --
          display_LocalWikis displayView
    end switch
@@ -175,10 +175,10 @@ on menu_ConvertToLocal dView
    
    revMoveFolder sFolder, localhostFolder
    if there is a folder localhostFolder then
-      folder_CreateSymLink localhostFolder, sFolder
+      symlink_CreateFolder localhostFolder, sFolder
    end if
    --
-   display_LocalWikis dView, "Non-Symlinked Astral", sFilter
+   display_NonSymLinked dView, sFilter
 end menu_ConvertToLocal
 
 on menu_AddAstralSubdomain dView
@@ -190,8 +190,7 @@ on menu_AddAstralSubdomain dView
    astral_AddSubdomain "astralship.wiki", subDomainName
    put the result into dnsData
    --
-   -- display_Data dnsData, "dynadot_GetDns()", domainName
-   display_LocalWikis dView, "Astral Missing from Dynadot", "*astralship.wiki"
+   display_LocalAstralWikis dView, true
 end menu_AddAstralSubdomain
 
 private on _
@@ -211,14 +210,16 @@ on menu_TrashFolder dView
    --
    revDeleteFolder astralFolder
    --
-   put the title_Text of dView into sTitle
-   if word -1 of sTitle = "Astral" then
-      put "*astralship.wiki" into pFilter
-   else
-      put empty into pFilter
-   end if
-   display_LocalWikis dView, sTitle, pFilter
+   _Refresh dView
 end menu_TrashFolder
+
+private command _Refresh dView
+   breakpoint
+   --
+   put the title_Text of dView into sTitle
+   put the wiki_Filter of dView into wikiFilter
+   display_LocalWikis dView, sTitle, wikiFilter
+end _Refresh
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Local | Index | Line | Menu")

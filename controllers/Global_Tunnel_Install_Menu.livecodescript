@@ -88,7 +88,7 @@ on menu_InitTunnelConfig
 end menu_InitTunnelConfig
 
 on menu_EditTunnelConfig
-   display_TunnelConfig
+   launch_TunnelConfig
 end menu_EditTunnelConfig
 
 on menu_ConstructTunnelConfig
