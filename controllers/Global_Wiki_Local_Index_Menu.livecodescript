@@ -26,93 +26,106 @@ getprop menu_CheckTarget [cameraView]
    return exists (cameraView)
 end menu_CheckTarget
 
+private function _SelectedDomains dView
+   put the selected_Index of dView into sDomains
+   if sDomains is empty then
+      put the displayed_Index of dView into sDomains
+   end if
+   return sDomains
+end _SelectedDomains
+
 
 --> Global | Wiki | Local | Index | Menu
 -
-on menu_NewAstralWiki dView
-   put lcw_Ask ("Choose a name for your new astral subdomain...", "new", "Create Astral Subdomain", dView) into newSubDomain
+on menu_ConstructRoster dView
+   put _SelectedDomains(dView) into sDomains
    --
-   put wiki_RootFolder() into wikiRootFolder
-   set the defaultfolder to wikiRootFolder
-   put wiki_ListAllLocalFolders ("*astralship.wiki") into wikiFolders
-   
-   # Check newDomain does not exists
-   put newSubDomain & ".astralship.wiki" into newDomain
-   if newDomain is among the lines of wikiFolders then
-      lcw_AnswerWarning "Folder for subdomain '[[newSubDomain]]' already exists!", dView, newSubDomain
-   end if
-   
-   # Check localDomain does not exists
-   put newSubDomain & ".localhost" into localDomain
-   if localDomain is among the lines of wikiFolders then
-      lcw_AnswerWarning "Folder for local-subdomain '[[newSubDomain]]' already exists!", dView, newSubDomain
-   end if
-   
-   # Register Subdomain DNS
-   breakpoint
-   astral_AddSubdomain "astralship.wiki", subDomainName
-   put the result into dnsData
-   
-   # Create localDomain 
-   create folder localDomain
-   
-   # Symlink newDomain
-   symlink_CreateFolder newDomain, localDomain
-   
-   # Launch Localhost wiki
-   launch_LocalhostWiki localDomain
-end menu_NewAstralWiki
-
-on menu_EmptyLocalWikis dView
-   display_EmptyLocalWikis dView
-end menu_EmptyLocalWikis
+   put sDomains
+end menu_ConstructRoster
 
 private on ____
 end ____
+
+on menu_FilterLocalWikis dView
+   put the wiki_Filter of dView into wikiFilter
+   put lcw_Ask ("Filter domains...", wikiFilter, "Wiki Filter", dView) into wikiFilter
+   display_LocalWikis dView, "All Filtered", wikiFilter
+end menu_FilterLocalWikis
+
+on menu_ListLocalWikis dView
+   set the wiki_Filter of dView to empty
+   display_LocalWikis dView
+end menu_ListLocalWikis
+
+on menu_ListEmptyLocalWikis dView
+   display_EmptyLocalWikis dView
+end menu_ListEmptyLocalWikis
+
+private on _
+end _
+
+on menu_TrashEmptyLocalWikis dView
+   display_EmptyLocalWikis dView
+   lcw_Answer "Trash displayed folders without pages?", dView
+   --
+   put the displayed_Index of dView into emptyLocalWikiDomains
+   --
+   wiki_TrashEmpty emptyLocalWikiDomains, dView
+end menu_TrashEmptyLocalWikis
+
+on menu_AddTools dView
+   breakpoint
+   put the displayed_Index of dView into emptyLocalWikiDomains
+   repeat for each line wikiDomain in emptyLocalWikiDomains
+      display_Spin wikiDomain, dView, "red"
+      put the result into lineNum
+      --
+      put wiki_GetFolder (wikiDomain) into wikiFolder
+      if there is a folder wikiFolder then
+         
+      else
+         breakpoint
+      end if
+   end repeat
+end menu_AddTools
+
+private on __
+end __
+
+on menu_LaunchEtcHosts
+   launch_EtcHosts
+   if the shiftKey is "Down" then
+      display_EtcHosts
+   end if
+end menu_LaunchEtcHosts
+
+on menu_NewEtcHosts dView
+   set the wiki_Filter of dView to empty
+   display_LocalWikis dView
+   -- put the displayed_Index of dView into wikiFolders
+   put wiki_ListLocalShortAll() into wikiFolders
+   --
+   put hosts_NewText (wikiFolders) into hostsText
+   hosts_Set hostsText
+   --
+   launch_EtcHosts
+end menu_NewEtcHosts
+
+private on ___
+end ___
+
+on submenu_Astral
+   return menu_CreateTitle ("Global | Wiki | Astral | Menu")
+end submenu_Astral
 
 on menu_ListDynadotWikis displayView
    put lcw_Ask ("Which domain...", "outlandish.academy", "Dynadot Domain", displayView) into domainName
    display_DynadotWikis domainName, displayView, ""
 end menu_ListDynadotWikis
 
-on menu_DiplayLostWikis
+-- on menu_DisplayLostWikis
    display_GitWikiFolders empty, "*platform.earth"
-end menu_DiplayLostWikis
-
-private on _
-end _
-
-on menu_AstralDynadotSubdomains dView
-   display_LocalWikis dView, "Dynadot Astral Doamins"
-end menu_AstralDynadotSubdomains
-
-on menu_AstralNotOnDynadot dView
-   -- set the displayed_Index ["Astral Missing from Dynadot"] of dView to missingSubdomains
-   display_LocalWikis dView, "Astral Missing from Dynadot"
-end menu_AstralNotOnDynadot
-
-private on __
-end __
-
-on menu_DisplayLocalWikis dView
-   display_LocalWikis dView
-end menu_DisplayLocalWikis
-
-on menu_DisplaySymWikis dView
-   display_LocalSymWikis dView
-end menu_DisplaySymWikis
-
-on menu_DisplayNonSymWikis dView
-   display_LocalWikis dView, "Non Sym-Linked"
-end menu_DisplayNonSymWikis
-
-private on ___
-end ___
-
-on menu_Filter displayView
-   put lcw_Ask ("Filter domains...", "*platform.earth", "Wiki Filter", displayView) into wikiFilter
-   display_LocalWikis displayView, "All Filtered", wikiFilter
-end menu_Filter
+end menu_DisplayLostWikis
 
 on submenu_Tunnel
    return menu_CreateTitle ("Global | Tunnel | Menu")
@@ -122,4 +135,3 @@ end submenu_Tunnel
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Local | Index | Menu")
 end submenu_Dev
-

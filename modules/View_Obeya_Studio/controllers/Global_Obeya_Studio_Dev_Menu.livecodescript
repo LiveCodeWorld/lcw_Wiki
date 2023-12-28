@@ -5,7 +5,7 @@ license: GPLv3
 name: Global | Obeya | Studio | Dev | Menu
 type: controller
 author: David Bovill
-version: 0.1
+version: 0.2
 
 /*
 Here you can describe this developer menu.
@@ -38,6 +38,11 @@ end menu_Target
 
 --> Global | Obeya | Studio | Dev | Menu
 -
+on menu_WikiBrowserBehavior wikiView
+   put the behavior of wikiView into bObject
+   edit the script of bObject
+end menu_WikiBrowserBehavior
+
 on menu_TestOneTab
    put "https://www.one-tab.com/page/xSSyPyCASfymOEwOT634JQ" into oneTabUrl
    put oneTab_FetchPageArray (oneTabUrl, "markdown") into pageArray
@@ -66,3 +71,41 @@ on menu_SetFooterHeight wikiView
    put wiki_FooterHeightJavascript () into someJavascript
    set the browser_Javascript of wikiView to someJavascript
 end menu_SetFooterHeight
+
+private on __
+end __
+
+on submenu_MenuGroup
+   return "Global | Menu | Group | Menu"
+end submenu_MenuGroup
+
+on submenu_Canvas
+   return menu_CreateTitle ("Global | Canvas | Menu")
+end submenu_Canvas
+
+private on ____
+end ____
+
+on menu_DisplayLineupData wikiView
+   put the lineup_Data of wikiView into lineupData
+   display_Data lineupData, "Lineup Data", "Wiki"
+end menu_DisplayLineupData
+
+getprop displayPageArray_Params [wikiView]
+   put the lineup_Titles of wikiView into pageTitles
+   return pageTitles
+end displayPageArray_Params
+
+on menu_DisplayPageArray wikiView, pTitle
+   put the page_Array [2] of wikiView into pageArray
+   put the page_Array [pTitle] of wikiView into pageArray
+   display_Data pageArray, pTitle, "page_Array"
+end menu_DisplayPageArray
+
+on submenu_Browser
+   return "Global | Browser | Menu"
+end submenu_Browser
+
+on submenu_Javascript
+   return "Global | Wiki | Story | Javascript | Menu"
+end submenu_Javascript

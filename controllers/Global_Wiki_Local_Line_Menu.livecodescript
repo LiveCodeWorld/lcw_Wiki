@@ -5,10 +5,12 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Wiki | Local | Line | Menu
 type: controller
-version: 0.1
+version: 0.2
 
-/*Here you can describe this menu.
-Full help text should be provided on the linked wiki.*/
+/*
+Here you can describe this menu.
+Full help text should be provided on the linked wiki.
+*/
 
 
 --> Variables
@@ -18,55 +20,35 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   -- return display_MenuTarget(tObject)
-   return the display_View of tObject
+   -- put display_MenuTarget (tObject) into browserView
+   put the display_View of tObject into dView
+   put the selected_Line of dView into wikiDomain
+   put wikiDomain into LocalArray ["wikiDomain"]
+   --
+   put _GetHostsArray() into hostsArray
+   put hostsArray ["domains"][wikiDomain] is empty into LocalArray ["NotInHosts"]
+   --
+   return dView
 end menu_Target
 
 -- getprop menu_CheckTarget [cameraView]
-   return exists (cameraView)
+return exists (cameraView)
 end menu_CheckTarget
 
-getprop disabled_MakeSymLink [displayView]
-   put the selected_Line of displayView into wDomain
-   put wiki_GetFolder (wDomain) into symWikiFolder
-   return there is a folder symWikiFolder
-end disabled_MakeSymLink
-
-getprop disabled_RegisterLocalXpose [displayView]
-   put _SelectedCnameValue (displayView) into cNameValue
-   return cNameValue is not empty
-end disabled_RegisterLocalXpose
-
-private function _SelectedCnameValue displayView
-   set the itemdelimiter to "."
-   put the selected_Line of displayView into gitWikiDomain
-   put item -2 to -1 of gitWikiDomain into tlDomain
-   --
-   put tunnel_GetRegisteredCName(tlDomain) into cNameValue
-   return cNameValue
-end _SelectedCnameValue
-
-getprop disabled_AddToDynadot [displayView]
-   set the itemdelimiter to "."
-   put the selected_Line of displayView into wikiDomain
-   --
-   if the number of items of wikiDomain = 2 then
-      return false
+private function _GetHostsArray
+   -- delete variable LocalArray ["hostsArray"]
+   put LocalArray ["hostsArray"] into hostsArray
+   if hostsArray is an array then
+      return hostsArray
    else
-      return true
-   end if 
-end disabled_AddToDynadot
-
-getprop disabled_AddSubdomainToDynadot [displayView]
-   set the itemdelimiter to "."
-   put the selected_Line of displayView into wikiDomain
-   --
-   if the number of items of wikiDomain = 2 then
-      return true
-   else
-      return false
-   end if 
-end disabled_AddSubdomainToDynadot
+      put system_GetAdminPassword() into systemPassword
+      put hosts_Get (systemPassword) into hostsText
+      put hosts_GetArray (hostsText) into hostsArray
+      --
+      put hostsArray into LocalArray ["hostsArray"]
+      return hostsArray
+   end if
+end _GetHostsArray
 
 private function _GitWikiFolder dView
    put the selected_Line of dView into shortWikiFolder
@@ -74,170 +56,145 @@ private function _GitWikiFolder dView
    return gitWikiFolder
 end _GitWikiFolder
 
-getprop disabled_TrashFolder [dView]
-   if the shiftKey is "down" then return false
-   put _GitWikiFolder (dView) into gitWikiFolder
-   --
-   return wiki_FolderHasNoPages (gitWikiFolder) is false
-end disabled_TrashFolder
-
-private function _SymlinkedFolder dView
+private function _LocalWikiFolder dView
    put the selected_Line of dView into shortWikiFolder
    --
    put wiki_RootFolder() into rootFolder
    put rootFolder & shortWikiFolder into symLinkedFolder 
    return symLinkedFolder
-end _SymlinkedFolder
+end _LocalWikiFolder
 
 private command _Refresh dView
    display_LocalSymWikis dView, "*astralship.wiki", "Sym-linked Astral"
 end _Refresh
 
-command symlink_FolderInfo wikiFolder, @twoExists, @twoDestFolder, @numOfPages
-   put there is a folder wikiFolder into twoExists
-   if twoExists then      
-      if folder_IsSymLink (wikiFolder) then
-         put symlink_Destination (twoFolder) into twoDestFolder
-         put wiki_NumberOfpages (twoDestFolder) into numOfPages
-      else
-         put wiki_NumberOfpages (wikiFolder) into numOfPages
-      end if
-   end if
-end symlink_FolderInfo
+getprop disabled_TrashLocalFolder [dView]
+   if the shiftKey is "down" then return false
+   put the selected_Line of dView into shortWikiFolder
+   put wiki_GetFolder (shortWikiFolder) into wikiFolder
+   --
+   return wiki_FolderHasNoPages (wikiFolder) is false
+end disabled_TrashLocalFolder
 
--- on menu_MakeSymLink dView
-put the selected_Line of dView into shortWikiFolder
-put wiki_RootFolder() into rootFolder
-put rootFolder & shortWikiFolder into symLinkedFolder 
---
-put lcw_Ask ("Create Astral symlink?", shortWikiFolder) into symLinkDomain
---
-gitwiki_CreateSymLink shortWikiFolder, symLinkDomain
---
-lcw_Answer "Created symlink!", dView
-finder_Reveal symWikiFolder
-end menu_MakeSymLink
+getprop disabled_TrashGitWikiFolder [dView]
+   if the shiftKey is "down" then return false
+   put _GitWikiFolder (dView) into gitWikiFolder
+   --
+   return wiki_FolderHasNoPages (gitWikiFolder) is false
+end disabled_TrashGitWikiFolder
+
+getprop disabled_DeleteSymLink [dView]
+   put _LocalWikiFolder(dView) into symLinkedFolder
+   put folder_IsSymLink (symLinkedFolder) into isSymLinked
+   return isSymLinked is false
+end disabled_DeleteSymLink
+
+getprop disabled_AddToHosts [dView]
+   put LocalArray ["wikiDomain"] into wikiDomain
+   set the itemdelimiter to "."
+   if item -1 of wikiDomain = "localhost" then return true
+   --
+   return LocalArray ["NotInHosts"] is false
+end disabled_AddToHosts
+
+getprop disabled_Display [dView]
+   return LocalArray ["NotInHosts"] is true
+end disabled_Display
 
 
 --> Global | Wiki | Local | Line | Menu
 -
-on menu_FixTwo dView
-   put the selected_Line of dView into localhostDomain
-   --
-   if localhostDomain contains " 2." then
-      put localhostDomain into fixedName
-      replace " 2." with "." in fixedName
-      --
-      put wiki_GetFolder (localhostDomain) into twoFolder
-      put wiki_ConstructFolder (fixedName) into fixedFolder 
-      --
-      
-      --
-      put there is a folder fixedFolder into fixedExists
-      if fixedExists then
-         if folder_IsSymLink (fixedFolder) then
-            put true into fixedIsSymLinked
-         else if wiki_FolderHasNoPages (fixedFolder) is true then
-            put true into fixedIsEmpty
-         else
-            put false into fixedIsEmpty
-         end if
-      end if
-      
-      breakpoint
-      
-      if there is a folder fixedFolder then
-         if wiki_FolderHasNoPages (fixedFolder) is true then
-            if folder_IsSymLink (fixedFolder) is true then
-               breakpoint
-               return "Error, fixed symlink folder alreaady exists."
-            else
-               revDeleteFolder fixedFolder
-            end if
-         else
-            breakpoint
-            if folder_IsSymLink (twoFolder) then
-               put symlink_Destination (twoFolder) into twoDestFolder
-               symlink_Delete twoFolder
-               symlink_CreateFolder twoDestFolder, fixedFolder
-            else
-               if wiki_FolderHasNoPages (twoFolder) is true then
-                  put symlink_Destination (twoFolder) into twoDestFolder
-                  revDeleteFolder twoFolder
-                  symlink_CreateFolder twoDestFolder, twoFolder
-               else if wiki_FolderHasNoPages (fixedFolder) is true then
-                  put symlink_Destination (twoFolder) into twoDestFolder
-                  if twoDestFolder is empty then
-                     breakpoint
-                     return "Error, twoFolder is not a symlink"
-                  end if
-                  --
-                  revDeleteFolder fixedFolder
-                  symlink_CreateFolder twoDestFolder, fixedFolder
-               else
-                  return "Error, fixed folder alreaady exists."
-               end if
-            end if
-         end if
-      end if
-      --
-      if folder_IsSymLink (twoFolder) then
-         put wiki_RootFolder() into rootFolder
-         set the defaultfolder to rootFolder
-         -- put merge ("mv '[[twoFolder]]' '[[fixedFolder]]'") into someShell
-         put merge ("mv '[[localhostDomain]]' '[[fixedName]]'") into someShell
-         replace "'" with quote in someShell
-         --
-         put shell (someShell) into mvResult
-         put "ls -l" && kwote (fixedName) into someShell
-         put shell (someShell) into lsResult
-         --
-         set the itemdelimiter to comma
-         -- lrwxr-xr-x@ 1 david  staff  73 Jan  1  1970 events.thought.garden -> /Users/david/Documents/git-repos/LiveCodeWorld/wiki/events.thought.garden
-         put lsResult contains (fixedName & " -> ") into fixedLink
-         --
-         display_LocalWikis dView, "Local Twos", "* 2.*"
-      end if
-      --
-   end if
-end menu_FixTwo
-
-on menu_FixGitSymlink dView
-   put the selected_Line of dView into localhostDomain
-   --
-   gitwiki_FixLocalDomain localhostDomain
-end menu_FixGitSymlink
-
-on menu_MakeAstralSymLink dView
-   put the selected_Line of dView into localhostDomain
-   put wiki_RootFolder() into rootFolder
-   put rootFolder & localhostDomain into symLinkedFolder 
-   --
-   put wiki_AstralFromLocalhost (localhostDomain) into astralDomain
-   put lcw_Ask ("Create Astral symlink?", astralDomain) into symLinkDomain
-   --
-   wiki_CreateSymLink localhostDomain, symLinkDomain
-   --
-   display_LocalWithoutAstral dView
-end menu_MakeAstralSymLink
-
 on menu_DeleteSymLink dView
-   put _SymlinkedFolder(dView) into symLinkedFolder
-   symlink_Delete symLinkedFolder
-   _Refresh dView
+   put _LocalWikiFolder (dView) into symLinkedFolder
+   if folder_IsSymLink (symLinkedFolder) then
+      symlink_Delete symLinkedFolder
+      display_LocalSymWikis dView
+   else
+      breakpoint
+   end if
 end menu_DeleteSymLink
+
+on menu_RenameLocalWiki dView
+   put the selected_Line of dView into localhostDomain
+   --
+   put lcw_Ask ("Rename localhost...", localhostDomain, "Rename", dView) into wikiDomain
+   --
+   put wiki_GetFolder (localhostDomain) into oFolder
+   put wiki_ConstructFolder (wikiDomain) into newFolder
+   if there is a folder newFolder then
+      return "Error, folder" && newFolder && "already exists."
+   end if
+   --
+   put system_GetAdminPassword() into systemPassword
+   hosts_Rename fromDomain, toDomain, systemPassword
+   -- hosts_Add wikiDomain, systemPassword
+   --
+   revMoveFolder oFolder, newFolder
+   --
+   put wiki_Browser() into browserView
+   display_Wiki wikiDomain, browserView
+   --
+   display_LocalWikis dView
+end menu_RenameLocalWiki
+
+on menu_AddTools dView
+   put the selected_Line of dView into wikiDomain
+   --
+   put wiki_GetFolder (wikiDomain) into wikiFolder
+   put wikiFolder & "tools" into toolFile
+   if there is not a file toolFile then
+      put pageArray_Get (wikiDomain, "tools")
+   else
+      breakpoint
+   end if
+end menu_AddTools
+
+on menu_AddToHosts dView
+   put the selected_Line of dView into wikiDomain
+   put system_GetAdminPassword() into systemPassword
+   hosts_Add wikiDomain, systemPassword
+   --
+   put wiki_Browser() into browserView
+   display_Wiki wikiDomain, browserView
+end menu_AddToHosts
 
 private on __
 end __
 
-on menu_RevealFolder dView
+on menu_Display dView
+   put the selected_Line of dView into wikiDomain
+   --
+   put wiki_Browser() into browserView
+   display_Wiki wikiDomain, browserView
+end menu_Display
+
+on menu_RevealLocalFolder dView
+   put the selected_Line of dView into shortWikiFolder
+   put wiki_GetFolder (shortWikiFolder) into gitWikiFolder
+   --
+   finder_Reveal gitWikiFolder
+end menu_RevealLocalFolder
+
+on menu_TrashLocalFolder dView
+   put the selected_Line of dView into shortWikiFolder
+   put wiki_GetFolder (shortWikiFolder) into wikiFolder
+   --
+   revDeleteFolder wikiFolder
+   --
+   display_LocalWikis dView
+end menu_TrashLocalFolder
+
+private on ___
+end ___
+
+on menu_RevealGitwikiFolder dView
    put the selected_Line of dView into shortWikiFolder
    put gitwiki_GetFolder (shortWikiFolder) into gitWikiFolder
    --
    finder_Reveal gitWikiFolder
-end menu_RevealFolder
+end menu_RevealGitwikiFolder
 
-on menu_TrashFolder dView
+on menu_TrashGitwikiFolder dView
    put the selected_Line of dView into shortWikiFolder
    put gitwiki_GetFolder (shortWikiFolder) into gitWikiFolder
    --
@@ -247,9 +204,8 @@ on menu_TrashFolder dView
    if the displayed_Index of dView is empty then
       display_GitWikiFolders
    end if
-end menu_TrashFolder
+end menu_TrashGitwikiFolder
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Local | Line | Menu")
 end submenu_Dev
-

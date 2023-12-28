@@ -32,6 +32,17 @@ end menu_CheckTarget
 
 --> Global | Wiki | Local | Index | Dev | Menu
 -
+on menu_ListLocalSymlinkedWikis dView
+   display_LocalSymWikis dView
+end menu_ListLocalSymlinkedWikis
+
+on menu_ListLocalNonSymWikis dView
+   display_LocalWikis dView, "Non Sym-Linked"
+end menu_ListLocalNonSymWikis
+
+private on _
+end _
+
 on menu_RevealWikiFolder
    put wiki_RootFolder() into wikiFolder
    finder_Reveal wikiFolder

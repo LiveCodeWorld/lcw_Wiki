@@ -41,14 +41,97 @@ command fedwiki_SetDefaultPage wikiDomain, pageSlug, pForkDomains
 end fedwiki_SetDefaultPage
 
 
+--> Wiki | Client
+-
+/*
+Files from the wiki-client npm module
+*/
+
+function wikiClient_GetClientFile clientRelativePath
+   put wikiClient_ConstructFile (clientRelativePath) into sFile
+   if there is a file sFile then
+      put text_Get (sFile) into sJavascript
+      return sJavascript
+   else
+      -- daemon_Log "wikiClient_GetClientFile" && clientRelativePath
+      return empty
+   end if
+end wikiClient_GetClientFile
+
+function wikiClient_ConstructFile clientRelativePath
+   if char 1 of clientRelativePath = slash then delete char 1 of clientRelativePath
+   --
+   put wikiClient_Folder ("client/") into clientFolder
+   put clientFolder & clientRelativePath into sFile
+   return sFile
+end wikiClient_ConstructFile
+
+
+--> Wiki | Favicon
+-
+function wiki_GetFavicon wikiDomain
+   put wiki_FaviconFile (wikiDomain) into faviconFile
+   if there is a file faviconFile then
+      put url ("binfile:" & faviconFile) into pngData
+      return pngData
+   else
+      return empty
+   end if
+end wiki_GetFavicon
+
+command wiki_SetFavicon wikiDomain, pngData
+   put wiki_FaviconFile (wikiDomain) into faviconFile
+   put pngData into url ("binfile:" & faviconFile)
+   return faviconFile
+end wiki_SetFavicon
+
+function wiki_GetDefaultFavicon
+   put wiki_DefaultStatusFolder() into defaultStatusFolder
+   put defaultStatusFolder & "favicon.png" into faviconFile
+   if there is a file faviconFile then
+      put url ("binfile:" & faviconFile) into pngData
+      return pngData
+   else
+      return empty
+   end if
+end wiki_GetDefaultFavicon
+
+
+--> WikiClient | Default | Model
+-
+function wikiClient_GetStaticHtml
+   put wikiClient_Folder ("views/") into clientViewFolder
+   put clientViewFolder & "static.html" into clientViewPath
+   put text_Get (clientViewPath) into someHTML
+   return someHTML
+end wikiClient_GetStaticHtml
+
+function wikiClient_Folder pRelFolderPath
+   put node_WikiModulesFolder() & "wiki-client/" into wikiClientFolder
+   text_AddTrailing pRelFolderPath, slash
+   put pRelFolderPath after wikiClientFolder
+   
+   if there is a folder wikiClientFolder then
+      return wikiClientFolder
+   else
+      return empty
+   end if
+end wikiClient_Folder
+
+
 --> PageArray | Default | Model
 -
 function pageArray_GetDefault pageSlug
-   put wiki_DefaultPagePath (pageSlug) into defaultPath
-   put text_Get (defaultPath) into pageJSON
+   put pageArray_GetDefaultJson (pageSlug) into pageJSON
    put json_ToArray (pageJSON) into pageArray
    return pageArray
 end pageArray_GetDefault
+
+function pageArray_GetDefaultJson pageSlug
+   put wiki_DefaultPagePath (pageSlug) into defaultPath
+   put text_Get (defaultPath) into pageJSON
+   return pageJSON
+end pageArray_GetDefaultJson
 
 command pageArray_SetDefault pageArray
    put pageArray ["title"] into pageTitle
@@ -163,13 +246,13 @@ command pageArray_Delete wikiDomain, pageSlug
 end pageArray_Delete
 
 function pageJson_Get wikiDomain, pageSlug
-   put fedwiki_LocalPageJsonFile (pageSlug, wikiDomain) into wikiPagePath
+   put wiki_PageJsonFile (wikiDomain, pageSlug) into wikiPagePath
    put text_Get (wikiPagePath) into pageJSON
    return pageJSON
 end pageJson_Get
 
 command pageJson_Set wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
-   put fedwiki_LocalPageJsonFile (pageSlug, wikiDomain) into wikiPagePath
+   put wiki_PageJsonFile (wikiDomain, pageSlug) into wikiPagePath
    text_Set wikiPagePath, pageJSON
    --
    if pDeleteSiteMap is not false then
@@ -180,7 +263,7 @@ command pageJson_Set wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
 end pageJson_Set
 
 command pageJson_Delete wikiDomain, pageSlug
-   put fedwiki_LocalPageJsonFile (pageSlug, wikiDomain) into wikiPagePath
+   put wiki_PageJsonFile (wikiDomain, pageSlug) into wikiPagePath
    revDeleteFile wikiPagePath
    return the result
 end pageJson_Delete
@@ -196,16 +279,3 @@ function fedwiki_ListDefaultPages pListShort
       return file_ListShort (wikiDefaultPagesFolder)
    end if
 end fedwiki_ListDefaultPages
-
---> Fedwiki | Local | Sulgs
--
-function fedwiki_LocalPageSlugs pFedwikiDomain
-   put fedwiki_GetLocalWikiFolder (pFedwikiDomain) into localPagesFolder
-   if there is a folder localPagesFolder then
-      put folder_ShortFiles (localPagesFolder) into pageSlugs
-      return pageSlugs
-   else
-      return empty
-   end if
-end fedwiki_LocalPageSlugs
-

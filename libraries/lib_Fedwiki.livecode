@@ -35,8 +35,6 @@ private command development_ReturnPageArray pageArray, pBrowserView
    end if
    --
    set the ghost_PageArray of pBrowserView to pageArray
-   --
-   dispatch "toggle_Editable" to pBrowserView
 end development_ReturnPageArray
 
 
@@ -120,12 +118,11 @@ command fedwiki_ReturnPageArray pageArray
       put "PageArray is not an array." into someInfo
       put CR & CR & pageArray after someInfo
       put pageArray_Construct ("Error with page array!", someInfo) into pageArray
-      put json_FromArray (pageArray) into someJSON
    end if
-   put json_FromArray (pageArray) into someJSON
    
    switch the environment
       case "server"
+         put json_FromArray (pageArray) into someJSON
          fedwiki_ReturnJSON someJSON
       default
          development_ReturnPageArray pageArray
@@ -336,7 +333,7 @@ function pageArray_FetchNewSite wikiDomain
    put "Welcome Visitors" into pageTitle
    put fedwiki_ConstructSlug (pageTitle) into pageSlug
    put firstPara into refText
-   pageArray_AddReference pageArray, pageSlug, wikiDomain, refText, pageTitle
+   pageArray_AddReference pageArray, pageTitle, wikiDomain, refText, pageSlug
    --
    -- put pageArray_FetchText (wikiDomain, pageSlug) into siteText
    put fedwiki_FetchSiteText (wikiDomain) into siteText
@@ -1143,7 +1140,7 @@ command fedwiki_AddExternalLinkToFirstSection @fedwikiPageArray, someURL, pLinkT
       -- section was empty
       put "There is no text for this section. Please add some." into itemText
       fedwiki_AddExternalLink itemText, someURL, pLinkText
-      put storyArray_ConstructItem (itemText, "markdown") into itemArray
+      put itemArray_Construct (itemText, "markdown") into itemArray
       --
       storyArray_InsertInto storyArray, 1, itemArray
       --
@@ -2108,4 +2105,3 @@ function kwote someText, pQuoteChar
    if pQuoteChar is empty then put quote into pQuoteChar
    return pQuoteChar & someText & pQuoteChar
 end kwote
-

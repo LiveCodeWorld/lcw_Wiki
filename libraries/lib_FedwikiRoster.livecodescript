@@ -21,7 +21,7 @@ For more complicated data for which using page-json is suitable, we can use the 
 command atopia_ReturnRoster wikiDomains, pTitle, pRosterTitle
    switch the environment
       case "development"
-         put wiki_ListAllLocalFolders("*thought.garden") into localFolders
+         put wiki_ListLocalShortAll("*thought.garden") into localFolders
          repeat for each line wikiDomain in localFolders
             put wikiDomain & ":3000" & CR after filteredLocalDomains
          end repeat

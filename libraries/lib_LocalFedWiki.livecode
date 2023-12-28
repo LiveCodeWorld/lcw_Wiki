@@ -143,7 +143,7 @@ command fedwiki_DownloadDomainToFolder fedwikiDomain, pLocalWikiFolder
       fedwiki_SetLocalPageJson pageSlug, pageJSON, fedwikiDomain, pLocalWikiFolder
    end repeat
    put fedwiki_FetchFavicon (fedwikiDomain) into pngData
-   fedwiki_SetLocalFavicon fedwikiDomain, pngData
+   wiki_SetFavicon fedwikiDomain, pngData
    return siteArray
 end fedwiki_DownloadDomainToFolder
 
@@ -202,24 +202,6 @@ function fedwiki_ExtractForkLinks pageArray, fromSlug, fromDomain
 end fedwiki_ExtractForkLinks
 
 
---> Fedwiki | Favicon
--
-function fedwiki_GetLocalFavicon fedwikiDomain, pLocalStatusFolder
-   put fedwiki_LocalFaviconFile (fedwikiDomain, false, pLocalStatusFolder) into someFile
-   if there is a file someFile then
-      put url ("binfile:" & someFile) into pngData
-      return pngData
-   else
-      return empty
-   end if
-end fedwiki_GetLocalFavicon
-
-command fedwiki_SetLocalFavicon fedwikiDomain, pngData, pLocalStatusFolder
-   put fedwiki_LocalFaviconFile (fedwikiDomain, true, pLocalStatusFolder) into someFile
-   put pngData into url ("binfile:" & someFile)
-   return someFile
-end fedwiki_SetLocalFavicon
-
 
 --> Fedwiki | Local | Page Json | Files
 -
@@ -229,28 +211,6 @@ This local folder is named "wiki" without the first "." (as it would be on the r
 
 You can customise this location by using a getprop 
 */
-
-function fedwiki_LocalFaviconFile fedwikiDomain, pCreateFolder, pLocalStatusFolder
-   if pLocalStatusFolder is empty then
-      put fedwiki_LocalStatusFolder (fedwikiDomain) into pLocalStatusFolder
-   end if
-   folder_Format pLocalStatusFolder
-   if pCreateFolder is true then
-      folder_CreateNested pLocalStatusFolder
-   end if
-   put pLocalStatusFolder & "favicon.png" into someFile
-   return someFile
-end fedwiki_LocalFaviconFile
-
-function fedwiki_LocalPageSlugs pFedwikiDomain, pLocalWikiFolder
-   put fedwiki_LocalPagesFolder (pFedwikiDomain, pLocalWikiFolder) into localPagesFolder
-   if there is a folder localPagesFolder then
-      put folder_ShortFiles (localPagesFolder) into pageSlugs
-      return pageSlugs
-   else
-      return empty
-   end if
-end fedwiki_LocalPageSlugs
 
 function fedwiki_LocalSiteMapJson pFedwikiDomain
    put fedwiki_LocalSiteMapFile (pFedwikiDomain) into someFile

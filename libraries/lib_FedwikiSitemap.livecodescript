@@ -24,6 +24,20 @@ local localArray
 
 --> Working on
 -
+function wiki_FetchExportData wikiDomain
+   put fedwiki_JsonExportUrl (wikiDomain) into exportURL
+   put url exportURL into someJson
+   if someJson is empty then return empty
+   put textDecode (someJson, "utf8") into someJson
+   put json_ToArray (someJson) into exportData
+   if exportData is false then return empty
+   return exportData
+end wiki_FetchExportData
+
+function fedwiki_JsonExportUrl wikiDomain   
+   put "http://" & wikiDomain & "/system/export.json" into exportURL
+   return exportURL
+end fedwiki_JsonExportUrl
 
 
 --> Fedwiki | Sitemap
@@ -43,8 +57,6 @@ function fedwiki_FetchSitemap wikiDomain
 end fedwiki_FetchSitemap
 
 function fedwiki_JsonSiteMapUrl wikiDomain   
-   -- set the itemDelimiter to slash
-   -- put item 1 to 3 of fedwikiUrl into sitemapURL
    put "http://" & wikiDomain into sitemapURL
    put "/system/sitemap.json" after sitemapURL
    return sitemapURL

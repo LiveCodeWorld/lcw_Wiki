@@ -43,6 +43,11 @@ end wiki_Merge
 
 --> Curly | Merge
 -
+command curly_ReplaceText @someText, curlyKey, curlyReplacement
+   put "(?Uim)\{\{\s*" & curlyKey & "\s*\}\}" into someReg
+   put replacetext (someText, someReg, curlyReplacement) into someText
+end curly_ReplaceText
+
 command curly_ReplacePageArray @pageArray, curlyKey, curlyReplacement
    put pageArray ["story"] into storyArray
    repeat with itemNum = 1 to item 2 of the extents of storyArray
@@ -75,13 +80,6 @@ command curly_Merge @someText, curlyArray
       curly_ReplaceText someText, curlyKey, curlyReplacement
    end repeat
 end curly_Merge
-
-command curly_ReplaceText @someText, curlyKey, curlyReplacement
-   -- put "(\{\{\s*" & curlyKey & "\s*\}\})" into someReg
-   put "(?Uim)\{\{\s*" & curlyKey & "\s*\}\}" into someReg
-   -- text_StripReg someText, someReg, curlyReplacement
-   put replacetext (someText, someReg, curlyReplacement) into someText
-end curly_ReplaceText
 
 
 --> Curly | PageArray

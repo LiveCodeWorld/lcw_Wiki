@@ -5,107 +5,106 @@ copyright: David Bovill
 license: GPLv3
 name: behavior_ViewObeyaStudio
 type: behavior
-version: 0.1
+version: 0.3
 
 /*
-on getFooterVisibility
-   put "function checkVisibility() {
-   let footerVisibility = window.getComputedStyle(document.querySelector('footer')).visibility;
-   return footerVisibility;}
-   checkVisibility();" into tScript
-   
-   put _BrowserWidget() into browserWidget
-   put browserExecuteScript (browserWidget, tScript) into tCallbackID
-end getFooterVisibility
-
-on browserCallback pCallbackID, pResult
-   if pCallbackID is tCallbackID then
-      answer "The footer visibility is:" && pResult
-   end if
-end browserCallback
 */
 
+--> Variables
+-
 local LocalArray
+
+
+--> Events
+-
+on resizeControl
+   LayoutControl
+end resizeControl
+
+command LayoutControl pRect
+   if pRect is empty then put the rect of this cd into pRect
+   get the menubar of the defaultstack
+   if it is not empty then
+      put the menubar_View of me into mView
+      if exists (mView) then
+         -- put the height of mView into sHeight
+         put 20 into sHeight
+         -- subtract sHeight from item 2 of pRect
+         add sHeight to item 2 of pRect
+      end if
+   end if
+   set the rect of me to pRect
+end LayoutControl
+
 
 --> Working on
 -
-on init_Javascript
-   set the browser_AddJavascriptHandlers of me to "wikiClick_HamburgerMenu,bevent_ExternalLink"
-   --
-   put wikijs_Override() into overrideJS
-   set the browser_Javascript of me to overrideJS
-   return someJavascript
-end init_Javascript
+getprop browser_Snapshot
+   -- export snapshot from _BrowserWidget() to somePNG as PNG -- bug: returns half the data
+   put the object_Snapshot of _BrowserWidget() into somePNG
+   return somePNG
+end browser_Snapshot
 
-getprop is_Editable
-   -- <span class="editEnable" style="display: none;">✔︎</span>
-end is_Editable
-
-getprop is_Editable
-   -- get "liveCode.myJSHandler(document.title);"
-   put _BrowserWidget() into browserWidget
-   set the browser_AddJavascriptHandlers of browserWidget to "footerVisibleHandler"
-   --
-   -- put scaffold_Get ("footer_visible.js") into jsScript
-   put "liveCode.footerVisibleHandler(window.getComputedStyle(document.querySelector('footer')).visibility);" into jsScript
-   do jsScript in browserWidget
-   put the result into sResult -- sometimes does not work
-   put LocalArray ["sResult"] into sResult
-   --
-   put sResult = "visible" into isVisible
-   return isVisible
-end is_Editable
-
-setprop is_Editable showMe
-   put _BrowserWidget() into browserWidget
-   put showMe is false into hideMe
-   lock screen
-   put wiki_FooterVisibleJavascript (hideMe) into someJavascript
-   put ";" after someJavascript
-   if showMe is false then
-      put wiki_FooterHeightJavascript (18) after someJavascript
-   else
-      put wiki_FooterHeightJavascript (60) after someJavascript
-   end if
-   do someJavascript in browserWidget
-   unlock screen
-end is_Editable
-
-on toggle_Editable
-   set the browser_Javascript of me to "$('footer span.editEnable').click();"
-end toggle_Editable
-
-on footerVisibleHandler sResult
-   put sResult into LocalArray ["sResult"]
+getprop page_Class [pageSlug]
+   put wikijs_GetPageClass (pageSlug) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
    return sResult
-end footerVisibleHandler
+end page_Class
 
 on wikiClick_HamburgerMenu
-   set the display_Page of me to "tools"
+   set the page_Title of me to "tools"
 end wikiClick_HamburgerMenu
-   
-on bevent_ExternalLink externalURL
-   display_WikiBrowser externalURL
-end bevent_ExternalLink
 
-on browser_InitResult elementHtml
-   -- put "svg" into elementHtml
+setprop flag_Handler flagHandler
+   if flagHandler is "default" then put "flag_Event" into flagHandler
    --
-   delete variable LocalArray ["elementHtml"]
-   put _BrowserWidget() into browserWidget
-   set the browser_AddJavascriptHandlers of browserWidget to "browser_JavascriptResult"
+   set the browser_AddJavascriptHandlers of me to flagHandler
+   put wikijs_SetFlagHandler (flagHandler) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end flag_Handler
+
+on flag_Event flagYaml
+   split flagYaml using comma and ":"
    --
-   put merge ("var r=document.getElementById('[[elementHtml]]').outerHTML;liveCode.browser_JavascriptResult(r)") into sJavascript
-   replace "'" with quote in sJavascript
-   do sJavascript in browserWidget
-end browser_InitResult
+   set the clicked_FlagArray of me to flagYaml
+   --
+   put flagYaml ["target"] into wikiDomain
+   put flagYaml ["href"] into urlPath
+   put flagYaml ["pageTitle"] into pageTitle
+   --
+   if char 1 to 2 of urlPath = "//" then
+      # Open nwiki in new tab
+      display_Wiki wikiDomain, "New"
+   else
+      # Open tools
+      set the itemdelimiter to slash
+      put item -1 of urlPath into pageSlug
+      --
+      put the page_Class [pageSlug] of me into pageClass
+      switch
+         case the optionkey is "Down"
+            set the page_Title of me to "Tools"
+            break
+         case the shiftkey is "Down"
+         case pageClass contains "ghost"
+            put mediawiki_GetPageArrayFromSlug (pageTitle) into pageArray
+            set the ghost_PageArray of me to pageArray
+            break
+         default
+            set the page_Title of me to "Tools"
+      end switch
+   end if
+end flag_Event
 
-on browser_JavascriptResult elementHtml
-   put elementHtml into LocalArray ["elementHtml"]
-end browser_JavascriptResult
+setprop wikipedia_Page pageTitle
+   put mediawiki_GetPageArrayFromSlug (pageTitle) into pageArray
+   set the ghost_PageArray of me to pageArray
+   return pageArray
+end wikipedia_Page
 
 
---> Javascript
+--> Override
 -
 getprop wiki_Override
    get the browser_JavascriptHandlers of me
@@ -119,24 +118,413 @@ end wiki_Override
 
 setprop wiki_Override sWay
    switch sWay
+      case "flag"
+         set the flag_Handler of me to "default"
+         break
       case "Hamburger"
          break
       case "external"
          break
+      default
+         set the browser_AddJavascriptHandlers of me to "wikiClick_HamburgerMenu,bevent_ExternalLink,flag_Event"
+         --
+         put wikijs_Override() into overrideJS
+         set the browser_Javascript of me to overrideJS
+         --
+         set the wiki_EditMode of me to true
+         set the flag_Handler of me to "default"
    end switch
-   --
-   init_Javascript
 end wiki_Override
 
-getprop footer_IsVisible
-   -- get "liveCode.myJSHandler(document.title);"
-   put _BrowserWidget() into browserWidget
-   set the browser_AddJavascriptHandlers of browserWidget to "footerVisibleHandler"
+on bevent_ExternalLink externalURL
+   platform_DeconstructURL externalURL, toolItems, urlExt, hName
+   switch
+      case toolItems is empty
+         display_WikiBrowser externalURL
+         break
+      default
+         --
+         put the long id of me into browserView
+         put item 2 to -1 of toolItems into otherItems
+         dispatch hName with browserView,otherItems
+         switch it
+            case "unhandled"
+               put hName
+               break
+            default
+               
+         end switch
+   end switch
+end bevent_ExternalLink
+
+function wikijs_GetLinupUrls
+   put "var links = document.querySelectorAll('a.show-page-source');" into sJavascript
+   put CR & "var hrefs = Array.from(links).map(function(link) {return link.getAttribute('href');});" after sJavascript
+   put CR & "liveCode.javascript_Result(JSON.stringify(hrefs));" after sJavascript
+   return sJavascript
+end wikijs_GetLinupUrls
+
+getprop lineup_Urls
+   put wikijs_GetLinupUrls() into sJavascript
+   put _GetJavascriptResult (sJavascript) into lineupJson
+   
+   # Work out urls in Livecode (probably faster in js)
+   put the browser_URL of me into browserURL
+   set the itemdelimiter to slash
+   put item 3 of browserURL into urlDomain
    --
-   -- put scaffold_Get ("footer_visible.js") into jsScript
-   put "liveCode.footerVisibleHandler(window.getComputedStyle(document.querySelector('footer')).visibility);" into jsScript
-   do jsScript in browserWidget
-   put the result into sResult -- sometimes does not work
+   -- put json_ToArray (lineupJson) into lineupArray
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   
+   set the itemdelimiter to comma
+   repeat for each item sLink in lineupJson
+      replace quote with empty in sLink
+      if char 1 to 2 of sLink = "//" then
+         put "http:" & sLink into someURL
+      else
+         put "http://" & urlDomain & sLink into someURL
+      end if
+      put someURL & CR after lineUpURLs
+   end repeat
+   delete char -1 of lineUpURLs
+   return lineUpURLs
+end lineup_Urls
+
+getprop footer_WikiEditTag
+   put "liveCode.javascript_Result(document.querySelector('footer span.editEnable').outerHTML);" into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end footer_WikiEditTag
+
+getprop wiki_EditMode
+   return _IsTicked()
+end wiki_EditMode
+
+private function _IsTicked
+   put the footer_WikiEditTag of me into htmlTag
+   put (htmlTag contains "display: none") is false into isTicked
+   return isTicked
+end _IsTicked
+
+setprop wiki_EditMode sBoolean
+   put _IsTicked() into isTicked
+   if isTicked is not sBoolean then
+      toggle_Editable
+   end if
+end wiki_EditMode
+
+on toggle_Editable
+   -- put "$('footer span.editEnable').click();" into sJavascript
+   put wikijs_ToggleEdit() into sJavascript
+   set the browser_Javascript of me to sJavascript
+end toggle_Editable
+
+
+--> Props
+-
+getprop flag_Event [pageSlug]
+   put wikijs_ConstructSelector(".header h1", pageSlug, "outerHTML") into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end flag_Event
+
+getprop license_Handler [slugAndFunc]
+   put item 1 of slugAndFunc into pageSlug
+   put item 2 of slugAndFunc into pJsFunction
+   --
+   put wikijs_ConstructSelector(".footer a.show-page-license", pageSlug, pJsFunction) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end license_Handler
+
+getprop search_Html [slugAndFunc]
+   put item 1 of slugAndFunc into pageSlug
+   put item 2 of slugAndFunc into pJsFunction
+   --
+   put wikijs_ConstructSelector(".footer a.search", pageSlug, pJsFunction) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end search_Html
+
+getprop json_Html [qAndSlug]
+   put item 1 of qAndSlug into pageSlug
+   put item 2 of qAndSlug into pJsFunction
+   --
+   -- put wiki_PageJsonJavascript (pageSlug, pJsFunction) into sJavascript
+   put wikijs_ConstructSelector(".footer a.show-page-source", pageSlug, pJsFunction) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end json_Html
+
+getprop flag_Html [pageSlug]
+   if pageSlug is empty then put "welcome-visitors" into pageSlug
+   --
+   put wiki_PageFlagJavascript (pageSlug) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end flag_Html
+
+getprop outer_Html [qAndSlug]
+   put item 1 of qAndSlug into qSelector
+   if qSelector is empty then put ".header h1" into qSelector
+   put item 2 of qAndSlug into pageSlug
+   --
+   put wikijs_ConstructSelector (qSelector, pageSlug, "outerHTML") into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end outer_Html
+
+
+--> Javascript | Handlers
+-
+setprop license_Handler hName
+   put wiki_LiveJavascript (hName) into jsFunction
+   put wiki_LicenseHtmlJavascript (jsFunction) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   put the result into doResult
+   return doResult
+end license_Handler
+
+setprop json_Handler hName
+   put wiki_LiveJavascript (hName) into jsFunction
+   put wiki_JsonLinkJavascript (jsFunction) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   put the result into doResult
+   return doResult
+end json_Handler
+
+setprop search_Handler hName
+   put wiki_LiveJavascript (hName) into jsFunction
+   put wiki_SearchLinkJavascript (jsFunction) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   put the result into doResult
+   return doResult
+end search_Handler
+
+getprop element_IsTransparent [domElement]
+   if domElement is empty then put "document.body" into domElement
+   
+   put js_ElementIsTranparent (domElement) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end element_IsTransparent
+
+
+--> Wiki
+-
+setprop wiki_Scale sFactor
+   put wikijs_ScaleViewport (sFactor) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end wiki_Scale
+
+getprop wiki_IsTransparent
+   put the element_IsTransparent ["document.body"] of me into sBoolean
+   return sBoolean
+end wiki_IsTransparent
+
+setprop wiki_IsTransparent sBoolean
+   if sBoolean is true then
+      put "document.body.style.background = 'transparent';" into sJavascript
+   else
+      put "document.body.style.background = '#eeeeee url("  into sJavascript
+      put kwote ("/images/crosses.png") & ")';" after sJavascript
+   end if
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end wiki_IsTransparent
+
+getprop wiki_Domain
+   put the browser_URL of me into someURL
+   set the itemdelimiter to slash
+   put item 3 of someURL into wikiDomain
+   set the itemdelimiter to "."
+   if item 1 of wikiDomain = "www" then delete item 1 of wikiDomain
+   return wikiDomain
+end wiki_Domain
+
+setprop wiki_Domain domainOrURL
+   put _BrowserWidget() into browserWidget
+   set the itemdelimiter to slash
+   switch
+      case item 1 of domainOrURL = "https:"
+      case item 1 of domainOrURL = "http:"
+         -- http://arodic.github.io/p/jellyfish/
+         put domainOrURL into someURL
+         set the itemdelimiter to slash
+         put item 3 of domainOrURL into wikiDomain
+         break
+      default
+         put domainOrURL into wikiDomain
+         put wiki_ConstructUrl (wikiDomain) into someURL
+   end switch
+   --
+   set the browser_URL of browserWidget to someURL
+   set the stack_Label of me to wikiDomain
+end wiki_Domain
+
+
+--> Ghost
+-
+setprop ghost_PageArray pageArray
+   put json_FromArray (pageArray) into pageJSON
+   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
+   return the result
+end ghost_PageArray
+
+setprop ghost_PageJson pageJSON
+   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
+   return the result
+end ghost_PageJson
+
+
+--> Page
+-
+setprop page_Scale [pageSlug] scaleItems
+   if scaleItems is empty then
+      put wikijs_ResetPageTransform (pageSlug) into sJavascript
+   else
+      put item 1 of scaleItems into sSale
+      put item 2 of scaleItems into sX
+      put item 3 of scaleItems into sY
+      put item 4 of scaleItems into sTime
+      --
+      -- put wikijs_SetPageScale (sSale, pageSlug) into sJavascript
+      put wikijs_TransformPage (pageSlug, sSale, sX, sY, sTime) into sJavascript
+   end if
+   --
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end page_Scale
+
+getprop page_Rect [pageSlug]
+   if pageSlug is empty then put "welcome-visitors" into pageSlug
+   get scaffold_Get ("page_Rect.js")
+   put merge (it) into sJavascript
+   put _GetJavascriptResult (sJavascript) into pageRect
+   rect_Normalise pageRect
+   return pageRect
+end page_Rect
+
+setprop page_Rect [pageSlug] sRect
+   put _SetPageRectJavascript (sRect, pageSlug) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end page_Rect
+
+setprop page_Title [domainAndPort] pTitle
+   put fedwiki_ConstructSlug (pTitle) into pageSlug
+   _DisplayPage pageSlug, domainAndPort
+   return the result
+end page_Title
+
+setprop page_Slug [domainAndPort] pageSlug
+   _DisplayPage pageSlug, domainAndPort
+   return the result
+end page_Slug
+
+getprop page_Slugs
+   put the lineup_Urls of me into lineupUrls
+   repeat for each line wikiURL in lineupUrls
+      set the itemdelimiter to slash
+      put item -1 of wikiURL into shortFile
+      set the itemdelimiter to "."
+      put item 1 of shortFile into pSlug
+      --
+      put pSlug & CR after pSlugs
+   end repeat
+   delete char -1 of pSlugs
+   return pSlugs
+end page_Slugs
+
+getprop page_Titles
+   put the lineup_Data of me into lineupData
+   put indexArray_List (lineupData, "title") into pageTitles
+   return pageTitles
+end page_Titles
+
+getprop page_Array [titleOrNum]
+   put the lineup_Data of me into lineupData
+   switch
+      case titleOrNum is empty
+         return lineupData
+      case titleOrNum is a number
+         return lineupData [titleOrNum]
+      default
+         -- find
+         get indexArray_FindArray (lineupData, "title", titleOrNum)
+         return it
+   end switch
+end page_Array
+
+setprop page_Array [overWrite] pageArray
+   put pageArray ["Title"] into pTitle
+   put fedwiki_ConstructSlug (pTitle) into pSlug
+   put the page_Json [pSlug] of me into pageJsonFile
+   --
+   switch
+      case overWrite is true
+      case there is not a file pageJsonFile
+         breakpoint
+         put json_FromArray (pageArray) into pageJSON
+         text_Set pageJsonFile, pageJson
+         set the page_Title of me to pageSlug
+         break
+      default
+         return empty
+   end switch
+end page_Array
+
+getprop page_Json [pSlug]
+   put the page_Json [pSlug] of me into pageJsonFile
+   put text_Get (pageJsonFile) into pageJson
+   return pageJson
+end page_Json
+
+setprop page_Json [pSlug] pageJSON
+   put the page_Json [pSlug] of me into pageJsonFile
+   breakpoint
+   text_Set pageJsonFile, pageJson
+   return pageJsonFile
+end page_Json
+
+getprop page_JsonFile [pSlug]
+   put the wiki_Domain of me into wikiDomain
+   put _PageJsonConstructFile (wikiDomain, pSlug) into pageJsonFile
+   return pageJsonFile
+end page_JsonFile
+
+
+--> Pretty
+-
+setprop pretty_Journal sBoolean
+   if sBoolean is true then
+      put wikijs_SetJournalCss ("none") into sJavascript
+   else
+      put wikijs_SetJournalCss ("block") into sJavascript
+   end if
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end pretty_Journal
+
+setprop page_Colour [pSlug] sColour
+   if pSlug is empty then
+      put merge ("var elements = document.querySelectorAll('.page'); elements.forEach(function(el) {el.style.backgroundColor = '[[sColour]]';});") into sJavascript
+   else
+      put merge ("var element = document.getElementById('[[pSlug]]');element.style.backgroundColor = '[[sColour]]';") into sJavascript
+   end if
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end page_Colour
+
+getprop footer_IsVisible
+   put _BrowserWidget() into browserWidget
+   set the browser_AddJavascriptHandlers of browserWidget to "javascript_Result"
+   --
+   -- put js_VisibilityScript (footer) into sJavascript
+   put js_ElementIsVisible ("footer") into sJavascript
+   do sJavascript in browserWidget
    put LocalArray ["sResult"] into sResult
    --
    put sResult = "visible" into isVisible
@@ -146,46 +534,22 @@ end footer_IsVisible
 setprop footer_IsVisible showMe
    put _BrowserWidget() into browserWidget
    put showMe is false into hideMe
-   lock screen
-   put wiki_FooterVisibleJavascript (hideMe) into someJavascript
-   put ";" after someJavascript
-   if showMe is false then
-      put wiki_FooterHeightJavascript (18) after someJavascript
-   else
-      put wiki_FooterHeightJavascript (60) after someJavascript
-   end if
-   do someJavascript in browserWidget
-   unlock screen
+   -- lock screen
+   put wikijs_HideFooter (hideMe) into sJavascript
+   do sJavascript in browserWidget
+   -- unlock screen
 end footer_IsVisible
 
-getprop browser_Element
-   return LocalArray ["elementHtml"]
-end browser_Element
 
-setprop browser_Element elementID
-   browser_InitResult "svg"
-   return the result
-end browser_Element
+--> Lineup
+-
+getprop lineup_Titles
+   return the page_Titles of me
+end lineup_Titles
 
-setprop browser_Javascript someJavascript
-   -- put "wiki.doInternalLink('Federateed Wiki')" into someJavascript
-   replace CR with empty in someJavascript
-   --
-   put _BrowserWidget() into browserWidget
-   do someJavascript in browserWidget
-   put the result into doResult
-   return doResult
-end browser_Javascript
-
-setprop browser_AddJavascriptHandlers newHandlers
-   replace comma with CR in newHandlers
-   put _BrowserWidget() into browserWidget
-   --
-   put the javascriptHandlers of browserWidget into handlerIndex
-   line_Add newHandlers, handlerIndex
-   set the javascriptHandlers of browserWidget to handlerIndex
-   return handlerIndex
-end browser_AddJavascriptHandlers
+getprop lineup_Slugs
+   return the page_Slugs of me
+end lineup_Slugs
 
 getprop lineup_Data
    put the lineup_Urls of me into lineupUrls
@@ -200,100 +564,9 @@ getprop lineup_Data
    return lineupData
 end lineup_Data
 
-getprop lineup_Urls
-   put _BrowserWidget() into browserWidget
-   set the javascriptHandlers of browserWidget to "wiki_LineupResult"
-   --
-   put "var links = document.querySelectorAll('a.show-page-source');" into someJS
-   put "var hrefs = Array.from(links).map(function(link) {return link.getAttribute('href');});" after someJS
-   put "liveCode.wiki_LineupResult(JSON.stringify(hrefs));" after someJS
-   --
-   do someJS in browserWidget
-   put LocalArray ["lineUpURLs"] into lineUpURLs
-   return lineUpURLs
-end lineup_Urls
 
-on wiki_LineupResult lineupJson
-   put the browser_URL of me into browserURL
-   set the itemdelimiter to slash
-   put item 3 of browserURL into urlDomain
-   --
-   -- put json_ToArray (lineupJson) into lineupArray
-   delete char 1 of lineupJson
-   delete char -1 of lineupJson
-   set the itemdelimiter to comma
-   repeat for each item sLink in lineupJson
-      replace quote with empty in sLink
-      if char 1 to 2 of sLink = "//" then
-         put "http:" & sLink into someURL
-      else
-         put "http://" & urlDomain & sLink into someURL
-      end if
-      put someURL & CR after lineUpURLs
-   end repeat
-   delete char -1 of lineUpURLs
-   put lineUpURLs into LocalArray ["lineUpURLs"]
-end wiki_LineupResult
-
-
---> Props
+--> Displayed
 -
-setprop display_Page [domainAndPort] pageSlug
-   if remoteDomain is empty then
-      put wiki_InternalLinkJavascript (pageSlug) into someJavascript
-   else
-      put wiki_RemoteLinkJavascript (pageSlug, domainAndPort) into someJavascript
-   end if
-   set the browser_Javascript of me to someJavascript
-   put the result into doResult
-   return doResult
-end display_Page
-
-setprop ghost_PageArray pageArray
-   put json_FromArray (pageArray) into pageJSON
-   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
-   return the result
-end ghost_PageArray
-
-setprop ghost_Page pageJSON
-   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
-   return the result
-end ghost_Page
-
-private function _ConstructJavascript pageJSON
-   if pageJSON is empty then
-      put pageArray_Construct ("Test Ghost Page", "Helo world!") into pageArray
-      put json_FromArray (pageArray) into pageJSON
-   end if
-   --
-   put merge ("wiki.showResult(wiki.newPage([[pageJSON]]))") into someJavascript
-   return someJavascript
-end _ConstructJavascript
-
-getprop wiki_Domain
-   put the browser_URL of me into someURL
-   set the itemdelimiter to slash
-   put item 3 of someURL into wikiDomain
-   set the itemdelimiter to "."
-   if item 1 of wikiDomain = "www" then delete item 1 of wikiDomain
-   return wikiDomain
-end wiki_Domain
-
-setprop displayed_Domain domainOrURL
-   put _BrowserWidget() into browserWidget
-   set the itemdelimiter to slash
-   switch
-      case item 1 of domainOrURL = "https:"
-      case item 1 of domainOrURL = "http:"
-         -- http://arodic.github.io/p/jellyfish/
-         put domainOrURL into someURL
-         break
-      default
-         put "http://" & domainOrURL into someURL
-   end switch
-   set the browser_URL of browserWidget to someURL
-end displayed_Domain
-
 getprop displayed_Data
    put the browser_URL of me into someURL
    if someURL is empty then
@@ -316,32 +589,22 @@ setprop displayed_Data urlOrHtml
 end displayed_Data
 
 
---> Events
+--> Browser | javascript
 -
-on resizeControl
-   LayoutControl
-end resizeControl
+setprop browser_Javascript sJavascript
+   _SetJavascriptResult sJavascript
+   return the result -- usually not intereting
+end browser_Javascript
 
-command LayoutControl pRect
-   if pRect is empty then put the rect of me into pRect
-   get the menubar of the defaultstack
-   if it is not empty then
-      put the menu_Group of me into mGroup
-      if exists(mGroup) then
-         put the height of mGroup into sHeight
-         subtract sHeight from item 2 of pRect
-      end if
-   end if
-   set the rect of me to pRect
-end LayoutControl
-
-
---> Browser | Props
--
-getprop browser_Snapshot
-   export snapshot from _BrowserWidget() to pictVariable as PNG
-   return pictVariable
-end browser_Snapshot
+setprop browser_AddJavascriptHandlers newHandlers
+   replace comma with CR in newHandlers
+   put _BrowserWidget() into browserWidget
+   --
+   put the javascriptHandlers of browserWidget into handlerIndex
+   line_Add newHandlers, handlerIndex
+   set the javascriptHandlers of browserWidget to handlerIndex
+   return handlerIndex
+end browser_AddJavascriptHandlers
 
 getprop browser_JavascriptHandlers
    put the javascriptHandlers of _BrowserWidget() into handlerList
@@ -354,6 +617,9 @@ setprop browser_JavascriptHandlers handlerList
    return the result
 end browser_JavascriptHandlers
 
+
+--> URL
+-
 getprop previous_Url
    put the previous_Url of me into someURL
    return someURL
@@ -364,15 +630,29 @@ setprop previous_Url someURL
    return the long id of me
 end previous_Url
 
+getprop browser_Domain
+   get the browser_URL of me
+   set the itemdelimiter to slash
+   put item 3 of it into sDomain
+   return sDomain
+end browser_Domain
+
+setprop browser_Domain sDomain
+   put url_Construct (sDomain) into someURL
+   set the browser_URL of me to someURL
+   return the result
+end browser_Domain
+
 getprop browser_URL
    put the url of me into someURL
    return someURL
 end browser_URL
 
 setprop browser_URL someURL
+   put the previous_Url of me into previousURL
    set the url of me to someURL
    set the previous_Url of me to someURL
-   return the long id of me
+   return previousURL
 end browser_URL
 
 getprop browser_HtmlText
@@ -386,12 +666,18 @@ setprop browser_HtmlText someHTML
 end browser_HtmlText
 
 
+--> Javascript | Events
+-
+on javascript_Result sResult
+   -- Generic handler to return result to "getprop"
+   -- Not called when js fails to return text
+   put sResult into LocalArray ["sResult"]
+   return sResult
+end javascript_Result
+
+
 --> Objects
 -
-private function _BrowserWidget
-   return the long id of me
-end _BrowserWidget
-
 getprop view_Object
    return the long id of me
 end view_Object
@@ -400,3 +686,91 @@ getprop browser_View
    return the long id of me
 end browser_View
 
+private function _BrowserWidget
+   return the long id of me
+end _BrowserWidget
+
+
+--> Private
+-
+private function _SetPageRectJavascript sRect, pageSlug
+   if pageSlug is empty then put "welcome-visitors" into pageSlug
+   --
+   put item 1 of sRect into sLeft
+   put item 2 of sRect into sTop
+   put item 3 of sRect into sRight
+   put item 4 of sRect into sBottom
+   --
+   put 8 into sMargin
+   subtract sMargin from sLeft
+   subtract sMargin from sRight
+   subtract sMargin from sTop
+   subtract sMargin from sBottom
+   --
+   put sRight - sLeft into sWidth
+   put sBottom - sTop into sHeight
+   --
+   get scaffold_Get ("page_SetRect.js")
+   put merge (it) into sJavascript
+   --
+   return sJavascript
+end _SetPageRectJavascript
+
+private function _GetJavascriptResult sJavascript
+   put the browser_View of the target into browserWidget
+   set the browser_AddJavascriptHandlers of browserWidget to "javascript_Result"
+   --
+   do sJavascript in browserWidget
+   get the result
+   put LocalArray ["sResult"] into sResult
+   put empty into LocalArray ["sResult"] -- otherwise we can get last result returned when js fails
+   return sResult
+end _GetJavascriptResult
+
+function _PageJsonConstructFile wikiDomain, pSlug
+   -- was "pageJson_ConstructFile"
+   put wiki_GetFolder (wikiDomain) into wikiDomainFolder
+   put wikiDomainFolder & pSlug into pageJsonFile
+   return pageJsonFile
+end _PageJsonConstructFile
+
+private function _GetJavascriptResult sJavascript
+   put _BrowserWidget() into browserWidget
+   set the browser_AddJavascriptHandlers of browserWidget to "javascript_Result"
+   --
+   do sJavascript in browserWidget
+   --
+   put LocalArray ["sResult"] into sResult
+   return sResult
+end _GetJavascriptResult
+
+private command _SetJavascriptResult sJavascript
+   -- put "wiki.doInternalLink('Federateed Wiki')" into sJavascript
+   -- replace CR with empty in sJavascript
+   --
+   put _BrowserWidget() into browserWidget
+   do sJavascript in browserWidget
+   put the result into doResult -- usually not intereting
+   return doResult
+end _SetJavascriptResult
+
+private command _DisplayPage pageSlug, pDomainAndPort
+   if pDomainAndPort is empty then
+      put wiki_InternalLinkJavascript (pageSlug) into sJavascript
+   else
+      put wiki_RemoteLinkJavascript (pageSlug, pDomainAndPort) into sJavascript
+   end if
+   set the browser_Javascript of me to sJavascript
+   put the result into doResult
+   return doResult
+end _DisplayPage
+
+private function _ConstructJavascript pageJSON
+   if pageJSON is empty then
+      put pageArray_Construct ("Test Ghost Page", "Helo world!") into pageArray
+      put json_FromArray (pageArray) into pageJSON
+   end if
+   --
+   put merge ("wiki.showResult(wiki.newPage([[pageJSON]]))") into sJavascript
+   return sJavascript
+end _ConstructJavascript

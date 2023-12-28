@@ -7,27 +7,99 @@ type: library
 version: 0.2
 
 
+--> Working on
+-
+command display_LocalWiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
+   if pStackLabel is empty then put wikiDomain into pStackLabel
+   put wiki_ConstructLocalHostDomain (wikidomain) into localhostDomain
+   put wiki_ConstructUrl (localhostDomain) into wikiURL
+   --
+   _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
+   return the result
+end display_LocalWiki
+
+command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
+   if pStackLabel is empty then put wikiDomain into pStackLabel
+   put wiki_ConstructUrl (wikiDomain) into wikiURL
+   --
+   _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
+   return the result
+end display_Wiki
+
+private command _NormalizeWikiBrowser @browserView
+   switch
+      case browserView = "New"
+         put empty into browserView
+         break
+      case exists (browserView) is false
+         put wiki_Browser() into browserView
+         break
+      default
+         # But is is a browser
+         put the browser_View of browserView into browserView
+   end switch
+   return exists (browserView)
+end _NormalizeWikiBrowser
+
+private command _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
+   _NormalizeWikiBrowser pBrowserView
+   --
+   wiki_Start
+   if the result is not empty then wait 20 ticks
+   --
+   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
+   put the result into browserView
+   return browserView
+end _DisplayWiki
+
+function wiki_CheckFolderColour wikiDomain
+   put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
+   put wiki_GetFolder (wikiDomain) into wikiFolder
+   switch
+      case there is not a folder gitWikiFolder
+         return "red"
+      case folder_IsSymLink (wikiFolder)
+         return "green"
+      case there is a folder wikiFolder
+         return "black" -- it's a normal folder
+      default
+         return "orange" -- not created
+   end switch
+end wiki_CheckFolderColour
+
+command display_WikiSiteMap wikiDomain, pDisplayView
+   -- put "media.localhost:3000" into wikiDomain
+   put fedwiki_FetchSitemapArray (wikiDomain) into siteMapArray
+   --
+   display_Data siteMapArray, wikiDomain, "Wiki Sitemap", pDisplayView
+   put the result into dView
+   return dView
+end display_WikiSiteMap
+
+
 --> Events
 -
 on mDoubleUp_WikiGit dView, wikiDomain
    if the optionKey is "down" then breakpoint
    --
    put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
-   put wiki_ConstructLocalUrl (wikiDomain) into localURL
+   put url_Construct (wikiDomain) into localURL
+   put wiki_Browser() into browserView
    switch
       case there is not a folder gitWikiFolder
-         breakpoint
          finder_Reveal gitWikiFolder
          break
-      case the shiftKey is "down"
-         display_Wiki localURL
-         launch url localURL
+      case the shiftKey is "down" AND exists (browserView)
+         wiki_AddPortToDomain wikiDomain
+         set the page_Title [wikiDomain] of wiki_Browser() to "welcome-visitors"
+         -- launch url localURL
          break
       default
-         put wiki_Browser() into browserView
+         -- put wiki_Browser() into browserView
          -- put pageArray_Fetch (wikiDomain, "welcome-visitors", "3000") into pageArray
-         put ":3000" after wikiDomain
-         set the display_Page [wikiDomain] of browserView to "welcome-visitors"
+         -- put ":3000" after wikiDomain
+         -- set the page_Title [wikiDomain] of browserView to "welcome-visitors"
+         display_Wiki wikiDomain
    end switch
 end mDoubleUp_WikiGit
 
@@ -36,47 +108,141 @@ on mDoubleUp_WikiEarth displayView, earthDomain
    launch_LocalhostWiki earthDomain
 end mDoubleUp_WikiEarth
 
+on mDoubleUp_WikiPhotos displayView, shortFile
+   if the optionKey is "Down" then breakpoint
+   --
+   put the photo_Folder of displayView into photoFolder
+   put photoFolder & shortFile into photoFile
+   --
+   display_Image photoFile
+   --
+   put the title_Text of displayView into wikiDomain
+   if wikiDomain = "Commons" then
+      put "media.localhost:3000" into wikiDomain
+   else
+      put ":3000" after wikiDomain
+   end if
+   put wiki_FindImageListData (wikiDomain, shortFile) into imageListdata
+   display_Data imageListdata, "Found Images", wikiDomain
+end mDoubleUp_WikiPhotos
 
---> Wiki | Url
+on mDoubleUp_WikiLocal displayView, shortFolder
+   mDoubleUp_WikiLocalIndex displayView, shortFolder
+end mDoubleUp_WikiLocal
+
+on mDoubleUp_WikiLocalIndex dView, wikiDomain
+   if the optionKey is "down" then breakpoint
+   --
+   put wiki_Browser() into browserView
+   if the shiftKey is "down" then
+      if exists (browserView) then
+         set the page_Title [wikiDomain] of browserView to "welcome-visitors"
+      else
+         put wiki_GetFolder (wikiDomain) into wikiFolder
+         finder_Reveal wikiFolder
+         launch_LocalhostWiki wikiDomain
+      end if
+   else
+      display_Wiki wikiDomain, browserView
+   end if
+end mDoubleUp_WikiLocalIndex
+
+
+--> Wiki | Browser
 -
-function wiki_ConstructLocalUrl localDomain
-   put "http://" & localDomain & ":3000" into localURL
-   return localURL
-end wiki_ConstructLocalUrl
-
-function wiki_DefaultLocalUrl
-   put "http://localhost:3000" into wikiURL
-   return wikiURL
-end wiki_DefaultLocalUrl
-
 function wiki_Browser
    -- put display_FindCloned ("View|Obeya|Studio", "Wiki") into browserView
    put line 1 of wiki_ListBrowsers() into browserView
    return browserView
 end wiki_Browser
-   
+
 function wiki_ListBrowsers
    return display_List ("View|Browser,View|Obeya|Studio")
 end wiki_ListBrowsers
 
 
+--> Launch
+-
+command launch_LocalhostWiki wikiDomain
+   put wiki_LocalhostUrl (wikiDomain) into localWikiUrl
+   launch url localWikiUrl
+   return localWikiUrl
+end launch_LocalhostWiki
+
+command launch_LocalWiki sDomain
+   put wiki_ConstructUrl (sDomain) into localWikiUrl
+   launch url localWikiUrl
+   return localWikiUrl
+end launch_LocalWiki
+
+command launch_EtcHosts
+   put text_EditorApplicationPath() into applicationPath
+   launch "/etc/hosts" with applicationPath
+   put the result into launchResult
+   return launchResult
+end launch_EtcHosts
+
+command launch_WikiConfig
+   put wiki_GetConfigFile() into wikiConfigFile
+   put text_EditorApplicationPath() into applicationPath
+   launch wikiConfigFile with applicationPath
+end launch_WikiConfig
+
+command launch_TunnelConfig
+   put tunnel_GetYamlFile() into yamlFile
+   put text_EditorApplicationPath() into applicationPath
+   launch yamlFile with applicationPath
+end launch_TunnelConfig
+
+command launch_Fedwiki wikiDomain, pTitle, pProtocol
+   put fedwiki_ConstructURL (wikiDomain, pTitle, pProtocol) into wikiURL
+   launch url wikiURL
+   return wikiURL
+end launch_Fedwiki
+
+command fedwiki_Launch wikiDomain, pTitle, pProtocol
+   -- replace with "launch_Fedwiki"
+   put fedwiki_ConstructURL (wikiDomain, pTitle, pProtocol) into wikiURL
+   launch url wikiURL
+   return wikiURL
+end fedwiki_Launch
+
+command fedwiki_LaunchSlug wikiDomain, pSlug, pProtocol
+   put fedwiki_ConstructURLFromSlug (wikiDomain, pSlug, pProtocol) into wikiURL
+   launch url wikiURL
+   return wikiURL
+end fedwiki_LaunchSlug
+
+
+--> Display | Wiki | Astral
+-
+command display_WikiCommonsPhotos
+   put wiki_CommonsFolder() into wikiCommonsFolder
+   put file_ListShort (wikiCommonsFolder) into shortFiles
+   --
+   display_Data shortFiles, "Commons", "Photos", pDisplayView
+   put the result into displayView
+   --
+   set the photo_Folder of displayView to wikiCommonsFolder
+   display_SetMouseAndMenu displayView, "Wiki | Photos"
+   return displayView
+end display_WikiCommonsPhotos
+
+command display_AstralMediaPhotos pDisplayView
+   put wiki_MediaAssetFolder() into wikiMediaAssetFolder
+   put file_ListShort (wikiMediaAssetFolder) into shortFiles
+   --
+   display_Data shortFiles, "media.localhost", "Photos", pDisplayView
+   put the result into displayView
+   --
+   set the photo_Folder of displayView to wikiMediaAssetFolder
+   display_SetMouseAndMenu displayView, "Wiki | Photos"
+   return displayView
+end display_AstralMediaPhotos
+
+
 --> Display | Wiki
 -
-command display_Wiki pWikiURL, pBrowserView, pStackLabel, pStackStyle
-   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
-   if pStackLabel is empty then put pWikiURL into pStackLabel
-   if exists (pBrowserView) is false then
-      put wiki_Browser() into pBrowserView
-   end if
-   --
-   wiki_Start
-   if the result is not empty then wait 20 ticks
-   --
-   display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
-   put the result into browserView
-   return browserView
-end display_Wiki
-
 command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
    if pStackLabel is empty then put "Wiki" into pStackLabel
    if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
@@ -84,7 +250,7 @@ command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
    --
    display_Browser pWikiURL, pBrowserView, pStackLabel, pStackStyle, "View|Obeya|Studio"
    put the result into browserView
-   display_SetMenu browserView, "Obeya | Studio", "title_Menu"
+   display_SetMenu browserView, "Obeya | Studio"
    --
    return browserView
 end display_WikiBrowser
@@ -95,7 +261,7 @@ end display_WikiBrowser
 command display_LocalWikis pDisplayView, pTitle, pFilter
    if pTitle is empty then put "All" into pTitle
    --
-   put wiki_ListAllLocalFolders (pFilter) into wikiFolders
+   put wiki_ListLocalShortAll (pFilter) into wikiFolders
    --
    display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
    put the result into dView
@@ -115,17 +281,8 @@ command display_NonSymLinked pDisplayView, pFilter, pTitle
    return dView
 end display_NonSymLinked
 
-command display_AstralDynadotWikis pDisplayView
-   put dynadot_ListAstralDomains() into astralDomains
-   url_SortDomainIndex astralDomains
-   --
-   display_WikiFolders astralDomains, "Wiki | Dynadot", pDisplayView, "", "Astral", "Dynadot Wikis"
-   put the result into dView
-   return dView
-end display_AstralDynadotWikis
-
 command display_LocalAstralWikis pDisplayView, pStripDynadot
-   put wiki_ListAllLocalFolders() into localAstralDomains
+   put wiki_ListLocalShortAll() into localAstralDomains
    --
    if pStripDynadot is true then
       put dynadot_StripSubDomainNames (localAstralDomains, "astralship.wiki") into wikiFolders
@@ -160,7 +317,7 @@ command display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTi
       if pWikiFilter is "none" then
          put empty into pWikiFilter
       else if pWikiFilter is empty then
-         -- put the wiki_Filter of pDisplayView into pWikiFilter
+         put the wiki_Filter of pDisplayView into pWikiFilter
       end if
    end if
    --
@@ -190,7 +347,18 @@ command display_GitWikiFolders pDisplayView, pWikiFilter
       put pWikiFilter into pTitle
    end if
    --
-   put gitwiki_ListFolders (true) into gitWikiShortFolders
+   if exists (pDisplayView) is false then
+      put display_FindView ("Git Wikis") into pDisplayView
+   end if
+   --
+   if exists (pDisplayView) then
+      put the wiki_Filter of pDisplayView into pWikiFilter
+      if pWikiFilter is not empty then
+         put pWikiFilter into pTitle
+      end if
+   end if
+   --
+   put gitwiki_ListAllLocalFolders() into gitWikiShortFolders
    --
    display_GitWikis gitWikiShortFolders, pDisplayView, pWikiFilter, pTitle
    put the result into dView
@@ -213,53 +381,6 @@ command display_EtcHosts pSystemPassword
    display_Text hostsText, "Current", "/etc/hosts"
    return the result
 end display_EtcHosts
-
-command launch_EtcHosts
-   put text_EditorApplicationPath() into applicationPath
-   launch "/etc/hosts" with applicationPath
-   put the result into launchResult
-   return launchResult
-end launch_EtcHosts
-
-command launch_WikiConfig
-   put wiki_GetConfigFile() into wikiConfigFile
-   put text_EditorApplicationPath() into applicationPath
-   launch wikiConfigFile with applicationPath
-end launch_WikiConfig
-
-command launch_TunnelConfig
-   put tunnel_GetYamlFile() into yamlFile
-   put text_EditorApplicationPath() into applicationPath
-   launch yamlFile with applicationPath
-end launch_TunnelConfig
-
-on mDoubleUp_WikiLocal displayView, shortFolder
-   mDoubleUp_WikiLocalIndex displayView, shortFolder
-end mDoubleUp_WikiLocal
-
-on mDoubleUp_WikiLocalIndex displayView, shortFolder
-   if the optionKey is "down" then
-      breakpoint
-      gitwiki_FixLocalDomain shortFolder, displayView
-      exit to top
-      breakpoint
-   end if
-   --
-   if the shiftKey is "down" then
-      launch_LocalhostWiki shortFolder
-   else
-      put wiki_GetFolder (shortFolder) into wikiFolder
-      finder_Reveal wikiFolder
-      
-      /*
-      put display_ListBrowsers ("Local Wiki") into browserViews
-      put line 1 of browserViews into browserView
-      --
-      put wiki_LocalUrl (sDomain) into localWikiUrl
-      display_Browser localWikiUrl, browserView, "Local Wiki"
-      */
-   end if
-end mDoubleUp_WikiLocalIndex
 
 command display_EmptyLocalWikis pDisplayView, pFilter, pTitle
    if pTitle is empty then put "Empty Local Wikis" into pTitle
@@ -293,46 +414,6 @@ command display_LocalWithoutAstral dView, pFilter
    return the result
 end display_LocalWithoutAstral
 
-command launch_LocalhostWiki wikiDomain
-   put wiki_LocalhostUrl (wikiDomain) into localWikiUrl
-   launch url localWikiUrl
-   return localWikiUrl
-end launch_LocalhostWiki
-
-command launch_LocalWiki sDomain
-   put wiki_LocalUrl (sDomain) into localWikiUrl
-   launch url localWikiUrl
-   return localWikiUrl
-end launch_LocalWiki
-
-function wiki_LocalhostUrl wikiDomain
-   put wiki_LocalHostDomain (wikiDomain) into localhostDomain
-   put wiki_LocalUrl (localhostDomain) into localhostURL
-   return localhostURL
-end wiki_LocalhostUrl
-
-function wiki_LocalUrl sDomain
-   put "http://" & sDomain & ":3000" into localWikiUrl
-   return localWikiUrl
-end wiki_LocalUrl
-
-command display_DynadotWikis domainName, pDisplayView, pFilter
-   if exists (pDisplayView) is false then
-      put display_FindIndexView ("Dynadot", "Earth Wikis") into pDisplayView
-   end if
-   --
-   put dynadot_ListAllSubDomain (domainName) into wikiDomains
-   --
-   if pFilter is not empty then
-      filter wikiDomains with pFilter
-   end if
-   --
-   display_Data wikiDomains, domainName, "Dynadot", pDisplayView
-   put the result into dView
-   display_SetToolMenus "Wiki | Earth", dView, "lcw_Wiki"
-   return dView
-end display_DynadotWikis
-
 command display_SitemapArray wikiDomain, pSincePeriod, pDisplayView, pPalette
    -- if pSincePeriod is empty then put "1 week" into pSincePeriod
    put fedwiki_FetchModifiedPageArray (wikiDomain, pSincePeriod) into sitePageArray
@@ -362,28 +443,6 @@ command display_EarthWikis pDisplayView
    display_SetToolMenus "Wiki | Earth", dView, "lcw_Wiki"
    return dView
 end display_EarthWikis
-
-
---> Fedwiki | Launch
--
-command launch_Fedwiki wikiDomain, pTitle, pProtocol
-   put fedwiki_ConstructURL (wikiDomain, pTitle, pProtocol) into wikiURL
-   launch url wikiURL
-   return wikiURL
-end launch_Fedwiki
-
-command fedwiki_Launch wikiDomain, pTitle, pProtocol
-   -- replace with "launch_Fedwiki"
-   put fedwiki_ConstructURL (wikiDomain, pTitle, pProtocol) into wikiURL
-   launch url wikiURL
-   return wikiURL
-end fedwiki_Launch
-
-command fedwiki_LaunchSlug wikiDomain, pSlug, pProtocol
-   put fedwiki_ConstructURLFromSlug (wikiDomain, pSlug, pProtocol) into wikiURL
-   launch url wikiURL
-   return wikiURL
-end fedwiki_LaunchSlug
 
 
 --> Events
@@ -573,23 +632,6 @@ command display_Podcasts
 end display_Podcasts
 
 
---> Fedwiki | LineUp
--
-command display_LineUpData lineUpURL
-   get "http://liquidlaw.org/view/welcome-visitors/view/lexon/view/how-legislative-theatre-works/view/legislative-theatre-with-lexon/view/stress-test-contracts"
-   put it into lineUpURL
-   --
-   put fedwiki_FetchLineUpData (lineUpURL) into lineUpData
-   --
-   url_Deconstruct lineUpURL, someProtocol, urlDomain, urlPath, shortName, fileExtension, uName, pWord
-   display_Data lineUpData, urlDomain, "Lineup Data"
-   put the result into displayView
-   display_SetInteractions displayView, "Lineup | Tree", "mDoubleUp_LineUp"
-   --
-   return displayView
-end display_LineUpData
-
-
 --> Private
 -
 private command _DisplayPageArray pageArray, pDomainTitle
@@ -636,4 +678,3 @@ private command _UpdateFedrayDisplay @fedray, pIndexView
       set the hilited_Lines of indexView to 0
    end if
 end _UpdateFedrayDisplay
-

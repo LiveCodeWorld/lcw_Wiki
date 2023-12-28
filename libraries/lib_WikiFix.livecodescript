@@ -18,6 +18,78 @@ local TunnelDomainArray
 
 --> Working on
 -
+function wiki_ReDomain wikiDomain, pReDomain
+   if pReDomain is empty then return wikiDomain
+   --
+   set the itemdelimiter to "."
+   put item 1 to -3 of wikiDomain into fistBit
+   put fistBit & "." & pReDomain into newDomain
+   return newDomain
+   
+   put the number of items of pReDomain into dNum
+   put pReDomain into item -dNum to -1 of wikiDomain
+   return wikiDomain
+end wiki_ReDomain
+
+command gitwiki_MoveToLocal wikiDomain, pAddTohosts, pNewName
+   put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
+   if pNewName is empty then
+      put wiki_ConstructFolder (wikiDomain) into localFolder
+   else
+      put wiki_ConstructFolder (pNewName) into localFolder
+   end if
+   --
+   if there is a folder localFolder then
+      breakpoint
+      return "Error, folder" && localFolder && "already exists."
+   else
+      rename folder gitWikiFolder to localFolder
+      --
+      if pAddTohosts is not false then
+         if pNewName is empty then put wikiDomain into pNewName
+         put system_GetAdminPassword() into systemPassword
+         hosts_Add pNewName, systemPassword
+      end if
+   end if
+end gitwiki_MoveToLocal
+
+command gitwiki_CopyToLocal wikiDomain, pAddTohosts, pNewName
+   put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
+   if pNewName is empty then
+      put wiki_ConstructFolder (wikiDomain) into localFolder
+   else
+      put wiki_ConstructFolder (pNewName) into localFolder
+   end if
+   --
+   if there is a folder localFolder then
+      breakpoint
+      return "Error, folder" && localFolder && "already exists."
+   else
+      if pNewName is empty then
+         put wiki_RootFolder() into wikiRootFolder
+         revCopyFolder gitWikiFolder, wikiRootFolder
+      else
+         put the tempname & slash into tempFolder
+         folder_CreateNested tempFolder
+         revCopyFolder gitWikiFolder, tempFolder
+         get the result
+         --
+         put tempFolder & wikiDomain & slash into tempWikiFolder
+         if there is a folder tempWikiFolder then
+            rename folder tempWikiFolder to localFolder
+         else
+            breakpoint
+            return "Error, copying folder" && gitWikiFolder && "to" && tempFolder
+         end if
+      end if 
+      --
+      if pAddTohosts is not fale then
+         put system_GetAdminPassword() into systemPassword
+         hosts_Add wikiDomain, systemPassword
+      end if
+   end if
+end gitwiki_CopyToLocal
+
 on wiki_DroppedURL sURL
    answer the params
 end wiki_DroppedURL
@@ -37,7 +109,7 @@ private command _SetNames gitWikiDomain, dynSubDomain, @tldDomain, @dynSubDomain
    set the itemdelimiter to "."
    put item 1 to -3 of dynSubDomain into dynSubDomainName
    
-   put dynadot_ConstructLocalhostDomain (dynSubDomain) into localhostDomain
+   put wiki_ConstructLocalHostDomain (dynSubDomain) into localhostDomain
    put gitWikiDomain into starDomain
    put "*" into item 1 of starDomain
    
@@ -48,20 +120,10 @@ private command _SetNames gitWikiDomain, dynSubDomain, @tldDomain, @dynSubDomain
    end if
 end _SetNames
 
-function dynadot_ConstructLocalhostDomain wikidomain
-   set the itemdelimiter to "."
-   if the number of items of wikidomain = 2 then
-      put "wiki." & item 1 of wikidomain & ".localhost" into wikidomain
-   else
-      put "localhost" into item -2 to -1 of wikidomain
-   end if
-   return wikidomain
-end dynadot_ConstructLocalhostDomain
-
 
 --> Wiki | Fix
 -
-function gitwiki_Check gitWikiDomain, pDynSubDomain, pColour, pLoad
+function gitwiki_CheckCnameValue gitWikiDomain, pDynSubDomain, pColour, pLoad
    if pDynSubDomain is empty then put gitWikiDomain into pDynSubDomain
    if pLoad is not false then wiki_LoadTunnel
    
@@ -73,7 +135,7 @@ function gitwiki_Check gitWikiDomain, pDynSubDomain, pColour, pLoad
    else
       return gitwiki_CheckSubdomain (gitWikiDomain, pDynSubDomain, cNameValue, subdomain, pColour)
    end if
-end gitwiki_Check
+end gitwiki_CheckCnameValue
 
 function gitwiki_CheckDomain tldDomain, pColour
    put dynadot_MainDomainCname (tldDomain) into cNameValue
@@ -103,21 +165,17 @@ function gitwiki_CheckSubdomain gitWikiDomain, dynSubDomain, cNameValue, subdoma
    end switch
 end gitwiki_CheckSubdomain
 
-command gitwiki_SymlinkAndRegister gitWikiDomain, pLoad, pDynSubDomain, pAddToHosts
-   if pDynSubDomain is empty then put gitWikiDomain into pDynSubDomain
-   --
-   get gitwiki_Check (gitWikiDomain, pDynSubDomain, false, pLoad)
-   if it is not empty then
-      return it
-   end if
+command gitwiki_SymlinksAndAddHost gitWikiDomain, pAddToHosts, pLocalWikiDomain 
+   if pLocalWikiDomain is empty then put gitWikiDomain into pLocalWikiDomain
    
-   # Construct localhostDomain
-   put dynadot_ConstructLocalhostDomain (pDynSubDomain) into localhostDomain
-   breakpoint
+   # Create Symlink
+   gitwiki_CreateSymLink gitWikiDomain, pLocalWikiDomain
+   get the result
    
-   # Create Symlinks
-   gitwiki_CreateSymLink gitWikiDomain, pDynSubDomain
+   # Create Localhost Symlink
+   put wiki_ConstructLocalHostDomain (pLocalWikiDomain) into localhostDomain
    gitwiki_CreateSymLink gitWikiDomain, localhostDomain
+   get the result
    
    if pAddToHosts is not false then
       # Add to Etc/hosts
@@ -125,7 +183,7 @@ command gitwiki_SymlinkAndRegister gitWikiDomain, pLoad, pDynSubDomain, pAddToHo
    end if
    --
    return empty
-end gitwiki_SymlinkAndRegister
+end gitwiki_SymlinksAndAddHost
 
 command gitwiki_FixLocalDomain localhostDomain, pDisplayView
    put wiki_GetFolder (localhostDomain) into wikiFolder
@@ -154,4 +212,3 @@ command gitwiki_FixLocalDomain localhostDomain, pDisplayView
       display_EmptyLocalWikis pDisplayView
    end if
 end gitwiki_FixLocalDomain
-

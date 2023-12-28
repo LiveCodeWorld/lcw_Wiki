@@ -36,8 +36,14 @@ end markdown
 
 --> Markdown
 -
---> Markdown
--
+function markdown_LinkedBullets sIndex
+   repeat for each line sLine in sIndex
+      put "-" && md_Link(sLine) & CR after sMarkdown
+   end repeat
+   delete char -1 of sMarkdown
+   return sMarkdown
+end markdown_LinkedBullets
+
 function md_Link someText
    put "[[" & word 1 to -1 of someText & "]]" into mdLinkText
    return mdLinkText

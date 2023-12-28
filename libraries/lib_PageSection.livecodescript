@@ -29,7 +29,7 @@ command pageArray_ReplaceSectionMarkdown @pArray, sTitle, sMarkdown
    put item 1 of the result - 1 into beforeTitleNum
    --
    put "#" && sTitle & CR&CR before sMarkdown 
-   get storyArray_ConstructItem (sMarkdown, "markdown")
+   get itemArray_Construct (sMarkdown, "markdown")
    put it into sArray[1]
    --
    breakpoint

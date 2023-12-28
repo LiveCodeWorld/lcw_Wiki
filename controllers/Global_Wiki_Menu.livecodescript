@@ -4,9 +4,7 @@
 license: GPLv3
 name: Global | Wiki | Menu
 type: controller
-version: 0.4
-
-/*This menu is used to control a Livecode wiki browser.*/
+version: 0.5
 
 
 --> Menu | Props
@@ -15,148 +13,122 @@ local LocalArray
 
 getprop menu_Target [tObject]
    put wiki_Started() into LocalArray ["wikiStarted"]
-   return display_MenuTarget (tObject)
-   -- return the display_View of tObject
+   --
+   put the browser_View of tObject into browserView
+   if exists (browserView) then
+      return browserView
+   else
+      put line 1 of display_List ("View|Obeya|Studio") into browserView
+      if exists (browserView) then return browserView
+      return empty
+   end if
 end menu_Target
 
-getprop dream_Domains
-   put "Jelly Fish" & CR after topDomains
-   put "-" & CR after topDomains
-   put "david.icotopia.io" & CR after topDomains
-   put "trevor.icotopia.io" & CR after topDomains
-   put "video.icotopia.io" & CR after topDomains
-   put "david.culturecollective.cc" & CR after topDomains
-   --
-   delete char -1 of topDomains
-   return topDomains
-end dream_Domains
-
-getprop top_Domains
-   put "Jelly Fish" & CR after topDomains
-   put "Worldscape" & CR after topDomains
-   put "-" & CR after topDomains
-   put "outlandish.academy" & CR after topDomains
-   put "david.outlandish.academy" & CR after topDomains
-   put "nina.outlandish.academy" & CR after topDomains
-   put "trevor.outlandish.academy" & CR after topDomains
-   --
-   delete char -1 of topDomains
-   return topDomains
-end top_Domains
-
-getprop show_HiddenFiles
-   put finder_GetShowInvisibleFiles() into someBoolean
-   return someBoolean
-end show_HiddenFiles
-
-getprop disabled_StartWiki
+getprop checked_StartWiki
    return LocalArray ["wikiStarted"] is true
-end disabled_StartWiki
+end checked_StartWiki
 
-getprop disabled_StopWiki
-   return LocalArray ["wikiStarted"] is false
-end disabled_StopWiki
+getprop checked_StartWikiWithXterm
+   return LocalArray ["wikiStarted"] is true
+end checked_StartWikiWithXterm
 
 getprop disabled_WikiBrowser
    return LocalArray ["wikiStarted"] is false
 end disabled_WikiBrowser
 
-getprop checked_Ngrok
-   return ngrok_ListProcessIds() is not empty
-end checked_Ngrok
+getprop port_Param
+   put wiki_GetPort() into sPort
+   if sPort is empty then
+      return 80
+   else
+      return sPort
+   end if
+end port_Param
 
-function _GetWikiView mTarget
-   -- "browser_View" is on card script of stack "Fedwiki Editor"
-   put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
-   return wikiView
-end _GetWikiView
+getprop port_Params
+   return "3000,-,80"
+end port_Params
 
-private function _GetDomain
-   return empty
-end _GetDomain
+getprop localWiki_Params
+   put wiki_ListLocalShortAll ("*astralship*") into wikiFolders
+   return wikiFolders
+end localWiki_Params
 
 
 --> Global | Wiki | Menu
 -
-on menu_ToggleEditable browserView
-   put "$('footer span.editEnable').click();" into someJS
-   --
-   set the browser_Javascript of browserView to someJS
-end menu_ToggleEditable
-
-on menu_TestFaasd
-   post "Hello world" to url "https://faasd.platform.earth/function/activity"
-   put it
-end menu_TestFaasd
-
-on menu_WikiBrowser
-   display_WikiBrowser
-end menu_WikiBrowser
-
-on menu_ListLocalWikis
-  display_LocalWikis
-end menu_ListLocalWikis
-
-on submenu_ObeyaStudio
-   return "Global | Obeya | Studio | Menu"
-end submenu_ObeyaStudio
+on menu_LocalWiki wikiView, wikiDomain
+   if the shiftkey is "down" then
+      set the page_Title [wikiDomain] of wikiView to "welcome-visitors"
+   else
+      set the wiki_Domain of wikiView to wikiDomain
+   end if
+end menu_LocalWiki
 
 private on _
 end _
 
-on menu_StartWiki
-   wiki_Start
+on menu_StartWiki wikiView
+   if wiki_Started() is true then
+      wiki_Stop
+   else
+      -- wiki_Start -- display_Wiki starts wiki if needed
+      display_Wiki "fedwiki.org", wikiView
+   end if
 end menu_StartWiki
 
-on menu_StopWiki
-   wiki_Stop
-end menu_StopWiki
+getprop securityType_Params
+   return "friends,cookie,passport,-,legacy"
+end securityType_Params
+
+getprop securityType_Param [wikiView]
+   return wiki_GetSecurityType()
+end securityType_Param
+
+on menu_SecurityType wikiView, securityType
+   wiki_SetSecurityType securityType
+end menu_SecurityType
+
+on menu_Port wikiView, sPort
+   wiki_SetPort sPort
+end menu_Port
+
+on menu_RestLivecodeWorld
+   put system_GetAdminPassword() into systemPassword
+   hosts_Add "rest.livecode.world", systemPassword
+end menu_RestLivecodeWorld
 
 private on __
 end __
 
-on menu_DisplayEtcHosts
+on menu_LaunchEtcHosts
    launch_EtcHosts
    if the shiftKey is "Down" then
       display_EtcHosts
    end if
-end menu_DisplayEtcHosts
+end menu_LaunchEtcHosts
 
 on menu_UpdateEtcHosts dView
    display_LocalWikis dView
    --
    put the displayed_Index of dView into localHosts
-   filter localHosts with "*localhost" -- just in case
    --
-   put lcw_Ask ("Enter system password...") into yourPassword
-   put hosts_ConstructText (yourPassword, localHosts) into hostsText
-   --
-   hosts_Set yourPassword, hostsText
+   breakpoint
+   put hosts_NewText (localHosts) into hostsText
+   -- hosts_Set hostsText
+   display_Text hostsText
 end menu_UpdateEtcHosts
 
 private on ____
 end ____
 
-on menu_Xterm
-   display_Xterm true
-end menu_Xterm
+on menu_ListLocalWikis
+   display_LocalWikis
+end menu_ListLocalWikis
 
-on menu_XtermClear browserView
-   put line 1 of xterm_ListBrowsers() into xtermView
-   if exists (xtermView) is false then
-      display_Xterm true
-      put the result into xtermView
-   end if
-   --
-   ttyd_Execute "clear", xtermView
-end menu_XtermClear
-
-private on _____
-end _____
-
-on submenu_Tunnel
-   return "Global | Tunnel | Menu"
-end submenu_Tunnel
+on menu_StartWikiWithXterm
+   wiki_StartWithXterm
+end menu_StartWikiWithXterm
 
 on submenu_InstallWiki
    return "Global | Wiki | Install | Menu"

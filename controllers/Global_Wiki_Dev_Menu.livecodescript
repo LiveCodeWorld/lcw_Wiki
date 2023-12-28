@@ -26,6 +26,58 @@ end menu_Target
 
 --> Global | Wiki | Dev | Menu
 -
+on menu_ListLocalWikis
+   display_LocalWikis
+end menu_ListLocalWikis
+
+on submenu_Tunnel
+   return "Global | Tunnel | Menu"
+end submenu_Tunnel
+
+-- on submenu_ObeyaStudio
+return "Global | Obeya | Studio | Menu"
+end submenu_ObeyaStudio
+
+on menu_DisplayEtcHosts
+   launch_EtcHosts
+   if the shiftKey is "Down" then
+      display_EtcHosts
+   end if
+end menu_DisplayEtcHosts
+
+on menu_UpdateEtcHosts dView
+   display_LocalWikis dView
+   --
+   put the displayed_Index of dView into localHosts
+   filter localHosts with "*localhost" -- just in case
+   --
+   breakpoint
+   put hosts_ConstructText (localHosts) into hostsText
+   hosts_Set hostsText
+end menu_UpdateEtcHosts
+
+private on ____
+end ____
+
+on menu_Xterm
+   display_Xterm true
+end menu_Xterm
+
+on menu_XtermClear browserView
+   put line 1 of xterm_ListBrowsers() into xtermView
+   if exists (xtermView) is false then
+      display_Xterm true
+      put the result into xtermView
+   end if
+   --
+   ttyd_Execute "clear", xtermView
+end menu_XtermClear
+
+on menu_TestFaasd
+   post "Hello world" to url "https://faasd.platform.earth/function/activity"
+   put it
+end menu_TestFaasd
+
 on menu_MatrixChat
    display_Browser "https://app.element.io/#/room/#fedwiki:matrix.org"
 end menu_MatrixChat
@@ -110,7 +162,7 @@ on menu_DisplayPages mTarget, topDomain
          put fedwiki_ConstructSiteMapTitleArray (sitemapArray) into sitemapTitleArray
          display_Array sitemapTitleArray, topDomain, "Global | Wiki | Tree | Menu", "Global | Wiki | Tree | Line | Menu"
          put the result into displayView
-         set the displayed_Domain of displayView to topDomain
+         set the wiki_Domain of displayView to topDomain
    end switch
 end menu_DisplayPages
 
@@ -164,3 +216,65 @@ on menu_FetchChromeFedwiki
    --
    display_Array pageArray
 end menu_FetchChromeFedwiki
+
+private on ______
+end ______
+
+function _GetWikiView mTarget
+   -- "browser_View" is on card script of stack "Fedwiki Editor"
+   put the wiki_View of cd 1 of stack "Fedwiki Editor" into wikiView
+   return wikiView
+end _GetWikiView
+
+getprop checked_Ngrok
+   return ngrok_ListProcessIds() is not empty
+end checked_Ngrok
+
+getprop dream_Domains
+   put "Jelly Fish" & CR after topDomains
+   put "-" & CR after topDomains
+   put "david.icotopia.io" & CR after topDomains
+   put "trevor.icotopia.io" & CR after topDomains
+   put "video.icotopia.io" & CR after topDomains
+   put "david.culturecollective.cc" & CR after topDomains
+   --
+   delete char -1 of topDomains
+   return topDomains
+end dream_Domains
+
+getprop top_Domains
+   put "Jelly Fish" & CR after topDomains
+   put "Worldscape" & CR after topDomains
+   put "-" & CR after topDomains
+   put "outlandish.academy" & CR after topDomains
+   put "david.outlandish.academy" & CR after topDomains
+   put "nina.outlandish.academy" & CR after topDomains
+   put "trevor.outlandish.academy" & CR after topDomains
+   --
+   delete char -1 of topDomains
+   return topDomains
+end top_Domains
+
+getprop show_HiddenFiles
+   put finder_GetShowInvisibleFiles() into someBoolean
+   return someBoolean
+end show_HiddenFiles
+
+on menu_TestFaasd
+   post "Hello world" to url "https://faasd.platform.earth/function/activity"
+   put it
+end menu_TestFaasd
+
+on menu_Xterm
+   display_Xterm true
+end menu_Xterm
+
+on menu_XtermClear browserView
+   put line 1 of xterm_ListBrowsers() into xtermView
+   if exists (xtermView) is false then
+      display_Xterm true
+      put the result into xtermView
+   end if
+   --
+   ttyd_Execute "clear", xtermView
+end menu_XtermClear

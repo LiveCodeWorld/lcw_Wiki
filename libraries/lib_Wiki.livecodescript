@@ -9,38 +9,82 @@ version: 0.4
 /*
 This is a library for working with Fedwiki inside of a Livecode desktop or obile application.
 There is also a lot of code in the group "Wiki" of the stack "Fedwiki Editor" of project "lcw_Wiki"
+
+open process "wiki" for update
+put the openProcessIDs into wikiProcessID
+get the openProcesses
+source ~/.zshrc; 
+set the defaultfolder to wiki_RootFolder()
 */
+
+--> Variables
+-
+local WikiSecurityType
+
 
 --> Working on
 -
-function wiki_ShellCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
-   if pSecurityType is empty then put "security_legacy" into pSecurityType
+function wiki_GetSecurityType
+   if WikiSecurityType is empty then put "legacy" into WikiSecurityType
    --
-   if pWithNvm is true then
-      put nvm_GetBin() into wikiBinFile
-   else
-      put "wiki" into wikiBinFile
-   end if
-   
-   put "/usr/bin/nohup"  into noHupFile
-   --
-   put merge ("[[noHupFile]] [[wikiBinFile]]") into someShell
-   --
-   if pFarm is not false then put space & "--farm" after someShell
-   if pSecurityType is not empty then put space & "--" & pSecurityType after someShell
-   if pPort is empty then
-      put space & "--port 80" after someShell
-   else
-      put space & "--port" && pPort after someShell
-   end if
+   return WikiSecurityType
+end wiki_GetSecurityType
+
+command wiki_SetSecurityType securityType
+   put securityType into WikiSecurityType
+end wiki_SetSecurityType
+
+function wiki_ShellCommand pSecurityType, pFarm, pPort, pLog, pWithNvm
+   put wiki_StartCommand (pSecurityType, pFarm, pLog, pPort, pWithNvm) into someShell
+   put "/usr/bin/nohup" & space before someShell
    
    # Add redirect output bit (log if needed)
    put _RedirectBit (pLog) into reDirectOutput
    put space & reDirectOutput after someShell
    put space & "jobs -l" after someShell
    --
+   put "source ~/.zshrc;" before someShell
+   --
    return someShell
 end wiki_ShellCommand
+
+function wiki_StartCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
+   if pWithNvm is true then
+      put nvm_GetBin() into wikiBinFile
+   else
+      put "wiki" into wikiBinFile
+   end if
+   put wikiBinFile into someShell
+   
+   # Add authentication
+   switch pSecurityType
+      case "legacy"
+      case empty
+         put " --security_legacy" after someShell
+         break
+      case "friends"
+         put " --security_type friends" after someShell
+         --
+         put "earth" into sCookieSecret
+         put space & "--cookieSecret" && sCookieSecret after someShell
+         --
+         put space & "--session_duration 9999" after someShell
+         break
+      default
+         put " --security_type" && pSecurityType after someShell
+   end switch
+   
+   -- put space & "--admin" && 1234567890 after someShell
+   --
+   if pFarm is not false then put space & "--farm" after someShell
+   if pPort is empty then
+      put space & "--port 80" after someShell
+   else
+      put space & "--port" && pPort after someShell
+   end if
+   --
+   return someShell
+end wiki_StartCommand
 
 
 --> Private
@@ -109,22 +153,30 @@ end wiki_ProcessIds
 
 --> Wiki | Start
 -
-command wiki_Start pSecurityType, pFarm, pLog
+command wiki_Start pSecurityType, pFarm, pPort
+   if pSecurityType is empty then put wiki_GetSecurityType() into pSecurityType
+   --
    put wiki_ProcessIds() into wikiProcessIDs
    if wikiProcessIDs is not empty then return empty -- so we know already started
-   
-   put wiki_ShellCommand (pSecurityType, pFarm, pLog) into someShell
-   put wiki_DoShell() into wikiProcessID
    --
-   put wiki_ListBrowsers() into wikiBrowsers
-   put wiki_DefaultLocalUrl() into wikiURL
-   repeat for each line wikiBrowser in wikiBrowsers
-      set the browser_URL of wikiBrowser to wikiURL
-   end repeat
+   wiki_NormailzePort pPort
+   if pPort is empty then put 80 into pPort
+   --
+   set the defaultfolder to wiki_RootFolder()
+   put wiki_ShellCommand (pSecurityType, pFarm, pPort) into someShell
+   put shell (someShell) into shellResult
+   put word 2 of shellResult into wikiProcessID
    
    # Indicate wiki starting up
    return wikiProcessID
 end wiki_Start
+
+command wiki_StartWithXterm pXtermBrowser, pLog
+   put wiki_TerminalCommand() into someShell -- not working with Shell
+   --
+   display_Xterm pXtermBrowser, someShell, "paste"
+   return pXtermBrowser
+end wiki_StartWithXterm
 
 command wiki_Stop pIDs
    if the platform = "MacOS" then
@@ -145,14 +197,6 @@ command wiki_Stop pIDs
    end repeat
 end wiki_Stop
 
-function wiki_DoShell pSecurityType, pFarm, pLog
-   put wiki_ShellCommand (pSecurityType, pFarm, pLog) into someShell
-   put shell (someShell) into shellResult
-   -- [1]+  3122 Running                 /usr/bin/nohup /Users/david/.nvm/versions/node/v21.0.0/bin/wiki --security_legacy > /dev/null 2>&1 &
-   put word 2 of shellResult into wikiProcessID
-   return wikiProcessID
-end wiki_DoShell
-
 function wiki_TerminalCommand
    -- Does not work with Shell as it exits
    put "wiki --security_legacy" into someShell
@@ -171,26 +215,20 @@ end wiki_TerminalCommand
 
 --> Wiki | Start | Alternative
 -
-command wiki_StartUsingXterm pXtermBrowser, pLog
-   put wiki_TerminalCommand() into someShell -- Does not work with Shell
-   --
-   ttyd_Execute someShell, pXtermBrowser
-   return pXtermBrowser
-end wiki_StartUsingXterm
-
 command wiki_OpenProcess pBrowserView
    breakpoint -- old. We now use nohup
    --
    set the cursor to watch
+   set the defaultfolder to wiki_RootFolder()
    open process wiki for update
    
    ## Federated Wiki server listening on 3000 in mode: development
    read from process wiki until "Federated Wiki server listening on 3000 in mode: development"
    put it into wikiInfoToParse
-   put "http://localhost:3000" into wikiURL
    
    ## Display
    if exists (pBrowserView) then
+      put "http://localhost:3000" into wikiURL
       set the browser_Url of pBrowserView to wikiURL
    end if
    return wikiURL

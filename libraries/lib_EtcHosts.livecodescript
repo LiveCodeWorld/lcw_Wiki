@@ -12,27 +12,104 @@ version: 0.1
 
 --> Working on
 -
-command hosts_Add localDomainsToAdd, pSystemPassword, pLaunch
+function system_GetAdminPassword
+   return secret_Get ("systemPassowrd")
+end system_GetAdminPassword
+
+command system_SetAdminPassword sPassword
+   secret_Set "systemPassowrd", sPassword
+end system_SetAdminPassword
+
+private command _NormalizeSystemPassword @pSystemPassword
    if pSystemPassword is empty then
-      put lcw_Ask ("Enter system password...") into pSystemPassword
+      put system_GetAdminPassword() into pSystemPassword
+      if pSystemPassword is empty then
+         put lcw_Ask ("Enter system password...") into pSystemPassword
+         system_SetAdminPassword pSystemPassword
+      end if
+   else
+      system_SetAdminPassword pSystemPassword
    end if
+end _NormalizeSystemPassword
+
+command hosts_Delete sDomain, pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
    --
-   put hosts_ConstructText (pSystemPassword, localDomainsToAdd) into hostsText
+   put hosts_Get (pSystemPassword) into hostsText
+   if item 1 of hostsText = "Error" then return hostsText
+   put hosts_GetArray (hostsText) into hostsArray
+   --
+   delete variable hostsArray ["domains"][sDomain]
+   --
+   put hosts_TextFromArray (hostsArray) into hostText
+   hosts_Set hostsText, pSystemPassword
+   return hostsText
+end hosts_Delete
+
+command hosts_Rename fromDomain, toDomain, pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   --
+   breakpoint
+   put hosts_Get (pSystemPassword) into hostsText
+   if item 1 of hostsText = "Error" then return hostsText
+   put hosts_GetArray (hostsText) into hostsArray
+   --
+   delete variable hostsArray ["domains"][sDomain]
+   --
+   put "127.0.0.1" into hostsArray ["domains"][toDomain]["ip"]
+   put "127.0.0.1" && toDomain into hostsArray ["domains"][toDomain]["line"]
+   --
+   put hosts_TextFromArray (hostsArray) into newText
+   hosts_Set hostsText, pSystemPassword
+   return hostsText
+end hosts_Rename
+   
+command hosts_Add localDomainsToAdd, pSystemPassword, pLaunch
+   _NormalizeSystemPassword pSystemPassword
+   put hosts_ConstructText (localDomainsToAdd, pSystemPassword) into hostsText
    if item 1 of hostsText = "Error" then return hostsText
    --
    if pLaunch is true then
       set the clipboardData to hostsText
       launch_EtcHosts
    else
-      hosts_Set pSystemPassword, hostsText
+      hosts_Set hostsText, pSystemPassword
    end if
    return hostsText
 end hosts_Add
 
-function hosts_ConstructText yourPassword, pLocalDomainsToAdd
+function hosts_NewText localDomains
+   local domainArray
+   url_SortDomainIndex localDomains
+   
+   put "##,# Host Database,#,# localhost is used to configure the loopback interface" into hostText
+   put ",# when the system is booting.  Do not change this entry.,##" after hostText
+   replace comma with CR in hostText
+   --
+   put CR & "127.0.0.1	localhost" after hostText
+   put CR & "255.255.255.255	broadcasthost" after hostText
+   --
+   put "127.0.0.1" into localIP
+   repeat for each line localDomain in localDomains
+      switch
+         case localDomain is "localhost"
+            next repeat
+         default
+            put CR & localIP && localDomain after hostText
+      end switch
+   end repeat
+   --
+   put CR & "::1             localhost" after hostText
+   --
+   return hostText
+end hosts_NewText
+
+function hosts_ConstructText pLocalDomainsToAdd, pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   --
    replace comma with CR in pLocalDomainsToAdd
    --
-   put hosts_Get (yourPassword) into hostsText
+   put hosts_Get (pSystemPassword) into hostsText
    if hostsText contains "Password:Sorry, try again." then
       return "Error, wrong passowd"
    end if
@@ -128,19 +205,22 @@ end hosts_GetArray
 
 --> Etc | Hosts
 -
-command hosts_Backup yourPassword, pSomeHow, pBrowserView   
+command hosts_Backup pSystemPassword 
+   _NormalizeSystemPassword pSystemPassword
+   --
    put "/etc/hosts" into hostsFile
    put "/etc/hosts_backup" into hostsBackupFile
-   --
-   get "echo '[[yourPassword]]' | sudo -S mv" && kwote (hostsFile, "'") && kwote (hostsBackupFile, "'")
+   get "echo '[[pSystemPassword]]' | sudo -S mv" && kwote (hostsFile, "'") && kwote (hostsBackupFile, "'")
    put merge (it) into someShell
    --
-   shell_Do someShell, pSomeHow, pBrowserView
-   return the result 
+   put shell (someShell) into shellResult
+   return shellResult 
 end hosts_Backup
 
-function hosts_Get yourPassword
-   put merge ("echo '[[yourPassword]]' | sudo -S cat /etc/hosts") into someShell
+function hosts_Get pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   --
+   put merge ("echo '[[pSystemPassword]]' | sudo -S cat /etc/hosts") into someShell
    put shell (someShell) into hostsText
    
    # Tweak
@@ -148,22 +228,25 @@ function hosts_Get yourPassword
    if item 1 of hostsText = "Password" then
       -- Password:
       delete item 1 of hostsText
+      return hostsText
+   else
+      return "Error," && hostsText
    end if
-   
-   return hostsText
 end hosts_Get
 
-command hosts_Set yourPassword, hostsText, pSomeHow, pBrowserView
-   hosts_Backup yourPassword
+command hosts_Set hostsText, pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   --
+   hosts_Backup pSystemPassword
    --
    put the tempname into tTempPath
    put hostsText into url ("binfile:" & tTempPath)
    --
-   get "echo '[[yourPassword]]' | sudo -S mv" && kwote (tTempPath, "'") && "'/etc/hosts'"
+   get "echo '[[pSystemPassword]]' | sudo -S mv" && kwote (tTempPath, "'") && "'/etc/hosts'"
    put merge (it) into someShell
    --
-   shell_Do someShell, pSomeHow, pBrowserView
-   return the result
+   put shell (someShell) into shellResult
+   return shellResult
 end hosts_Set
 
 

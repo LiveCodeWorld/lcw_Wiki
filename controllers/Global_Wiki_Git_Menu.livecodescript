@@ -26,16 +26,47 @@ getprop menu_CheckTarget [cameraView]
    return exists (cameraView)
 end menu_CheckTarget
 
+command _MoveWikis wikiDomains, dView, pReDomain
+   repeat for each line wikiDomain in wikiDomains
+      display_Spin wikiDomain, dView, "green"
+      --
+      put wiki_GetFolder (wikiDomain) into wikiFolder
+      if there is a folder wikiFolder then
+         breakpoint
+         put wikiDomain & CR after existingDomains
+      else
+         if pReDomain is empty then
+            gitwiki_MoveToLocal wikiDomain, false
+         else
+            put wiki_ReDomain (wikiDomain, pReDomain) into newName
+            gitwiki_MoveToLocal wikiDomain, false, newName
+         end if
+         put wikiDomain & CR after copiedDomains
+      end if
+   end repeat
+   delete char -1 of copiedDomains
+   delete char -1 of existingDomains
+   
+   put system_GetAdminPassword() into systemPassword
+   hosts_Add copiedDomains, systemPassword
+   
+   if existingDomains is not empty then
+      display_Data existingDomains, "Existing", "Local Wiki Domains"
+   end if
+end _MoveWikis
+
 
 --> Global | Wiki | Git | Menu
 -
 on menu_AllGitWikis dView
+   set the wiki_Filter of dView to empty
    display_GitWikiFolders dView
 end menu_AllGitWikis
 
 on menu_FilterGitWikis displayView
    put the wiki_Filter of displayView into wikiFilter
    put lcw_Ask ("Filter domains...", wikiFilter, "Wiki Filter", displayView) into wikiFilter
+   set the wiki_Filter of displayView to wikiFilter
    --
    display_GitWikiFolders displayView, wikiFilter
 end menu_FilterGitWikis
@@ -43,103 +74,48 @@ end menu_FilterGitWikis
 private on _
 end _
 
-on menu_CheckDisplayed dView   
-   wiki_LoadTunnel
-   --
-   set the itemdelimiter to "."
-   put the displayed_Index of dView into gitWikiDomains
-   repeat for each line gitWikiDomain in gitWikiDomains
-      put gitwiki_Check (gitWikiDomain, gitWikiDomain, true, false) into someColour
-      --
-      display_Spin gitWikiDomain, dView, someColour
-   end repeat
-end menu_CheckDisplayed
-   
-on menu_SymlinkDisplayed dView
-   wiki_LoadTunnel
-   --
-   set the itemdelimiter to "."
-   put the displayed_Index of dView into gitWikiDomains
-   repeat for each line gitWikiDomain in gitWikiDomains
-      gitwiki_SymlinkAndRegister gitWikiDomain, false, gitWikiDomain, false
-      display_Spin gitWikiDomain, dView, "green"
-   end repeat
-   
-   hosts_Add gitWikiDomains
-end menu_SymlinkDisplayed
-
-on menu_AddToEtcHosts dView
-   put the displayed_Index of dView into gitWikiDomains
-   hosts_Add gitWikiDomains
-end menu_AddToEtcHosts
-
-on menu_EmptyGitWikis dView
+on menu_ListEmptyGitWikis dView
    put gitwiki_ListEmptyFolders (true) into emptyFolders
    display_GitWikis emptyFolders, dView, "none", "Empty Git Folders"
-end menu_EmptyGitWikis
+end menu_ListEmptyGitWikis
 
-private on __
-end __
+on menu_MoveToLocal dView
+   put the displayed_Index of dView into wikiDomains
+   --
+   _MoveWikis wikiDomains, dView
+   --
+   menu_Refresh
+end menu_MoveToLocal
 
-on menu_DisplayNumbers dView
-   put the displayed_Index of dView into gitWikiDomains
-   put gitwiki_RootFolder() into gitwikiRootFolder
+on menu_MoveSelectedToLocal dView
+   put the selected_Index of dView into wikiDomains
+   put lcw_Ask ("Rename wiki domain...", "cico.club", "Rename", dView) into pReDomain
    --
-   repeat for each line gitWikiDomain in gitWikiDomains
-      display_Spin gitWikiDomain, dView, "green"
-      --
-      put gitwikiRootFolder & gitWikiDomain into gitWikiFolder
-      --
-      put symlink_Destination (gitWikiFolder) into destFolder
-      switch destFolder
-         case empty
-            -- Not a symlink
-            put wiki_NumberOfpages (gitWikiFolder) into numOfPages
-            switch
-               case numOfPages is empty
-               case numOfPages < 1
-                  breakpoint
-                  revDeleteFolder gitWikiFolder
-                  break
-               default
-                  -- lots of pages
-                  put numOfPages && gitWikiDomain & CR after numberIndex
-            end switch
-            break
-         case wikiRootFolder
-            put wiki_NumberOfpages (gitWikiFolder) into numOfPages
-            switch
-               case numOfPages is empty
-                  breakpoint
-               case numOfPages < 1
-                  breakpoint -- trash?
-                  symlink_Delete gitWikiFolder
-                  break
-               default
-                  -- lots of pages
-                  put numOfPages && gitWikiDomain & CR after numberIndex
-            end switch
-            break
-         default
-            breakpoint
-            if there is not a folder destFolder then
-               breakpoint
-               symlink_Delete gitWikiFolder
-            end if
-      end switch 
-      
-   end repeat
-   delete char -1 of numberIndex
+   _MoveWikis wikiDomains, dView, pReDomain
    --
-   sort numeric numberIndex by word 1 of each
-   set the displayed_Index of dView to numberIndex
-end menu_DisplayNumbers
+   menu_Refresh
+end menu_MoveSelectedToLocal
+
+private on ___
+end ___
+
+on menu_DisplayLocalWikis
+   display_LocalWikis
+end menu_DisplayLocalWikis
 
 on menu_LaunchEtcHosts
    launch_EtcHosts
 end menu_LaunchEtcHosts
 
+on menu_Refresh
+   put display_FindView ("Local Wikis") into dView
+   if exists (dView) then
+      put the wiki_Filter of dView into pFilter
+   end if
+   display_LocalWikis dView, pFilter, pFilter
+   display_GitWikiFolders
+end menu_Refresh
+
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Git | Menu")
 end submenu_Dev
-
