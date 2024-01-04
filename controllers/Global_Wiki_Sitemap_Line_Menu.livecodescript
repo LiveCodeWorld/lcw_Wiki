@@ -38,14 +38,55 @@ end _GetTopData
 
 --> Global | Wiki | Sitemap | Line | Menu
 -
+on menu_StripJournal displayView
+   put the title_Text of displayView into wikiDomain
+   put _GetSlug (displayView) into pageSlug
+   --
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   pageArray_StripJournal pageArray
+   --
+   if the shiftkey is "Up" then
+      display_PageArray pageArray, wikiDomain
+      put the result into displayView
+      set the wiki_Domain of displayView to wikiDomain
+      set the page_Slug of displayView to pageSlug
+   else
+      pageArray_Set wikiDomain, pageSlug, pageArray
+      if item 1 of the result is "Error" then
+         put the result
+      end if
+   end if
+end menu_StripJournal
+
+private on _
+end _
+
 on menu_FetchPageArray arrayView
    put the title_Text of arrayView into wikiDomain
-   put _GetSlug (arrayView) into pSlug
+   put _GetSlug (arrayView) into pageSlug
    --
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
    --
    display_PageArray pageArray, wikiDomain
+   put the result into displayView
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pageSlug
 end menu_FetchPageArray
+
+on menu_GetPageArray arrayView
+   put the title_Text of arrayView into wikiDomain
+   put _GetSlug (arrayView) into pageSlug
+   --
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   --
+   display_PageArray pageArray, wikiDomain
+   put the result into displayView
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pageSlug
+end menu_GetPageArray
+
+private on __
+end __
 
 on menu_SaveToDefaultPages arrayView
    put the title_Text of arrayView into wikiDomain
@@ -53,7 +94,7 @@ on menu_SaveToDefaultPages arrayView
    --
    put pageArray_Fetch (wikiDomain, pSlug) into pageArray
    --
-   pageArray_SetDefault pageArray
+   wikiServer_SetPageArray pageArray
 end menu_SaveToDefaultPages
 
 on menu_SetDefaultHome arrayView
@@ -61,6 +102,6 @@ on menu_SetDefaultHome arrayView
    put _GetSlug (arrayView) into pSlug
    --
    put empty into forkDomains
-   fedwiki_SetDefaultHome arrayView, forkDomains
+   wikiServer_CopyHomeToDefault arrayView, forkDomains
 end menu_SetDefaultHome
 

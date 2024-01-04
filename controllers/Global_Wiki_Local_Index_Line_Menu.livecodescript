@@ -199,7 +199,7 @@ end _
 on menu_DisplayPages dView
    put the selected_Line of dView into sDomain
    --
-   display_SitemapArray sDomain
+   display_WikiSitePageArray sDomain
 end menu_DisplayPages
 
 private on __

@@ -107,7 +107,7 @@ end pageArray_ConstructMap
 command pageArray_AddMap @pageArray, mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID
    if mapLat is empty then return empty
    --
-   pageArray_AssignID pID
+   itemArray_NormalizeID pID
    put pID into itemArray ["id"]
    if mapLat is not empty then
       put mapLat into itemArray ["latlng"]["lat"]
@@ -122,7 +122,7 @@ command pageArray_AddMap @pageArray, mapLat, mapLong, mapText, mapZoom, pPinText
    put "map" into itemArray ["type"]
    put mapZoom into itemArray ["zoom"]
    --
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddMap
 

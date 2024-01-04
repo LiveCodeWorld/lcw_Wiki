@@ -8,75 +8,11 @@ copyright: David Bovill
 licence:  GPLv3
 
 /*
-A library for interfacing with Federated Wiki.
+An old library for interfacing with Federated Wiki.
 */
 
 --> Working on
 -
-
-
---> Fedwiki | Paths
--
-function fedwiki_LocalSiteMapFile pFedwikiDomain
-   -- .wiki/audio.commons.academy/status/sitemap.json
-   put fedwiki_GetLocalWikiRoot() into siteMapFile
-   if pFedwikiDomain is empty then
-      return "status/sitemap.json"
-   else
-      put pFedwikiDomain & "/status/sitemap.json" into siteMapFile
-      return siteMapFile
-   end if
-end fedwiki_LocalSiteMapFile
-
-
---> Fedwiki | Sitemap
--
-function fedwiki_SitemapIndex sitemapJSON
-   put json_ToArray (sitemapJSON) into sitemapArray
-   repeat for each key indexNum in sitemapArray
-      put sitemapArray [indexNum]["title"] into someTitle
-      put someTitle & CR after someIndex
-   end repeat
-   delete char -1 of someIndex
-   sort someIndex
-   return someIndex
-end fedwiki_SitemapIndex
-
-function fedwiki_ConstructSiteMapArray pageTitle, pageSynopsis, pDateInMilliseconds, pPageSlug
-   if pPageSlug is empty then put fedwiki_ConstructSlug (pageTitle) into pPageSlug
-   if pDateInMilliseconds is empty then put the milliseconds into pDateInMilliseconds
-   
-   put pDateInMilliseconds into mapArray ["date"] 
-   put pPageSlug into mapArray ["slug"]
-   put pageSynopsis into mapArray ["synopsis"] 
-   put pageTitle into mapArray ["title"]    
-   return mapArray
-end fedwiki_ConstructSiteMapArray
-
-command fedwiki_AddToSitemapArray @sitemapArray, pageTitle, pageSynopsis, pDateInMilliseconds, pPageSlug
-   put fedwiki_ConstructSiteMapArray (pageTitle, pageSynopsis, pDateInMilliseconds, pPageSlug) into mapArray
-   array_AddToEndOfIndex mapArray, sitemapArray
-end fedwiki_AddToSitemapArray
-
-command fedwiki_UpdateLocalSiteMap pageArray, pFedwikiDomain, pDateInMilliseconds
-   put pageArray ["title"] into pageTitle
-   put pageArray ["story"][1]["text"] into pageSynopsis
-   put pageArray ["journal"] into journalArray
-   if pDateInMilliseconds is empty then
-      -- setting pDateInMilliseconds to the value of the time of a forl
-      -- allows page forking to be set to the date of the fork event
-      -- not the date of the original page creation
-      put item 2 of the extents of journalArray into lastItemNum
-      put journalArray [lastItemNum]["date"] into pDateInMilliseconds
-   end if
-   
-   put fedwiki_GetLocalSitemapJson (pFedwikiDomain) into localSitemapJson
-   put json_ToArray (localSitemapJson) into sitemapArray
-   fedwiki_AddToSitemapArray sitemapArray, pageTitle, pageSynopsis, pDateInMilliseconds
-   put json_FromArray (sitemapArray) into updatedSitemapJson
-   fedwiki_SetLocalSitemapJson pFedwikiDomain, updatedSitemapJson
-end fedwiki_UpdateLocalSiteMap
-
 
 --> Fedwiki | Roster
 -
@@ -200,41 +136,3 @@ function fedwiki_ExtractForkLinks pageArray, fromSlug, fromDomain
    end repeat
    return linkArray
 end fedwiki_ExtractForkLinks
-
-
-
---> Fedwiki | Local | Page Json | Files
--
-/*
-JSON page files and favicons are all stored in a standard place within a ".wiki" folder as they are on the remote Node server.
-This local folder is named "wiki" without the first "." (as it would be on the remote Node server) so that it is visible.
-
-You can customise this location by using a getprop 
-*/
-
-function fedwiki_LocalSiteMapJson pFedwikiDomain
-   put fedwiki_LocalSiteMapFile (pFedwikiDomain) into someFile
-   if there is a file someFile then
-      put url ("file:" & someFile) into someJSON -- sould it be "binfile:"???
-      return someJSON
-   else
-      return empty
-   end if
-end fedwiki_LocalSiteMapJson
-
-function fedwiki_GetLocalSitemapJson pFedwikiDomain
-   put fedwiki_LocalSiteMapFile (pFedwikiDomain) into someFile
-   if there is a file someFile then
-      put url ("file:" & someFile) into pageJSON
-      return pageJSON
-   else
-      return empty
-   end if
-end fedwiki_GetLocalSitemapJson
-
-command fedwiki_SetLocalSitemapJson pageSlug, pageJSON, pFedwikiDomain
-   put fedwiki_LocalSiteMapFile (pFedwikiDomain) into someFile
-   put pageJSON into url ("file:" & someFile)
-   return someFile
-end fedwiki_SetLocalSitemapJson
-

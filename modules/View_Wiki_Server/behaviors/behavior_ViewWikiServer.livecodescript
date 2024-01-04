@@ -22,45 +22,44 @@ which will override the handler of the same name in the lib_DaemonServer stack.
 
 --> Working on
 -
--- after process_GET someRoute, socketID, requestArray
-switch someRoute
-   case "/"
-      put daemon_HostFromRequest (requestArray) into fromHost
-      daemon_Log "process_GET" && someRoute && fromHost
-      break
-   case "/favicon.ico"
-      put daemon_HostFromRequest (requestArray) into fromHost
-      daemon_Log "process_GET" && someRoute && fromHost
-      break
-   default
-      daemon_Log "process_GET" && someRoute
-end switch
-end process_GET
+getprop log_Text
+   put _LogField() into logField
+   put the text of logField into logText
+   return logText
+end log_Text
 
-before daemon_SetPort
-   put the daemon_Port of me into oldPort
-   --
-   daemon_Log ("User changed server port from:" && oldPort)
-   if the daemon_IsRunning of me is true then
-      daemon_Log "Stopping server..."
-   end if
-end daemon_SetPort
+setprop log_Text logText
+   put _LogField() into logField
+   set the text of logField to logText
+end log_Text
 
-after daemon_SetPort
-   put the daemon_Port of me into newPort
-   --
-   if the daemon_IsRunning of me is true then
-      daemon_Log "Starting server..."
-      daemon_Log ("Listening on port:" && newPort)
+setprop log_Line [pLogName] logLine 
+   put the short id of _LogField() into fieldID
+   -- put log_ConstructEntry (logLine, pLogName, true) into logLine
+   if pLogName is not empty then
+      put pLogName & ": " before logLine
    end if
-end daemon_SetPort
+   --
+   get word 1 to -1 of line 1 of logLine
+   put it & CR after field id fieldID of me
+   --
+   return logLine
+end log_Line
+
+getprop log_Hilite
+   return the hilite of _ToggleButton()
+end log_Hilite
+
+setprop log_Hilite sBoolean
+   set the hilite of _ToggleButton() to sBoolean is true
+end log_Hilite
 
 
 --> Events
 -
 on preOpenControl
    set the behavior_StackNames of me to "behavior_ViewWikiServer,behavior_Daemon,behavior_DaemonMiddleware,behavior_WikiRouter,behavior_DaemonLog"
-   dispatch "daemon_LogClear" to me
+   set the log_Text of me to empty
 end preOpenControl
 
 on mouseUp
@@ -99,84 +98,6 @@ command LayoutControl pRect
 end LayoutControl
 
 
--- Variables
--
-local MiddlewareArray
-
-
---> Start and Stop
--
-before daemon_Start
-   -- set the log_View of the target to view_GetTemplateObject ("View|Wiki|Server")
-   daemon_LogClear
-end daemon_Start
-
-after daemon_Start
-   daemon_Log ("Server started. Using port:" && the daemon_Port of me)
-   --
-   set the log_Hilite of me to true
-end daemon_Start
-
-after daemon_Stop
-   daemon_Log ("Server stopped. Closed port:" && the daemon_Port of me)
-   get the opensockets
-   if it is empty then
-      daemon_Log ("Great, there are no sockets open!")
-   else
-      replace CR with ", " in it
-      daemon_Log ("There are still some open sockets:" && it)
-   end if
-   --
-   set the log_Hilite of me to false
-end daemon_Stop
-
-
---> Before and Afters
--
-before processRequest pSocketID, theData
-   -- daemon_Log ("Processing:" && theData)
-end processRequest
-
-before daemon_SendNotFound socketID
-   put daemon_GetSocketData() into SocketData
-   put SocketData [socketID] into socketArray
-   -- dameon_AddToMiddlewareArray socketArray, "Not Found"
-   ---
-   daemon_Log ("daemon_SendNotFound:" && theData)
-end daemon_SendNotFound
-
-before process_UnGot socketID, someRoute, routeData, requestArray
-   dameon_AddToMiddlewareArray requestArray, "UnGot"
-end process_UnGot
-
-before process_GET someRoute, socketID, requestArray
-   daemon_Log ("Getting:" && someRoute)
-   -- dameon_AddToMiddlewareArray requestArray, "process_GET"
-end process_GET
-
-before daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
-   daemon_Log ("daemon_SendRedirect:" && socketID)
-end daemon_SendRedirect
-
-
---> Utils
--
-command dameon_AddToMiddlewareArray requestArray
-   put the number of lines of the keys of MiddlewareArray + 1 into newIndexNum
-   put the milliseconds into requestArray ["milliseconds"]
-   put requestArray into MiddlewareArray [newIndexNum]
-   -- daemon_Log ("Got something and added it to: MiddlewareArray [" && someLabel & "]")
-end dameon_AddToMiddlewareArray
-
-command middleware_DeleteArray
-   delete variable MiddlewareArray
-end middleware_DeleteArray
-
-function middleware_GetArray
-   return MiddlewareArray
-end middleware_GetArray
-
-
 --> Private
 -
 private function _ToggleButton
@@ -190,6 +111,10 @@ end _LogField
 
 --> Objects
 -
+getprop log_View
+   return _LogField()
+end log_View
+
 getprop daemon_Server
    /*
    This is the control (often a stack) that is an instance of a particular server.

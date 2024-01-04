@@ -328,7 +328,7 @@ private function _ConstructOneTabPageArray oneTabUrl
                pageArray_AddMarkdown pageArray, someMarkDown
                
                -- add story to the end
-               fedwiki_AddStoryArray pageArray, receivedStoryItemArray
+               pageArray_AddStory pageArray, receivedStoryItemArray
             end if
             break
          default
@@ -336,7 +336,7 @@ private function _ConstructOneTabPageArray oneTabUrl
             dispatch tHandler with itemArray
             if it is "handled" then
                put the result into storyItemArray
-               fedwiki_AddStoryArray pageArray, storyItemArray
+               pageArray_AddStory pageArray, storyItemArray
             end if
       end switch
    end repeat

@@ -40,6 +40,28 @@ function fedwiki_JsonExportUrl wikiDomain
 end fedwiki_JsonExportUrl
 
 
+--> Fedwiki | Sitemap | LastModified
+-
+function fedwiki_GetlastModified wikiDomain
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   put fedwiki_SitemapLastModified (sitemapArray) into lastModified
+   return lastModified
+end fedwiki_GetlastModified
+
+function fedwiki_SitemapLastModified sitemapArray
+   put item 2 of the extents of sitemapArray into maxNum
+   put 0 into maxUpdate
+   repeat with indexNum = 1 to maxNum
+      put sitemapArray [indexNum]["slug"] into pageSlug
+      put sitemapArray [indexNum]["date"] into lastUpdate
+      if lastUpdate > maxUpdate then
+         put lastUpdate into maxUpdate
+      end if
+   end repeat
+   return maxUpdate
+end fedwiki_SitemapLastModified
+
+
 --> Fedwiki | Sitemap
 -
 function fedwiki_FetchSitemapArray wikiDomain
@@ -76,28 +98,6 @@ command fedwiki_UnloadSitemaps pWikiDomains
       end repeat
    end if
 end fedwiki_UnloadSitemaps
-
-
---> Fedwiki | Sitemap | LastModified
--
-function fedwiki_GetlastModified wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   put fedwiki_SitemapLastModified (sitemapArray) into lastModified
-   return lastModified
-end fedwiki_GetlastModified
-
-function fedwiki_SitemapLastModified sitemapArray
-   put item 2 of the extents of sitemapArray into maxNum
-   put 0 into maxUpdate
-   repeat with indexNum = 1 to maxNum
-      put sitemapArray [indexNum]["slug"] into pageSlug
-      put sitemapArray [indexNum]["date"] into lastUpdate
-      if lastUpdate > maxUpdate then
-         put lastUpdate into maxUpdate
-      end if
-   end repeat
-   return maxUpdate
-end fedwiki_SitemapLastModified
 
 
 --> Sitemap | List

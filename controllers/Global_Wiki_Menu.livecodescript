@@ -11,9 +11,7 @@ version: 0.5
 -
 local LocalArray
 
-getprop menu_Target [tObject]
-   put wiki_Started() into LocalArray ["wikiStarted"]
-   --
+getprop menu_Target [tObject]   
    put the browser_View of tObject into browserView
    if exists (browserView) then
       return browserView
@@ -23,6 +21,15 @@ getprop menu_Target [tObject]
       return empty
    end if
 end menu_Target
+
+getprop menu_CheckTarget [browserView]
+   try
+      put wiki_Started() into LocalArray ["wikiStarted"]
+      return exists (browserView)
+   catch e
+      return false
+   end try
+end menu_CheckTarget
 
 getprop checked_StartWiki
    return LocalArray ["wikiStarted"] is true
@@ -46,13 +53,21 @@ getprop port_Param
 end port_Param
 
 getprop port_Params
-   return "3000,-,80"
+   return "3000,8080,9090,-,80"
 end port_Params
 
 getprop localWiki_Params
    put wiki_ListLocalShortAll ("*astralship*") into wikiFolders
    return wikiFolders
 end localWiki_Params
+
+getprop securityType_Params
+   return "friends,cookie,passport,-,legacy"
+end securityType_Params
+
+getprop securityType_Param [wikiView]
+   return wiki_GetSecurityType()
+end securityType_Param
 
 
 --> Global | Wiki | Menu
@@ -76,14 +91,6 @@ on menu_StartWiki wikiView
       display_Wiki "fedwiki.org", wikiView
    end if
 end menu_StartWiki
-
-getprop securityType_Params
-   return "friends,cookie,passport,-,legacy"
-end securityType_Params
-
-getprop securityType_Param [wikiView]
-   return wiki_GetSecurityType()
-end securityType_Param
 
 on menu_SecurityType wikiView, securityType
    wiki_SetSecurityType securityType

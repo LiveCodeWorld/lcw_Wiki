@@ -43,6 +43,18 @@ on menu_CheckDate displayView
    put cDate
 end menu_CheckDate
 
+on menu_TestRewritePageArray displayView
+   put the wiki_Domain of displayView into wikiDomain
+   put the page_Slug of displayView into pageSlug
+   --
+   breakpoint
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   pageArray_Set wikiDomain, pageSlug, pageArray
+   if item 1 of the result is "Error" then
+      put the result
+   end if
+end menu_TestRewritePageArray
+
 on _
 end _
 

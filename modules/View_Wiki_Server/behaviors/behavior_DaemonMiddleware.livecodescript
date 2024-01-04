@@ -23,45 +23,6 @@ which will override the handler of the same name in the lib_DaemonServer stack.*
 local MiddlewareArray
 
 
---> Before and Afters
--
-before daemon_SendNotFound socketID
-   -- put daemon_GetSocketData() into SocketData
-   -- put SocketData [socketID] into socketArray
-   -- dameon_AddToMiddlewareArray socketArray, "Not Found"
-end daemon_SendNotFound
-
-before process_UnGot socketID, someRoute, routeData, requestArray
-   dameon_AddToMiddlewareArray requestArray, "UnGot"
-end process_UnGot
-
-before process_GET someRoute, socketID, requestArray
-   daemon_Log ("Getting:" && someRoute)
-   -- dameon_AddToMiddlewareArray requestArray, "process_GET"
-end process_GET
-
-before daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
-   daemon_Log ("daemon_SendRedirect:" && socketID)
-end daemon_SendRedirect
-
-before daemon_SetPort
-   daemon_Log ("User changed server port to:" && pNewPort)
-   daemon_Log "Stopping server..."
-end daemon_SetPort
-
-after daemon_SetPort
-   daemon_Log ("Starting server listening on port:" && pNewPort)
-end daemon_SetPort
-
-before daemon_Start
-   set the log_View of the target to view_GetTemplateObject ("View|Wiki|Server")
-end daemon_Start
-
-after daemon_Start
-   daemon_Log ("Server started. Using port:" && the daemon_Port of me)
-end daemon_Start
-
-
 --> Utils
 -
 command dameon_AddToMiddlewareArray requestArray

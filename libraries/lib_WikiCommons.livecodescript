@@ -147,7 +147,7 @@ command wikicommons_FetchAndAddTwoImages @fedwikiPageArray, shortImageFile
          put item -1 of thumbMime into imageType -- png
          put fedwiki_ConstructEncodedImageArray (someImage, imageType, plainCaption) into imageArray
          
-         pageArray_AddItemArray imageArray, fedwikiPageArray
+         itemArray_Add imageArray, fedwikiPageArray
          return true
    end switch
 end wikicommons_FetchAndAddTwoImages

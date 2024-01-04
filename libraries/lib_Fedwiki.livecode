@@ -37,6 +37,13 @@ private command development_ReturnPageArray pageArray, pBrowserView
    set the ghost_PageArray of pBrowserView to pageArray
 end development_ReturnPageArray
 
+command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
+   put pageArray_Fetch (wikiDomain) into pageArray
+   pageArray_SetItemText pageArray, itemID, itemText
+   pageArray_Set wikiDomain, pageSlug, pageArray
+   return pageArray
+end fedwiki_UpdatePageItem
+
 
 --> Image
 -
@@ -105,6 +112,67 @@ private command _TrimFullStop @someText, linkBit
    end switch
    put linkBit after someText
 end _TrimFullStop
+
+
+--> Fedwiki | Links
+-
+function fedwiki_GetLinks wikiText
+   local sNum, eNum
+   -- put ".+" into notBracket
+   -- put "\[\[([^\]]+)\|([^\]]+)\]\]" into someReg
+   
+   put "[^\]]+" into notBracket
+   put "\[\[(" & notBracket & ")\]\]" into someReg
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         put char sNum to eNum of wikiText into pageTitle
+         put pageTitle & CR after pageTitles
+         --
+         delete char 1 to eNum of wikiText
+      else 
+         exit repeat
+      end if
+   end repeat
+   delete char -1 of pageTitles
+   return pageTitles
+end fedwiki_GetLinks
+
+command fedwiki_ReplaceExternalLinks @wikiText
+   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
+   put "(\[http.+\])" into someReg
+   
+   local refStart, refEnd
+   put 0 into indexNum
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         add 1 to indexNum
+         put char sNum to eNum of wikiText into extLinkText
+         delete char - 1 of extLinkText
+         delete char 1 of extLinkText
+         put word 1 of extLinkText into extLinkURL
+         put word 2 to -1 of extLinkText into extLinkText
+         --
+         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
+         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
+         put markdownLink into char sNum to eNum of wikiText
+      else
+         exit repeat
+      end if
+   end repeat
+   return indexNum
+end fedwiki_ReplaceExternalLinks
+
+function fedwiki_ConstructLink someText, pExternalURL
+   put word 1 to -1 of line 1 of someText into someText
+   if pExternalURL is empty then
+      return "[[" & someText & "]]"
+   else
+      put word 1 to -1 of pExternalURL into pExternalURL
+      return "[" & pExternalURL && someText & "]"
+   end if
+end fedwiki_ConstructLink
 
 
 --> Fedwiki | Overide
@@ -503,69 +571,11 @@ function fedwiki_MarkdownIndex someIndex, pExtraWords
    return markdownList
 end fedwiki_MarkdownIndex
 
-function fedwiki_GetLinks wikiText
-   local sNum, eNum
-   -- put ".+" into notBracket
-   -- put "\[\[([^\]]+)\|([^\]]+)\]\]" into someReg
-   
-   put "[^\]]+" into notBracket
-   put "\[\[(" & notBracket & ")\]\]" into someReg
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         put char sNum to eNum of wikiText into pageTitle
-         put pageTitle & CR after pageTitles
-         --
-         delete char 1 to eNum of wikiText
-      else 
-         exit repeat
-      end if
-   end repeat
-   delete char -1 of pageTitles
-   return pageTitles
-end fedwiki_GetLinks
-
-command fedwiki_ReplaceExternalLinks @wikiText
-   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
-   put "(\[http.+\])" into someReg
-   
-   local refStart, refEnd
-   put 0 into indexNum
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         add 1 to indexNum
-         put char sNum to eNum of wikiText into extLinkText
-         delete char - 1 of extLinkText
-         delete char 1 of extLinkText
-         put word 1 of extLinkText into extLinkURL
-         put word 2 to -1 of extLinkText into extLinkText
-         --
-         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
-         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
-         put markdownLink into char sNum to eNum of wikiText
-      else
-         exit repeat
-      end if
-   end repeat
-   return indexNum
-end fedwiki_ReplaceExternalLinks
-
 function fedwiki_ConstructMarkdownLine someTitle, externalURL
    fedwiki_AddExternalLink someTitle, externalURL
    put "-" && someTitle into someMarkdown
    return someMarkdown
 end fedwiki_ConstructMarkdownLine
-
-function fedwiki_ConstructLink someText, pExternalURL
-   put word 1 to -1 of line 1 of someText into someText
-   if pExternalURL is empty then
-      return "[[" & someText & "]]"
-   else
-      put word 1 to -1 of pExternalURL into pExternalURL
-      return "[" & pExternalURL && someText & "]"
-   end if
-end fedwiki_ConstructLink
 
 function fedwiki_FetchSiteText wikiDomain
    -- see also "azure_FetchAndConvertSitemap()"
@@ -1140,7 +1150,7 @@ command fedwiki_AddExternalLinkToFirstSection @fedwikiPageArray, someURL, pLinkT
       -- section was empty
       put "There is no text for this section. Please add some." into itemText
       fedwiki_AddExternalLink itemText, someURL, pLinkText
-      put itemArray_Construct (itemText, "markdown") into itemArray
+      put itemArray_Construct ("markdown", "", itemText) into itemArray
       --
       storyArray_InsertInto storyArray, 1, itemArray
       --
@@ -1360,29 +1370,6 @@ command fedwiki_AddExternalLink @someText, someURL, pLinkText
 end fedwiki_AddExternalLink
 
 
---> Fedwiki | Add | Array
--
-command fedwiki_AddStoryArray @fedwikiPageArray, moreStoryItemArray
-   if moreStoryItemArray is not an array then return false
-   -- add multiple new storyItemArrays from moreStoryItemArray to end of fedwikiPageArray story
-   put fedwikiPageArray ["story"] into storyItemArray
-   fedwiki_AddToStoryArrayItems storyItemArray, moreStoryItemArray
-   put storyItemArray into fedwikiPageArray ["story"]
-   --
-   pageArray_StripJournal fedwikiPageArray
-   return true
-end fedwiki_AddStoryArray
-
-command fedwiki_AddToStoryArrayItems @storyItemArray, moreStoryItemArray
-   if moreStoryItemArray is not an array then return false
-   repeat with storyItemNum = 1 to item 2 of the extents of moreStoryItemArray
-      put moreStoryItemArray [storyItemNum] into itemArray
-      array_AddToEndOfIndex itemArray, storyItemArray
-   end repeat
-   return true
-end fedwiki_AddToStoryArrayItems
-
-
 --> Fedwiki | Journal | Array | Create
 -
 command fedwiki_AddToCreateArray @fedwikiPageArray, someArray
@@ -1394,14 +1381,6 @@ end fedwiki_AddToCreateArray
 
 --> Fedwiki | Journal | Array | Construct
 -
-function fedwiki_ConstructForkItemArray wikiDomain, pForkDate
-   if pForkDate is empty then put the milliseconds into pForkDate
-   put wikiDomain into itemArray ["site"]
-   put "fork" into itemArray ["type"]
-   put pForkDate into itemArray ["date"]
-   return itemArray
-end fedwiki_ConstructForkItemArray
-
 function fedwiki_ConstructCreateSourceArray transportURL, sourceURL, pDateTransported, pRepo, pRevisionID
    /*
    url = "https://en.wikipedia.org/wiki/Hypertext"
@@ -1430,7 +1409,7 @@ function fedwiki_ConstructNewImagePageArray pageTitle, someImage, imageType, pIm
    
    put pageTitle into fedwikiPageArray ["title"]  
    put fedwiki_ConstructEncodedImageArray (someImage, imageType, pImageCaption) into imageArray
-   pageArray_AddItemArray imageArray, fedwikiPageArray
+   itemArray_Add imageArray, fedwikiPageArray
    
    put pageArray_ConstructJournal (pageTitle, pSourceArray) into journalArray
    journalArray_Add journalArray, imageArray, "add"
@@ -1440,7 +1419,7 @@ function fedwiki_ConstructNewImagePageArray pageTitle, someImage, imageType, pIm
 end fedwiki_ConstructNewImagePageArray
 
 function fedwiki_ConstructEncodedImageArray someImage, imageType, pImageCaption, pID   
-   pageArray_AssignID pID
+   itemArray_NormalizeID pID
    if pImageCaption is empty then put "Uploaded image" into pImageCaption
    
    put "Uploaded image" into imageArray ["caption"] 

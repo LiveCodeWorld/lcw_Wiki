@@ -36,37 +36,35 @@ on menu_WikiDefaultStatic dView
 end menu_WikiDefaultStatic
 
 on menu_WikiTestJson dView
-   put pageArray_GetDefaultJson ("welcome-visitors") into pageJSON
+   put wikiServer_GetPageJson ("welcome-visitors") into pageJSON
    set the displayed_Lines of dView to pageJSON
 end menu_WikiTestJson
 
 on menu_TestRender dView
-   put _TestDiv() into testDiv
-   --
-   set the displayed_Lines of dView to testDiv
-end menu_TestRender
-
-on menu_TestOffsets dView
    put wikiClient_GetStaticHtml() into htmlTemplate
-   put pageArray_GetDefaultJson ("welcome-visitors") into pageJSON
    --
    put wiki_RenderHtml (htmlTemplate, "thought.garden") into newHtml
    --
    set the displayed_Lines of dView to newHtml
-end menu_TestOffsets
+end menu_TestRender
 
-private function _TestDiv
+on menu_DefaultWelcome dView
    put wikiClient_GetStaticHtml() into htmlTemplate
    --
-   put wiki_RenderHtml (htmlTemplate, "thought.garden") into newHtml
-   return newHtml
-end _TestDiv
+   put wikiServer_GetPageArray ("welcome-visitors") into pageArray
+   put wiki_RenderPageArray (pageArray, htmlTemplate) into sHTML
+   --
+   -- put wikiServer_GetPageJson ("welcome-visitors") into pageJSON
+   -- put wiki_RenderHtml (htmlTemplate, "thought.garden") into sHTML
+   --
+   set the displayed_Lines of dView to sHTML
+end menu_DefaultWelcome
 
 private on _
 end _
 
 on menu_DefaultWelcome dView
-   put pageArray_GetDefault ("welcome-visitors") into pageArray
+   put wikiServer_GetPageArray ("welcome-visitors") into pageArray
    -- display_PageArray pageArray
    put pageArray ["story"] into storyArray
    --

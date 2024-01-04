@@ -17,7 +17,7 @@ command pageArray_ReplaceSection @pArray, sTitle, storyArray
    if the result = 0 then return 0
    put item 1 of the result - 1 into beforeTitleNum
    --
-   pageArray_InsertAfter pArray, storyArray, beforeTitleNum
+   pageArray_InsertStoryAfter pArray, storyArray, beforeTitleNum
    return beforeTitleNum
 end pageArray_ReplaceSection
 
@@ -29,11 +29,11 @@ command pageArray_ReplaceSectionMarkdown @pArray, sTitle, sMarkdown
    put item 1 of the result - 1 into beforeTitleNum
    --
    put "#" && sTitle & CR&CR before sMarkdown 
-   get itemArray_Construct (sMarkdown, "markdown")
+   get itemArray_Construct ("markdown", "", sMarkdown)
    put it into sArray[1]
    --
    breakpoint
-   pageArray_InsertAfter pArray, sArray, beforeTitleNum
+   pageArray_InsertStoryAfter pArray, sArray, beforeTitleNum
    --
    return itemNumsToDelete
 end pageArray_ReplaceSectionMarkdown
@@ -43,50 +43,13 @@ command pageArray_ReplaceSectionBody @pageArray, sectionTitle, storyArray
    if the result = 0 then return 0
    put item 1 of the result - 1 into titleNum
    --
-   pageArray_InsertAfter pageArray, storyArray, titleNum
+   pageArray_InsertStoryAfter pageArray, storyArray, titleNum
    return titleNum
 end pageArray_ReplaceSectionBody
 
 
 --> PageArray | Section | Edit
 -
-command pageArray_InsertAfter @pageArray, storyArray, afterItemNum
-   -- Insert story and reindex. Quick and dirty.
-   -- We do not check story item ids, nor do we journal individual edits
-   -- Should check itemIDs with "pageArray_CheckUniqueItemIds" beforehand
-   put pageArray ["story"] into oldStoryArray
-   
-   -- add first bit of old story
-   repeat with itemNum = 1 to afterItemNum
-      put oldStoryArray [itemNum] into newStoryArray [itemNum]
-   end repeat
-   
-   -- insert new story
-   put item 2 of the extents of storyArray into lastStoryItemNum
-   put itemNum into insertItemNum
-   repeat with itemNum = 1 to lastStoryItemNum
-      put newStoryArray [insertItemNum]["id"] into afterID
-      add 1 to insertItemNum
-      --
-      put storyArray [itemNum] into itemArray
-      put itemArray into newStoryArray [insertItemNum]
-      --
-      pageArray_AddAddAction pageArray, itemArray, afterID
-      -- put the result into actionArray
-   end repeat
-   
-   -- add last bit of old story
-   put afterItemNum + 1 into oldStart
-   put item 2 of the extents of oldStoryArray into oldEnd
-   repeat with itemNum = oldStart to oldEnd
-      add 1 to insertItemNum
-      put oldStoryArray [itemNum] into newStoryArray [insertItemNum]
-   end repeat
-   --
-   put newStoryArray into pageArray ["story"]
-   return newStoryArray
-end pageArray_InsertAfter
-
 command pageArray_MoveItem @pageArray, fromItemNum, toItemNum
    -- was "fedwiki_MoveStoryItem"
    -- should check if fromItemNum and toItemNum are within bounds first
@@ -109,14 +72,14 @@ command pageArray_MoveItem @pageArray, fromItemNum, toItemNum
    -- update journal
    put storyArray_ExtractorderedIDArray (storyArray) into oderedIDArray
    put the milliseconds into pMilliseconds
-   pageArray_AssignID pID
+   itemArray_NormalizeID pID
    
    put pageArray ["journal"] into journalArray
    put "move" into journalEntryArray ["type"]
    put pMilliseconds into journalEntryArray ["date"]
    put pID into journalEntryArray ["id"]
    put oderedIDArray into journalEntryArray ["order"]
-   array_AddToEndOfIndex journalEntryArray, journalArray
+   itemArray_AddToEnd journalEntryArray, journalArray
    put journalArray into pageArray ["journal"]
    
    return true

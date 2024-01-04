@@ -38,16 +38,6 @@ function wiki_ListShortFolders pRootFolder, pNotTheseShortFolders
 end wiki_ListShortFolders
 
 
---> Fedwiki | Local | Files
--
-function fedwiki_ConstructSitemapPath wikiDomain
-   -- see "atopia_ConstructSitemapPath"
-   put wiki_GetFolder (wikiDomain) into localWikiFolder
-   put localWikiFolder & "status/sitemap.json" into siteMapFile
-   return siteMapFile
-end fedwiki_ConstructSitemapPath
-
-
 --> Wiki | Folders | List
 -
 function wiki_ListLocalShortAll pFilter

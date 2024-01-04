@@ -110,7 +110,7 @@ function roster_TidyPageFoldMaker templateDomain, templateSlug, rosterDomains
    _AddMissingDomains refItemStoryArray, missingArray
    
    -- add to newStoryArray
-   fedwiki_AddToStoryArrayItems newStoryArray, refItemStoryArray
+   storyArray_AddToEnd newStoryArray, refItemStoryArray
    
    -- add last divider
    put storyArray_GetLastPageFold (fromStoryArray) into lastDividerItemNum

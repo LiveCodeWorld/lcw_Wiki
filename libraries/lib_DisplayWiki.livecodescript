@@ -9,6 +9,80 @@ version: 0.2
 
 --> Working on
 -
+
+
+--> Display | Wiki | Page
+-
+command display_WikiPage wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   --
+   _DisplayPageArray pageArray, pSlug, wikiDomain
+   put the result into displayView
+   --
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pSlug
+   --
+   set the tool_Menus of displayView to "Wiki | Page"
+   return displayView
+end display_WikiPage
+
+command display_PageArray pageArray, pPageTitle
+   _DisplayPageArray pageArray, pPageTitle, "PageArray"
+   put the result into displayView
+   --
+   display_SetInteractions displayView, "PageArray", "mDoubleUp_PageArray"
+   return displayView
+end display_PageArray
+
+private command _DisplayPageArray pageArray, pTitle, pDomainTitle
+   put pageArray ["title"] into pTitle
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   display_Data pageArray, pTitle, pDomainTitle
+   put the result into displayView
+   set the page_Aray of displayView to pageArray
+   --
+   return displayView
+end _DisplayPageArray
+
+
+--> Display | SiteMapArray
+-
+command display_LocalSiteMapArray wikiDomain, pSincePeriod, pDisplayView, pPalette
+   put wikiSiteMap_GetArray (wikiDomain) into sitemapArray
+   --
+   display_SiteMapArray sitemapArray, wikiDomain, pSincePeriod
+   put the result into displayView
+   --
+   put wikiJson_ConstructSiteMapFile (pWikiDomain) into siteMapFile
+   set the sitemap_File of displayView to siteMapFile
+   return displayView
+end display_LocalSiteMapArray
+
+command display_WikiSitePageArray wikiDomain, pSincePeriod, pDisplayView, pPalette
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   --
+   display_SiteMapArray sitemapArray, wikiDomain, pSincePeriod
+   put the result into displayView
+   return displayView
+end display_WikiSitePageArray
+
+command display_SiteMapArray sitemapArray, pTitle, pSincePeriod
+   put fedwiki_FilteredSitePageArray (sitemapArray, pSincePeriod) into sitePageArray
+   --
+   display_Data sitePageArray, pTitle, "Site Page Array"
+   put the result into displayView
+   set the sitemap_Array of displayView to sitemapArray
+   set the site_PageArray of displayView to sitePageArray
+   --
+   set the title_Menu of displayView to "Global | Wiki | Sitemap | Tree | Menu"
+   set the line_Menu of displayView to "Global | Wiki | Sitemap | Line | Menu"
+   set the mouse_DoubleUp of displayView to "mDoubleUp_DisplayWikiPage"
+   --
+   return displayView
+end display_SiteMapArray
+
 command display_LocalWiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
    if pStackLabel is empty then put wikiDomain into pStackLabel
    put wiki_ConstructLocalHostDomain (wikidomain) into localhostDomain
@@ -414,20 +488,6 @@ command display_LocalWithoutAstral dView, pFilter
    return the result
 end display_LocalWithoutAstral
 
-command display_SitemapArray wikiDomain, pSincePeriod, pDisplayView, pPalette
-   -- if pSincePeriod is empty then put "1 week" into pSincePeriod
-   put fedwiki_FetchModifiedPageArray (wikiDomain, pSincePeriod) into sitePageArray
-   --
-   display_Data sitePageArray, wikiDomain, "Site Page Array"
-   put the result into displayView
-   set the site_PageArray of displayView to sitePageArray
-   --
-   set the title_Menu of displayView to "Global | Wiki | Sitemap | Tree | Menu"
-   set the line_Menu of displayView to "Global | Wiki | Sitemap | Line | Menu"
-   set the mouse_DoubleUp of displayView to "mDoubleUp_DisplayWikiPage"
-   return displayView
-end display_SitemapArray
-
 
 --> Display | Wiki
 -
@@ -460,7 +520,9 @@ on drop_Wiki displayView, dData
       put item 1 of it into pageSlug
       --
       put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-      display_PageArray pageArray
+      --
+      display_PageArray pageArray, wikiDomain
+      put the result into displayView
    else
       -- it's a lineUP
       put fedwiki_GetLineUpData (droppedURL) into lineUpData
@@ -517,19 +579,6 @@ on mDoubleUp_WikiDomain tObject, wikiDomain
 end mDoubleUp_WikiDomain
 
 
---> Display | Wiki | Page
--
-command display_WikiPage wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   --
-   _DisplayPageArray pageArray, wikiDomain
-   put the result into displayView
-   --
-   set the tool_Menus of displayView to "Wiki | Page"
-   return displayView
-end display_WikiPage
-
-
 --> Display | Wiki | Pages
 -
 command display_RecentDomainWikiPages wikiDomain, pSincePeriod, pDisplayView, pPalette
@@ -574,21 +623,12 @@ command display_WikiLineUp lineUpURL
    return lineUpData
 end display_WikiLineUp
 
+
 --> Display | Wiki
 -
-command display_PageArray pageArray, pDomainTitle
-   _DisplayPageArray pageArray, pDomainTitle
-   put the result into displayView
-   --
-   display_SetInteractions displayView, "PageArray", "mDoubleUp_PageArray"
-   set the page_Array of displayView to pageArray
-   --
-   return displayView
-end display_PageArray
-
 command display_FedwikiPageJson pageJson
    put json_ToArray (pageJson) into pageArray
-   display_PageArray pageArray
+   display_PageArray pageArray, "pageJson"
    return the result
 end display_FedwikiPageJson
 
@@ -634,22 +674,6 @@ end display_Podcasts
 
 --> Private
 -
-private command _DisplayPageArray pageArray, pDomainTitle
-   if pDomainTitle is empty then put "Wiki" into pDomainTitle
-   put pageArray ["title"] into pTitle
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   display_Data storyArray, pTitle, pDomainTitle
-   put the result into displayView
-   --
-   set the wiki_Domain of displayView to wikiDomain
-   set the page_Slug of displayView to pSlug
-   set the page_Aray of displayView to pageArray
-   --
-   return displayView
-end _DisplayPageArray
-
 private command _UpdateFedrayDisplay @fedray, pIndexView
    -- if pIndexView exists then update the displayed index display
    -- but don't save to the server

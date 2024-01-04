@@ -15,134 +15,28 @@ See also "model_AtopiaWikiPage", "model_AtopiaFiles", "lib_PageArray" and "lib_F
 
 --> Working on
 -
-command fedwiki_DeleteWikiSitemap wikiDomain
-   -- see "atopia_DeleteWikiSitemap"
-   put fedwiki_ConstructSitemapPath (fedwikiDomain) into sitemapPath
-   revDeleteFile sitemapPath
-   return the result
-end fedwiki_DeleteWikiSitemap
 
 
---> Fedwiki | Local | Home
+--> Wiki | List
 -
-command fedwiki_SetDefaultHome wikiDomain, pForkDomains
-   fedwiki_SetDefaultPage wikiDomain, "welcome-visitors", pForkDomains
-end fedwiki_SetDefaultHome
-
-command fedwiki_SetDefaultPage wikiDomain, pageSlug, pForkDomains
-   breakpoint
-   --
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   pageArray_StripJournal pageArray
-   pageArray_AddFork pageArray, pForkDomains
-   --
-   pageArray_SetDefault pageSlug, pageArray
-   return the result
-end fedwiki_SetDefaultPage
-
-
---> Wiki | Client
--
-/*
-Files from the wiki-client npm module
-*/
-
-function wikiClient_GetClientFile clientRelativePath
-   put wikiClient_ConstructFile (clientRelativePath) into sFile
-   if there is a file sFile then
-      put text_Get (sFile) into sJavascript
-      return sJavascript
+function wiki_ListMediaPhotos pListShort
+   put wiki_MediaAssetFolder() into rootFolder
+   if pListShort is true then
+      return file_ListShort (rootFolder)
    else
-      -- daemon_Log "wikiClient_GetClientFile" && clientRelativePath
-      return empty
+      return file_ListLong (rootFolder)
    end if
-end wikiClient_GetClientFile
+end wiki_ListMediaPhotos
 
-function wikiClient_ConstructFile clientRelativePath
-   if char 1 of clientRelativePath = slash then delete char 1 of clientRelativePath
-   --
-   put wikiClient_Folder ("client/") into clientFolder
-   put clientFolder & clientRelativePath into sFile
-   return sFile
-end wikiClient_ConstructFile
-
-
---> Wiki | Favicon
--
-function wiki_GetFavicon wikiDomain
-   put wiki_FaviconFile (wikiDomain) into faviconFile
-   if there is a file faviconFile then
-      put url ("binfile:" & faviconFile) into pngData
-      return pngData
+function wiki_MediaAssetFolder
+   put wiki_GetFolder ("media.localhost") into mediaWikiFolder
+   put mediaWikiFolder & "assets/plugins/image/" into mediaAssetFolder
+   if there is a folder mediaAssetFolder then
+      return mediaAssetFolder
    else
       return empty
    end if
-end wiki_GetFavicon
-
-command wiki_SetFavicon wikiDomain, pngData
-   put wiki_FaviconFile (wikiDomain) into faviconFile
-   put pngData into url ("binfile:" & faviconFile)
-   return faviconFile
-end wiki_SetFavicon
-
-function wiki_GetDefaultFavicon
-   put wiki_DefaultStatusFolder() into defaultStatusFolder
-   put defaultStatusFolder & "favicon.png" into faviconFile
-   if there is a file faviconFile then
-      put url ("binfile:" & faviconFile) into pngData
-      return pngData
-   else
-      return empty
-   end if
-end wiki_GetDefaultFavicon
-
-
---> WikiClient | Default | Model
--
-function wikiClient_GetStaticHtml
-   put wikiClient_Folder ("views/") into clientViewFolder
-   put clientViewFolder & "static.html" into clientViewPath
-   put text_Get (clientViewPath) into someHTML
-   return someHTML
-end wikiClient_GetStaticHtml
-
-function wikiClient_Folder pRelFolderPath
-   put node_WikiModulesFolder() & "wiki-client/" into wikiClientFolder
-   text_AddTrailing pRelFolderPath, slash
-   put pRelFolderPath after wikiClientFolder
-   
-   if there is a folder wikiClientFolder then
-      return wikiClientFolder
-   else
-      return empty
-   end if
-end wikiClient_Folder
-
-
---> PageArray | Default | Model
--
-function pageArray_GetDefault pageSlug
-   put pageArray_GetDefaultJson (pageSlug) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   return pageArray
-end pageArray_GetDefault
-
-function pageArray_GetDefaultJson pageSlug
-   put wiki_DefaultPagePath (pageSlug) into defaultPath
-   put text_Get (defaultPath) into pageJSON
-   return pageJSON
-end pageArray_GetDefaultJson
-
-command pageArray_SetDefault pageArray
-   put pageArray ["title"] into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put wiki_DefaultPagePath (pageSlug) into defaultPagePath
-   --
-   put json_FromArray (pageArray) into pageJSON
-   text_Set defaultPagePath, pageJSON
-   --
-   return the result
-end pageArray_SetDefault
+end wiki_MediaAssetFolder
 
 
 --> PageArray | Fetch
@@ -180,102 +74,3 @@ function pageArray_Check pageArray
       return pageArray
    end if
 end pageArray_Check
-
-function pageJson_Fetch wikiDomain, pSlug, pPort
-   put pageJson_ConstructUrl (wikiDomain, pSlug, pPort) into someUrl
-   put url someUrl into someJSON
-   return someJSON
-end pageJson_Fetch
-
-function pageJson_ConstructUrl wikiDomain, pSlug, pPort, pProtocol
-   -- http://film.thought.garden:3000/welcome-visitors.json
-   
-   if pProtocol is empty then put "http" into pProtocol
-   if pSlug is empty then put "welcome-visitors" into pSlug
-   put tolower (pSlug) into pSlug -- just in case
-   
-   # Base URL
-   put pProtocol & "://" & wikiDomain into wikiURL
-   
-   # Add Port
-   if pPort is a number then
-      put ":" & pPort after wikiURL
-   end if
-   
-   # Add Slug
-   put "/" & pSlug & ".json" after wikiURL
-   
-   # For Caching
-   put "?random=" & the milliseconds after wikiURL
-   return wikiURL
-end pageJson_ConstructUrl
-
-
---> PageArray | Model
--
-function pageArray_Get wikiDomain, pageSlug
-   put pageJson_Get (wikiDomain, pageSlug) into pageJson
-   put json_ToArray (pageJson) into pageArray
-   return pageArray
-end pageArray_Get
-
-command pageArray_Set wikiDomain, pageSlug, pageArray, pDeleteSiteMap
-   put json_FromArray (pageArray) into pageJSON
-   pageJson_Set wikiDomain, pageSlug, pageJSON
-   put the result into shellResult
-   --
-   if pDeleteSiteMap then
-      fedwiki_DeleteWikiSitemap wikiDomain
-   end if
-   --
-   if shellResult is empty then
-      put fedwiki_ConstructUrlFromSlug (wikiDomain, pageSlug) into wikiURL
-      return wikiURL
-   else
-      return "Error," && shellResult
-   end if
-end pageArray_Set
-
-command pageArray_Delete wikiDomain, pageSlug
-   pageJson_Delete wikiDomain, pageSlug
-   put the result into shellResult
-   if shellResult is not empty then return shellResult
-   --
-   fedwiki_DeleteWikiSitemap wikiDomain
-   return empty
-end pageArray_Delete
-
-function pageJson_Get wikiDomain, pageSlug
-   put wiki_PageJsonFile (wikiDomain, pageSlug) into wikiPagePath
-   put text_Get (wikiPagePath) into pageJSON
-   return pageJSON
-end pageJson_Get
-
-command pageJson_Set wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
-   put wiki_PageJsonFile (wikiDomain, pageSlug) into wikiPagePath
-   text_Set wikiPagePath, pageJSON
-   --
-   if pDeleteSiteMap is not false then
-      -- deleting sitemap is the lazy way to update it
-      fedwiki_DeleteWikiSitemap wikiDomain
-   end if
-   return wikiPagePath
-end pageJson_Set
-
-command pageJson_Delete wikiDomain, pageSlug
-   put wiki_PageJsonFile (wikiDomain, pageSlug) into wikiPagePath
-   revDeleteFile wikiPagePath
-   return the result
-end pageJson_Delete
-
-
---> Fedwiki | DefaultPage | Model
--
-function fedwiki_ListDefaultPages pListShort
-   put wiki_DefaultPagesFolder() into wikiDefaultPagesFolder
-   if pListShort is false then
-      return file_ListLong (wikiDefaultPagesFolder)
-   else
-      return file_ListShort (wikiDefaultPagesFolder)
-   end if
-end fedwiki_ListDefaultPages

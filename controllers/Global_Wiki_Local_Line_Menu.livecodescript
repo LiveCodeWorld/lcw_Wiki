@@ -161,12 +161,21 @@ end menu_AddToHosts
 private on __
 end __
 
-on menu_Display dView
+on menu_DisplayWikiApp dView
    put the selected_Line of dView into wikiDomain
    --
    put wiki_Browser() into browserView
    display_Wiki wikiDomain, browserView
-end menu_Display
+end menu_DisplayWikiApp
+
+on menu_DisplaySiteMap dView
+   put the selected_Line of dView into wikiDomain
+   --
+   display_WikiSitePageArray wikiDomain
+end menu_DisplaySiteMap
+
+private on _____
+end _____
 
 on menu_RevealLocalFolder dView
    put the selected_Line of dView into shortWikiFolder

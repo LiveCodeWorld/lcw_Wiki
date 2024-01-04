@@ -4,7 +4,7 @@
 license: GPLv3
 name: model_PageArray
 type: model
-version: 0.3
+version: 0.4
 
 /*
 Should use "textDecode" every time we fetch text?
@@ -23,35 +23,23 @@ For now this means domains on the Atopia server.
 */
 
 
---> Move
--
-command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
-   put pageArray_Fetch (wikiDomain) into pageArray
-   pageArray_SetItemText pageArray, itemID, itemText
-   pageArray_Set wikiDomain, pageSlug, pageArray
-   return pageArray
-end fedwiki_UpdatePageItem
-
-
 --> Working on
+- 
+
+--> PageArray
 -
-function itemArray_ConstructReference pageSlug, wikiDomain, refText, pageTitle, pID
-   pageArray_AssignID pID   
-   put pID into itemArray ["id"]
-   put "reference" into itemArray ["type"]
-   --
-   put wikiDomain into itemArray ["site"]
-   put pageTitle into itemArray ["title"]
-   put pageSlug into itemArray ["slug"]
-   put refText into itemArray ["text"]
-   --
-   return itemArray
-end itemArray_ConstructReference
+command pageArray_AddReferenceIndex @pageArray, wikiDomains
+   repeat for each line wikiDomain in wikiDomains
+      pageArray_AddReference pageArray, wikiDomain, wikiDomain, wikiDomain, "welcome-visitors"
+   end repeat
+   delete char -1 of sMarkdown
+   return sMarkdown
+end pageArray_AddReferenceIndex
 
 command pageArray_AddReference @pageArray, pageTitle, wikiDomain, refText, pPageSlug, pID
    if pPageSlug is empty then put fedwiki_ConstructSlug (pageTitle) into pPageSlug
    put itemArray_ConstructReference (pPageSlug, wikiDomain, refText, pageTitle, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddReference
 
@@ -68,7 +56,7 @@ function pageArray_ConstructImage imageURL, pPageTitle, pPageDescription, pImage
    put pageArray_ConstructImageCaption (pImageCaption, pImageSourceUrl, imageURL) into sCaption
    put _ConstructImagePageArray (pPageTitle, pPageDescription) into pageArray
    put _ConstructImageItemArray (imageURL, pImageSourceUrl, iWidth, iHeight, iSize, sCaption, pLat, pLong) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    --
    return pageArray
 end pageArray_ConstructImage
@@ -84,7 +72,7 @@ end pageArray_ConstructHtmlImage
 
 command pageArray_AddActivity @pageArray, rosterTitle, pSinceWhen, pConversationItem, pID
    put itemArray_ConstructActivity (rosterTitle, pSinceWhen, pConversationItem, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddActivity
 
@@ -206,7 +194,7 @@ command pageArray_AddEmbeddedImage @pageArray, someImage, pImageCaption, pImageT
    if pImageType is empty then put image_DetectType (someImage) into pImageType
    --
    put fedwiki_ConstructEncodedImageArray (someImage, pImageType, pImageCaption) into imageArray
-   pageArray_AddItemArray imageArray, pageArray
+   itemArray_Add imageArray, pageArray
 end pageArray_AddEmbeddedImage
 
 command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
@@ -219,17 +207,6 @@ command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
    return true
 end pageArray_AddThumbnail
 
-private command _SetImageDescription @pImageCaption, @pLinkURL, imageURL
-   if pImageCaption is empty then put "This is an image" into pImageCaption
-   if pLinkURL is empty then
-      if imageURL begins with "data:image/" then
-         put empty into pLinkURL
-      else
-         put imageURL into pLinkURL
-      end if
-   end if
-end _SetImageDescription
-
 
 --> PageArray | Construct
 -
@@ -240,13 +217,6 @@ function pageArray_Construct pageTitle, someMarkdown
    put pageArray_ConstructJournal (pageTitle) into pageArray ["journal"] 
    return pageArray
 end pageArray_Construct
-
-function pageArray_ConstructFactory pID
-   pageArray_AssignID pID
-   put "factory" into factoryArray ["type"]
-   put pID into factoryArray ["id"]
-   return factoryArray
-end pageArray_ConstructFactory
 
 function pageArray_ConstructJournal pageTitle, pSourceArray, pMilliseconds
    put storyArray_ConstructCreate (pageTitle, pSourceArray, pMilliseconds) into createArray
@@ -313,8 +283,8 @@ end pageArray_SetRoster
 
 command pageArray_AddRoster @pageArray, rosterText, pID
    if rosterText is empty then return false
-   put itemArray_Construct (rosterText, "roster", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_Construct ("roster", pID, rosterText) into itemArray
+   itemArray_Add itemArray, pageArray
    return true
 end pageArray_AddRoster
 
@@ -360,7 +330,7 @@ command pageArray_AddEditAction @pageArray, newItemArray, itemID, pMilliseconds
    put itemID into actionArray ["id"]
    put newItemArray into actionArray ["item"]
    --
-   array_AddToEndOfIndex actionArray, journalArray
+   itemArray_AddToEnd actionArray, journalArray
    put journalArray into pageArray ["journal"]
    return actionArray
 end pageArray_AddEditAction
@@ -375,7 +345,7 @@ command pageArray_AddAddAction @pageArray, itemArray, afterID, pMilliseconds
    put itemArray ["id"] into actionArray ["id"]
    put pMilliseconds into actionArray ["date"]
    --
-   array_AddToEndOfIndex actionArray, journalArray
+   itemArray_AddToEnd actionArray, journalArray
    put journalArray into pageArray ["journal"]
    return actionArray
 end pageArray_AddAddAction
@@ -388,43 +358,13 @@ command pageArray_AddDeleteAction @pageArray, deletedItemID, pMilliseconds
    put pMilliseconds into actionArray ["date"]
    put deletedItemID into actionArray ["id"]
    --
-   array_AddToEndOfIndex actionArray, journalArray
+   itemArray_AddToEnd actionArray, journalArray
    put journalArray into pageArray ["journal"]
 end pageArray_AddDeleteAction
 
 
 --> PageArray | Add
 -
-command pageArray_AddItemArray itemArray, @pageArray
-   -- was "fedwiki_AddItemArrayToStoryEnd"
-   if itemArray is not an array then return 0
-   
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   put itemArray ["id"] into itemID
-   
-   -- add the item to the end of the story
-   array_AddToEndOfIndex itemArray, storyArray
-   -- figure out what we just added it after
-   -- this can be empty if it is the first entry
-   put the result into afterID
-   put storyArray into pageArray ["story"]
-   
-   -- 3) Now let's add the edit or add to the journal
-   -- make the factory have the same id as the item we will add to the story
-   put pageArray_ConstructFactory (itemID) into factoryArray
-   -- now add a journal entry for adding after the id of the end paragraph
-   journalArray_Add journalArray, factoryArray, "add", afterID
-   
-   -- finally add the journal entry for editing the factory
-   journalArray_Add journalArray, itemArray, "edit"
-   put journalArray into pageArray ["journal"]
-   
-   put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into lastItemNum
-   return lastItemNum
-end pageArray_AddItemArray
-
 command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pID
    put fedwiki_ConstructButtonForm (buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor) into formHTML
    pageArray_AddHTML pageArray, formHTML, pID
@@ -433,44 +373,44 @@ end pageArray_AddButton
 
 command pageArray_AddMarkdown @pageArray, someMarkdown, pID
    if someMarkdown is empty then return 0
-   put itemArray_Construct (someMarkdown, "markdown", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_Construct ("markdown", pID, someMarkdown) into itemArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddMarkdown
 
 command pageArray_AddText @pageArray, someText, pID
    if someText is  empty then return 0
    put word 1 to -1 of someText into someText
-   put itemArray_Construct (someText, "paragraph", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_Construct ("paragraph", pID, someText) into itemArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddText
 
 command pageArray_AddHtml @pageArray, someHtml, pID
    if someCode is  empty then return 0
-   put itemArray_Construct (someHtml, "html", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_Construct ("html", pID, someHtml) into itemArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddHtml
 
 command pageArray_AddFactory @pageArray, pID
-   put pageArray_ConstructFactory (pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_ConstructFactory (pID) into itemArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddFactory
 
 command pageArray_AddPagefold @pageArray, someText, pID
    if someText is  empty then return 0
    put word 1 to -1 of someText into someText
-   put itemArray_Construct (someText, "pagefold", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_Construct ("pagefold", pID, someText) into itemArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddPagefold
 
 command pageArray_AddCode @pageArray, someCode, pID
    if someCode is  empty then return false
-   put itemArray_Construct (someCode, "code", pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   put itemArray_Construct ("code", pID, someCode) into itemArray
+   itemArray_Add itemArray, pageArray
    return true
 end pageArray_AddCode
 
@@ -478,14 +418,14 @@ command pageArray_AddVideo @pageArray, videoID, videoType, videoDescription, pID
    -- videoID can be "webm http://xxx"
    if videoID is empty then return 0
    put itemArray_ConstructVideo (videoID, videoType, videoDescription, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddVideo
 
 command pageArray_AddAudio @pageArray, audioUrl, someText, pID
    if audioUrl is  empty then return false
    put itemArray_ConstructAudio (audioUrl, someText, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    return true
 end pageArray_AddAudio
 
@@ -495,86 +435,24 @@ command pageArray_AddTransport @pageArray, pTransportLine, pID
       put "POST https://rest.livecode.world/imagine" into pTransportLine
    end if
    put itemArray_ConstructTransport (pTransportLine, pID) into itemArray
-   pageArray_AddItemArray itemArray, pageArray
+   itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddTransport
 
 
---> StoryArray | Construct
--
-function storyArray_ConstructCreate pageTitle, pMilliseconds, pSourceArray
-   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
-   put "create" into createArray ["type"]
-   put pMilliseconds into createArray ["date"]
-   put pageTitle into createArray ["item"]["title"]
-   put empty into createArray ["item"]["story"]
-   if pSourceArray is an array then put pSourceArray into createArray ["source"]
-   return createArray
-end storyArray_ConstructCreate
-
-
---> ItemArray
--
-function itemArray_ConstructActivity rosterTitle, pSinceWhen, pConversationItem, pID
-   if pSinceWhen is empty then
-      put "1 week" into pSinceWhen
-   end if
-   if pConversationItems is empty then
-      put "CONVERSATION" into pConversationItem
-   end if
-   --
-   put "ROSTER" && rosterTitle & CR into activityText
-   put CR & pConversationItem after activityText
-   put CR & "SINCE" && pSinceWhen after activityText
-   --
-   put itemArray_Construct (activityText, "activity", pID) into itemArray
-   return itemArray
-end itemArray_ConstructActivity
-
-function itemArray_ConstructTransport transportLine, pID
-   -- was "pageArray_ConstructTransport"
-   pageArray_AssignID pID
-   put transportLine into itemArray ["text"]
-   put "transport" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end itemArray_ConstructTransport
-
-function itemArray_ConstructVideo videoID, videoType, videoDescription, pID
-   -- was "pageArray_ConstructVideoArray"
-   pageArray_AssignID pID
-   put toUpper (videoType) && videoID & CR & line 1 of videoDescription into itemArray ["text"]
-   put "video" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end itemArray_ConstructVideo
-
-function itemArray_ConstructAudio audioUrl, someText, pID
-   -- was "pageArray_ConstructAudio"
-   pageArray_AssignID pID   
-   put audioUrl & CR & someText into itemArray ["text"]
-   put "audio" into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end itemArray_ConstructAudio
-
-function itemArray_Construct someText, itemType, pID
-   -- was "pageArray_ConstructItemArray"
-   pageArray_AssignID pID   
-   put someText into itemArray ["text"]
-   put itemType into itemArray ["type"]
-   put pID into itemArray ["id"]
-   return itemArray
-end itemArray_Construct
-
-command itemArray_SetID @itemArray, pID
-   pageArray_AssignID pID
-   put pID into itemArray ["id"]
-end itemArray_SetID
-
-
 --> Private
 -
+private command _SetImageDescription @pImageCaption, @pLinkURL, imageURL
+   if pImageCaption is empty then put "This is an image" into pImageCaption
+   if pLinkURL is empty then
+      if imageURL begins with "data:image/" then
+         put empty into pLinkURL
+      else
+         put imageURL into pLinkURL
+      end if
+   end if
+end _SetImageDescription
+
 private function _ConstructImagePageArray pPageTitle, pPageDescription
    local pageArray
    if pPageTitle is empty then put "Imported Image" into pPageTitle
@@ -590,7 +468,9 @@ private function _ConstructImagePageArray pPageTitle, pPageDescription
 end _ConstructImagePageArray
 
 private function _ConstructImageItemArray imageURL, iSource, iWidth, iHeight, iSize, pCaption, pLat, pLong, pID
-   itemArray_SetID itemArray, pID
+   itemArray_SetID pID
+   put pID into itemArray ["id"]
+   
    put "image" into itemArray ["type"]
    --
    put imageURL into itemArray ["url"]
@@ -612,28 +492,6 @@ end _ConstructImageItemArray
 
 --> Deps
 -
-command journalArray_Add @journalArray, itemArray, journalType, pAfterID, pMilliseconds
-   if pMilliseconds is empty then put the milliseconds into pMilliseconds
-   if pAfterID is not empty then
-      put pAfterID into journalEntryArray ["after"]
-   end if
-   put pMilliseconds into journalEntryArray ["date"]
-   put itemArray ["id"] into journalEntryArray ["id"]
-   put itemArray into journalEntryArray ["item"]
-   put journalType into journalEntryArray ["type"]
-   
-   array_AddToEndOfIndex journalEntryArray, journalArray
-end journalArray_Add
-
-command array_AddToEndOfIndex dataOrArray, @indexArray
-   -- any indexed array. Could be story or journal
-   put item 2 of the extents of indexArray into indexNum
-   put indexArray [indexNum]["id"] into afterID
-   add 1 to indexNum
-   put dataOrArray into indexArray [indexNum]
-   return afterID -- figure out what we just added it after
-end array_AddToEndOfIndex
-
 command line_AddToNameArray @nameArray, someIndex
    replace comma with CR in someIndex
    repeat for each line someLine in someIndex
