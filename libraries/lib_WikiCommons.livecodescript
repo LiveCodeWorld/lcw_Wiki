@@ -20,27 +20,6 @@ The wikiText "clean" functions are in "lib_FedwikiPedia"
 
 --> Working on
 -
-command _AddTocFromSectionTitle @pageArray, pageSlug, sectionTitle, subSectionArray, sectionNum
-   -- put wikicommons_FetchTocArray (pageSlug) into tocArray
-   -- wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, subsectionInfoArray, subsectionArray
-   --
-   if subSectionArray is not an array then return false
-   put item 2 of the extents of subsectionArray into maxNum
-   if maxNum < 2 then return false
-   
-   pageArray_AddMarkdown pageArray, "# Sections"
-   -- _AddTocToPageArray fedwikiPageArray, pageSlug, subsectionArray, tocArray
-   repeat with indexNum = 2 to maxNum
-      put subsectionArray [indexNum]["line"] into sectionTitle
-      replace "<i>" with empty in sectionTitle
-      replace "</i>" with empty in sectionTitle
-      --
-      put sectionNum + subsectionArray [indexNum]["index"] - 1 into subSectionNum
-      put wikicommons_ConstructSectionForm (pageSlug, subSectionNum, sectionTitle) into formHTML
-      pageArray_AddHtml pageArray, formHTML
-   end repeat
-end _AddTocFromSectionTitle
-
 
 --> Wikicommons
 -
@@ -48,7 +27,7 @@ function wikicommons_ConstructBasicSummaryPageArray pageTitle, pageDescription, 
    local fedwikiPageArray
    
    put pageTitle into fedwikiPageArray ["title"]
-   put pageArray_ConstructJournal (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
+   put journalArray_Construct (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
    
    -- let's add wikipedia url link to first line
    put word 1 to -1 of pageDescription into pageDescription
@@ -171,83 +150,8 @@ function wikicommons_ProcessGallery
 end wikicommons_ProcessGallery
 
 
---> WikiCommons | Wikipedia Section
+--> WikiCommons | Image
 -
-function wikicommons_ConstructSectionPageArray pageSlug, sectionNum, droppedURL, pFirstSectionOnly, pSourceArray
-   put pFirstSectionOnly is not false into pFirstSectionOnly
-   
-   set the itemdelimiter to slash
-   put item 1 to 3 of droppedURL into apiStem -- https://en.wikipedia.org
-   put sandbox_FetchSectionArray (pageSlug, sectionNum, apiStem) into sandboxArray
-   --
-   put sandboxArray ["parse"] into parseArray
-   put parseArray ["title"] into pageTitle
-   put parseArray ["wikitext"]["*"] into sectionWikiText
-   
-   -- can't figure out how to use this info
-   put parseArray ["sections"][1] into sectionInfoArray
-   put sectionInfoArray ["line"] into sectionTitle
-   replace "<i>" with empty in sectionTitle
-   replace "</i>" with empty in sectionTitle
-   
-   -- construct wikipediaURL section link
-   put _ConstructWikipediaURL (pageSlug, sectionTitle, apiStem) into wikipediaURL
-   
-   -- figure out what images are in section 
-   put parseArray ["images"] into sectionImageArray
-   repeat for each key indexNum in sectionImageArray
-      put sectionImageArray [indexNum] & CR after sectionImages 
-   end repeat
-   delete char -1 of sectionImages
-   
-   /*
-   -- stuff not needed (yet)
-   put sectionInfoArray ["toclevel"] into toclevel
-   put sectionInfoArray ["index"] into indexLevel
-   put sectionInfoArray ["number"] into indexNum
-   
-   put parseArray ["text"]["*"] into sectionHTML
-   put parseArray ["links"] into sectionLinks
-   put parseArray ["categories"] into sectionCategories
-   put parseArray ["externallinks"] into sectionExternalLinks
-   */
-   
-   -- Start constructing fedwikiPageArray
-   put sectionTitle into fedwikiPageArray ["title"]
-   put pageArray_ConstructJournal (sectionTitle, pSourceArray) into fedwikiPageArray ["journal"]
-   
-   -- let's remove section title and put it at the end in case needed
-   delete line 1 of sectionWikiText -- == sectionTitle ==
-   -- here the section could be empty
-   
-   wikicommons_AddSectionToPageArray fedwikiPageArray, sectionWikiText, pFirstSectionOnly
-   
-   -- add some utility tools
-   put pageTitle && sectionTitle into seachWords
-   fedwiki_AddTools fedwikiPageArray, seachWords
-   
-   -- add "# Sections"
-   put parseArray ["sections"] into sectionArray
-   _AddTocFromSectionTitle fedwikiPageArray, pageSlug, sectionTitle, sectionArray, sectionNum
-   
-   -- add draggable markDownTitles
-   put "#" && sectionTitle into markDownTitle
-   pageArray_AddMarkdown fedwikiPageArray, markDownTitle
-   put "- [[" & sectionTitle & "]]" into markDownTitle
-   pageArray_AddMarkdown fedwikiPageArray, markDownTitle
-   
-   -- move first image to second paragraph
-   fedwiki_MakeTextParagraphFirst fedwikiPageArray -- in case image is first
-   wikicommons_MoveImage fedwikiPageArray, 2
-   
-   -- add link back to wikipedia
-   fedwiki_AddExternalLinkToFirstSection fedwikiPageArray, wikipediaURL
-   
-   -- strip journal
-   pageArray_StripJournal fedwikiPageArray
-   return fedwikiPageArray
-end wikicommons_ConstructSectionPageArray
-
 command wikicommons_MoveImage @fedwikiPageArray, pToItemNum
    -- moves image or media item
    -- fedwiki_MakeTextParagraphFirst fedwikiPageArray
@@ -279,31 +183,6 @@ function wikicommons_ConstructTwoImagePageArray pageTitle, pageDescription, shor
    return fedwikiPageArray
 end wikicommons_ConstructTwoImagePageArray
 
-function wikicommons_ConstructSectionForm pageSlug, sectionNum, sectionTitle
-   -- https://en.wikipedia.org/w/index.php?title=Alps&action=edit&section=7
-   
-   put merge ("<form action='https://rest.livecode.world/mediawiki/importSection'><input name=section_title size=60 value='[[sectionTitle]]'>") into formTemplate
-   put CR & "<input name=url type=hidden value='https://en.wikipedia.org/w/index.php?title=[[pageSlug]]&action=edit&section=[[sectionNum]]'>" after formTemplate
-   put CR & "<input type=submit value=create></form>" after formTemplate
-   replace "'" with quote in formTemplate
-   put merge (formTemplate) into formHTML
-   return formHTML
-end wikicommons_ConstructSectionForm
-
-function wikicommons_FetchSubSectionMarkdown sectionTitle, pageSlug
-   local subsectionInfoArray, subsectionArray
-   put wikicommons_FetchTocArray (pageSlug) into tocArray
-   wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, subsectionInfoArray, subsectionArray
-   
-   put item 2 of the extents of subsectionArray into maxNum
-   repeat with indexNum = 1 to maxNum
-      put subsectionArray [indexNum]["info"]["html"] into subSectionTitle
-      put "- [[" & subSectionTitle & "]]" & CR after tocSectionMarkdown
-   end repeat
-   delete char -1 of tocSectionMarkdown
-   return tocSectionMarkdown
-end wikicommons_FetchSubSectionMarkdown
-
 function wikicommons_FindTocDotNum sectionTitle, tocArray
    -- finds the first title that matches and returns a dotSectionNumber
    
@@ -324,20 +203,6 @@ function wikicommons_FindTocDetailArray sectionTitle, tocArray
    end repeat
    return empty
 end wikicommons_FindTocDetailArray
-
-function wikicommons_FetchSubSectionTitles sectionTitle, pageTitle
-   local subsectionInfoArray, subsectionArray
-   put wikicommons_FetchTocArray (pageTitle) into tocArray
-   wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, subsectionInfoArray, subsectionArray
-   
-   put item 2 of the extents of subsectionArray into maxNum
-   repeat with indexNum = 1 to maxNum
-      put subsectionArray [indexNum]["info"]["html"] into subSectionTitle
-      put subSectionTitle & CR after subSectionTitles
-   end repeat
-   delete char -1 of subSectionTitles
-   return subSectionTitles
-end wikicommons_FetchSubSectionTitles
 
 command wikicommons_ConstructSubSectionArrays sectionTitle, tocArray, @subsectionInfoArray, @subsectionArray
    put wikicommons_FindTocDotNum (sectionTitle, tocArray) into dotNumber
@@ -366,12 +231,6 @@ function wikicommons_ConstructNestedTocArray tocArray
    end repeat
    return nestedArray
 end wikicommons_ConstructNestedTocArray
-
-function wikicommons_FetchTocArray pageTitle
-   put restbase_FetchPageMetadata (pageTitle) into metadataArray
-   put metadataArray ["toc"]["entries"] into tocArray
-   return tocArray
-end wikicommons_FetchTocArray
 
 
 --> Wikicommons | File
@@ -564,35 +423,3 @@ private command _DeconstructSandboxImageArray sandboxArray, @imageTitle, @imageU
       end if
    end if
 end _DeconstructSandboxImageArray
-
-private function _ConstructWikipediaURL pageSlug, sectionTitle, apiStem
-   -- an ugly hack that seems to work?
-   
-   -- https://en.wikipedia.org/wiki/Ant#Behaviour_and_ecology
-   replace space with "_" in pageSlug
-   --
-   put sectionTitle into sectionTitleSlug
-   replace space with "_" in sectionTitleSlug
-   put apiStem & "/wiki/" & pageSlug & "#" & sectionTitleSlug after wikipediaURL
-   return wikipediaURL
-end _ConstructWikipediaURL
-
-command _AddTocToPageArray @pageArray, pageSlug, subsectionArray, tocArray
-   put item 2 of the extents of subsectionArray into maxNum
-   repeat with indexNum = 1 to maxNum
-      put subsectionArray [indexNum]["info"] into sectionInfoArray
-      _DeconstructSectionInfoArray sectionInfoArray, sectionTitle, sectionSlug, sectionNum, dotNumber, sectionLevel
-      
-      put wikicommons_ConstructSectionForm (pageSlug, sectionNum, sectionTitle) into formHTML
-      pageArray_AddHtml pageArray, formHTML
-   end repeat
-end _AddTocToPageArray
-
-command _DeconstructSectionInfoArray sectionInfoArray, @sectionTitle, @pageSlug, @sectionNum, @dotNumber, @sectionLevel
-   put sectionInfoArray ["html"] into sectionTitle
-   put sectionInfoArray ["anchor"] into pageSlug
-   
-   put sectionInfoArray ["section"] into sectionNum
-   put sectionInfoArray ["number"] into dotNumber
-   put sectionInfoArray ["level"] into sectionLevel
-end _DeconstructSectionInfoArray

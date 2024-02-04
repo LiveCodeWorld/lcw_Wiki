@@ -104,7 +104,6 @@ function oneTab_ConstructPageArray someHtml, pType, pHeaderBit
    _ParseOneTabHtml someHtml, pHeaderBit, markDownIndex, divSection, tabTitle
    put the result into parseArray
    --
-   -- put parseArray ["headerBit"] into pHeaderBit
    put parseArray ["tabTitle"] into tabTitle
    put pageArray_Construct (tabTitle, pHeaderBit) into pageArray
    --
@@ -122,15 +121,68 @@ function oneTab_ConstructPageArray someHtml, pType, pHeaderBit
          _AddMarkdownSection pageArray, tabTitle, markDownIndex
          break
       default
-         put _ConstructOneTabPageArray (parseArray) into pageArray
+         _ConstructOneTabPageArray pageArray, parseArray, tabTitle, headerBit
    end switch
    pageArray_StripJournal pageArray
    return pageArray
 end oneTab_ConstructPageArray
 
+private command _ConstructOneTabPageArray @pageArray, parseArray, tabTitle, headerBit
+   put parseArray ["urls"] into urlArray
+   put pageArray_Construct (tabTitle, headerBit) into pageArray
+   
+   put item 2 of the extents of urlArray into maxItemNum
+   repeat with itemNum = 1 to maxItemNum
+      put empty into storyItemArray
+      --
+      put urlArray [itemNum] into itemArray
+      put itemArray ["linkURL"] into linkURL
+      --
+      put transport_ParseURL (linkURL) into resultArray
+      put resultArray ["url"] into restURL
+      put resultArray ["handler"] into tHandler
+      --
+      switch
+         case tHandler is empty and restURL is empty
+            put _ConstructItemHtml (itemArray) into imageHTML
+            pageArray_AddHtml pageArray, imageHTML
+            break
+         case tHandler is empty
+            -- basic processing
+            next repeat
+            break
+         case restURL is not empty
+            -- let's fetch a pageArray
+            put fedwiki_EncodePost (linkURL) into postJSON
+            fedwiki_PostJSON postJSON, restURL
+            put the result into returnedJSON
+            
+            put json_ToArray (returnedJSON) into receivedPageArray
+            put receivedPageArray ["title"] into receivedTitle
+            put receivedPageArray ["story"] into receivedStoryItemArray
+            --
+            if receivedStoryItemArray is an array then
+               put "#" && receivedTitle into someMarkDown
+               pageArray_AddMarkdown pageArray, someMarkDown
+               
+               -- add story to the end
+               pageArray_AddStory pageArray, receivedStoryItemArray
+            end if
+            break
+         default
+            -- not bothering to serialise as json?
+            dispatch tHandler with itemArray
+            if it is "handled" then
+               put the result into storyItemArray
+               pageArray_AddStory pageArray, storyItemArray
+            end if
+      end switch
+   end repeat
+end _ConstructOneTabPageArray
+
 command transport_Video @pageArray, videoURL, urlText
    /*
-   put "https://rest.livecode.world/youtube/transport_Video" into restURL
+   put "http://rest.livecode.world/youtube/transport_Video" into restURL
    put transporter_ConstructDroppedJSON (videoURL) into dropJSON
    fedwiki_PostJSON dropJSON, restURL
    put the result into pageJSON
@@ -162,7 +214,7 @@ command transport_GoogleImage @pageArray, linkURL, urlText
    _DeconstructGoogleImageUrl linkURL, imageURL, refURL, searchTerms, w, h
    put "Google Image Result for" && kwote (searchTerms) into someCaption
    
-   pageArray_AddImage pageArray, imageURL, someCaption, refURL
+   pageArray_AddHtmlImage pageArray, imageURL, someCaption, refURL
    return pageArray
 end transport_GoogleImage
 
@@ -178,7 +230,7 @@ command transport_Mediawiki @pageArray, linkUrl, urlText
    put _ConstructMarkDownLink (linkUrl, urlText) into markDownLink
    put markDownLink & CR after MarkDownLinks
    --
-   put "https://rest.livecode.world/mediawiki/form" into postURL
+   put "http://rest.livecode.world/mediawiki/form" into postURL
    put linkUrl into hiddenKeyValueArray ["url"]
    --
    pageArray_AddButton pageArray, urlText, postURL, hiddenKeyValueArray, "", "right"
@@ -191,21 +243,21 @@ function transport_ParseURL droppedURL
       case droppedURL begins with "https://www.youtube.com/"
       case droppedURL begins with "https://vimeo.com/"
       case droppedURL begins with "https://www.ted.com/talks/"
-         put "https://rest.livecode.world/youtube/transport_Video" into resultArray ["url"]
+         put "http://rest.livecode.world/youtube/transport_Video" into resultArray ["url"]
          put "transport_Video" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "https://audioboom.com/posts/"
-         put "https://rest.livecode.world/audioboom" into resultArray ["url"]
+         put "http://rest.livecode.world/audioboom" into resultArray ["url"]
          put "transport_AudioBoom" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "https://player.fm/series/"         
-         put "https://rest.livecode.world/bbc/playerfm" into resultArray ["url"]
+         put "http://rest.livecode.world/bbc/playerfm" into resultArray ["url"]
          put "transport_PlayerFM" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "http://www.radiolab.org/story/"
       case droppedURL begins with "http://www.bbc.co.uk/programmes/"
       case droppedURL begins with "https://www.theguardian.com/science/audio/" -- plenty of other podcast urls
-         put "https://rest.livecode.world/bbc" into resultArray ["url"]
+         put "http://rest.livecode.world/bbc" into resultArray ["url"]
          put "transport_Podcast" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "http://www.openstreetmap.org/"
@@ -213,15 +265,15 @@ function transport_ParseURL droppedURL
       case droppedURL begins with "https://www.google.co.uk/maps/place/"
       case droppedURL begins with "https://www.google.com/maps/place/"
       case matchtext (droppedURL, "^https://tools.wmflabs.org/geohack/geohack.php\?pagename=(.+)&params=(.+)", pageName, geoInfo)
-         put "https://rest.livecode.world/map" into resultArray ["url"]
+         put "http://rest.livecode.world/map" into resultArray ["url"]
          put "transport_Map" into resultArray ["handler"]
          return resultArray
       case matchText (droppedURL, "https://www.one-tab.com/page/(.+)", oneTabID)
-         put "https://rest.livecode.world/onetab" into resultArray ["url"]
+         put "http://rest.livecode.world/onetab" into resultArray ["url"]
          put "transport_OneTab" into resultArray ["handler"]
          return resultArray
       case matchText (droppedURL, "https://(.+).wikipedia.org/(.+)", lastBit)
-         put "https://rest.livecode.world/mediawiki" into resultArray ["url"]
+         put "http://rest.livecode.world/mediawiki" into resultArray ["url"]
          put "transport_Mediawiki" into resultArray ["handler"]
          return resultArray
       case matchtext (droppedURL, "https://matrix.org/_matrix/media/v1/download/matrix.org/(.+)", matrixAssetID)
@@ -282,68 +334,6 @@ private command _AddPretty @pageArray, tabTitle, divSection, parseArray
    put word 1 to -1 of MarkDownLinks into MarkDownLinks
    pageArray_AddMarkdown pageArray, MarkDownLinks
 end _AddPretty
-
-private function _ConstructOneTabPageArray oneTabUrl
-   put url oneTabUrl into someHtml
-   put "Below are a collection of links imported from [[OneTab]]. You can view these links here - [" & oneTabUrl && "one-tab.com]:" into headerBit
-   _ParseOneTabHtml someHtml, headerBit, markDownLinks, divSection, tabTitle
-   if tabTitle is empty then put "OneTab Links" into tabTitle
-   put the result into parseArray
-   put parseArray ["urls"] into urlArray
-   --
-   put pageArray_Construct (tabTitle, headerBit) into pageArray
-   
-   put item 2 of the extents of urlArray into maxItemNum
-   repeat with itemNum = 1 to maxItemNum
-      put empty into storyItemArray
-      --
-      put urlArray [itemNum] into itemArray
-      put itemArray ["linkURL"] into linkURL
-      --
-      put transport_ParseURL (linkURL) into resultArray
-      put resultArray ["url"] into restURL
-      put resultArray ["handler"] into tHandler
-      --
-      switch
-         case tHandler is empty and restURL is empty
-            put _ConstructItemHtml (itemArray) into imageHTML
-            pageArray_AddHtml pageArray, imageHTML
-            break
-         case tHandler is empty
-            -- basic processing
-            next repeat
-            break
-         case restURL is not empty
-            -- let's fetch a pageArray
-            put fedwiki_EncodePost (linkURL) into postJSON
-            fedwiki_PostJSON postJSON, restURL
-            put the result into returnedJSON
-            
-            put json_ToArray (returnedJSON) into receivedPageArray
-            put receivedPageArray ["title"] into receivedTitle
-            put receivedPageArray ["story"] into receivedStoryItemArray
-            --
-            if receivedStoryItemArray is an array then
-               put "#" && receivedTitle into someMarkDown
-               pageArray_AddMarkdown pageArray, someMarkDown
-               
-               -- add story to the end
-               pageArray_AddStory pageArray, receivedStoryItemArray
-            end if
-            break
-         default
-            -- not bothering to serialise as json?
-            dispatch tHandler with itemArray
-            if it is "handled" then
-               put the result into storyItemArray
-               pageArray_AddStory pageArray, storyItemArray
-            end if
-      end switch
-   end repeat
-   --
-   pageArray_StripJournal pageArray
-   return pageArray
-end _ConstructOneTabPageArray
 
 private function _GetTldBit someTextURL
    set the itemdelimiter to slash

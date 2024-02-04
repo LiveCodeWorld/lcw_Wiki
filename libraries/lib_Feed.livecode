@@ -364,7 +364,7 @@ end _GetRssItemLink
 
 private function _ConstructRssPageArrayHeader rssURL, pTitle, pWikiDomain, pRssLastUpdated
    if pTitle is empty then put "Feed Import" into pTitle
-   put "https://rest.livecode.world/podcast/rss" into importFeedUrl
+   put "http://rest.livecode.world/podcast/rss" into importFeedUrl
    --
    if (pTitle is not empty) AND (pWikiDomain is not empty) then
       put fedwiki_ConstructSlug (pTitle) into pageSlug

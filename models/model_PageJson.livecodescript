@@ -18,11 +18,13 @@ It is not for fetching them by http or url's, but reading and writing to the loc
 
 --> PageJson | Fetch
 -
-function pageJson_Fetch wikiDomain, pSlug, pPort
+function pageJson_Fetch wikiDomain, pSlug, pPort, pDecode
    put pageJson_ConstructUrl (wikiDomain, pSlug, pPort) into someUrl
-   put url someUrl into binaryJSON
+   put url someUrl into sJSON
    --
-   put textDecode (binaryJSON, "UTF-8") into sJSON
+   if pDecode is true then
+      put textDecode (sJSON, "UTF-8") into sJSON
+   end if
    --
    return sJSON
 end pageJson_Fetch

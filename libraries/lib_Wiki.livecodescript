@@ -87,52 +87,8 @@ function wiki_StartCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
 end wiki_StartCommand
 
 
---> Private
--
-private function _PipeToNothing
-   return "> /dev/null 2>&1 < /dev/null"
-end _PipeToNothing
-
-function _RedirectBit pLog
-   -- put "> /dev/null 2>&1 < /dev/null" into reDirectOutput
-   if pLog is true then
-      put "> nohup.out 2> error.log &" after reDirectOutput
-   else
-      put "> /dev/null 2>&1 &" after reDirectOutput
-   end if
-   return reDirectOutput
-end _RedirectBit
-
-private function _BackgroundSleep
-   return "& sleep 1"
-end _BackgroundSleep
-
-private function _ReturnJobs
-   return "; jobs -l"
-end _ReturnJobs
-
-private function _ParseWikiShellResult shellResult, pWikiBit
-   -- [1]+ 49160 Done(127)               wiki --security_legacy > /dev/null 2>&1 < /dev/null
-   
-   if pWikiBit is empty then
-      put "wiki --security_legacy > /dev/null 2>&1 < /dev/null" into pWikiBit
-   end if
-   put lineOffset (wikiBit, shellResult) into lineNum
-   put word 2 of line lineNum of shellResult into pid
-   return pid
-end _ParseWikiShellResult
-
-
---> Working on
--
-
 --> Wiki
 -
-function wiki_Started
-   return wiki_ProcessIds() is not empty
-   -- return "wiki" is among the lines of the openprocesses
-end wiki_Started
-
 function wiki_ProcessIds
    -- put "wiki --security_legacy" into wikiCommand
    put "wiki" into wikiCommand
@@ -153,7 +109,24 @@ end wiki_ProcessIds
 
 --> Wiki | Start
 -
-command wiki_Start pSecurityType, pFarm, pPort
+command wiki_Start pPort
+   if pPort is empty then put 80 into pPort
+   --
+   if wiki_NodeServerIsRunning() then
+      wiki_StopNodeServer
+   end if
+   --
+   put view_GetTemplateObject ("View|Wiki|Server") into wikiServerView
+   set the daemon_Port of wikiServerView to pPort
+   set the daemon_IsRunning of wikiServerView to true
+end wiki_Start
+
+command wiki_Stop
+   put view_GetTemplateObject ("View|Wiki|Server") into wikiServerView
+   set the daemon_IsRunning of wikiServerView to false
+end wiki_Stop
+
+command wiki_StartNodeServer pSecurityType, pFarm, pPort
    if pSecurityType is empty then put wiki_GetSecurityType() into pSecurityType
    --
    put wiki_ProcessIds() into wikiProcessIDs
@@ -169,16 +142,9 @@ command wiki_Start pSecurityType, pFarm, pPort
    
    # Indicate wiki starting up
    return wikiProcessID
-end wiki_Start
+end wiki_StartNodeServer
 
-command wiki_StartWithXterm pXtermBrowser, pLog
-   put wiki_TerminalCommand() into someShell -- not working with Shell
-   --
-   display_Xterm pXtermBrowser, someShell, "paste"
-   return pXtermBrowser
-end wiki_StartWithXterm
-
-command wiki_Stop pIDs
+command wiki_StopNodeServer pIDs
    if the platform = "MacOS" then
       if pIDs is not a number then
          put wiki_ProcessIds() into pIDs
@@ -191,11 +157,27 @@ command wiki_Stop pIDs
       close process wiki
    end if
    --
+   -- wiki_EmptyBrowsers
+end wiki_StopNodeServer
+
+function wiki_NodeServerIsRunning
+   return wiki_ProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wiki_NodeServerIsRunning
+
+command wiki_EmptyBrowsers
    put wiki_ListBrowsers() into wikiBrowsers
    repeat for each line wikiBrowser in wikiBrowsers
       set the browser_URL of wikiBrowser to empty
    end repeat
-end wiki_Stop
+end wiki_EmptyBrowsers
+
+command wiki_StartWithXterm pXtermBrowser, pLog
+   put wiki_TerminalCommand() into someShell -- not working with Shell
+   --
+   display_Xterm pXtermBrowser, someShell, "paste"
+   return pXtermBrowser
+end wiki_StartWithXterm
 
 function wiki_TerminalCommand
    -- Does not work with Shell as it exits
@@ -288,3 +270,39 @@ command wiki_ConvertCSS @someCSS
    put "  bottom: 16px;" into line lineNum of someCSS
    */
 end wiki_ConvertCSS
+
+
+--> Private
+-
+private function _PipeToNothing
+   return "> /dev/null 2>&1 < /dev/null"
+end _PipeToNothing
+
+function _RedirectBit pLog
+   -- put "> /dev/null 2>&1 < /dev/null" into reDirectOutput
+   if pLog is true then
+      put "> nohup.out 2> error.log &" after reDirectOutput
+   else
+      put "> /dev/null 2>&1 &" after reDirectOutput
+   end if
+   return reDirectOutput
+end _RedirectBit
+
+private function _BackgroundSleep
+   return "& sleep 1"
+end _BackgroundSleep
+
+private function _ReturnJobs
+   return "; jobs -l"
+end _ReturnJobs
+
+private function _ParseWikiShellResult shellResult, pWikiBit
+   -- [1]+ 49160 Done(127)               wiki --security_legacy > /dev/null 2>&1 < /dev/null
+   
+   if pWikiBit is empty then
+      put "wiki --security_legacy > /dev/null 2>&1 < /dev/null" into pWikiBit
+   end if
+   put lineOffset (wikiBit, shellResult) into lineNum
+   put word 2 of line lineNum of shellResult into pid
+   return pid
+end _ParseWikiShellResult

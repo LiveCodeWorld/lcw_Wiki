@@ -1,16 +1,66 @@
 ﻿script "lib_PageSection"
 --> MetaData
 -
-copyright: Anonymous
+copyright: David Bovill
 license: GPLv3
 name: lib_PageSection
 type: library
 version: 0.1
 
-/*Some help*/
+/* A "section" is a set of wiki page-items bounded by markdown titles.
+
+The exception is the first and last sections which do not require an initial title or an ending title.
+You can refer to sections by index or title.
+*/
 
 
 --> Working on
+-
+function storyArray_GetLastPageFold storyArray
+   -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
+   put item 2 of the extents of storyArray into maxNum
+   repeat with itemNum = maxNum down to 1
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "pagefold" then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end storyArray_GetLastPageFold
+
+
+--> PageArray | PageFold
+-
+command pageArray_TrimToPageFold @pageArray
+   put pageArray_FindItemType ("pagefold", pageArray) into storyItemNum
+   if storyItemNum = 0 then return false
+   put item 2 of the extents of pageArray ["story"] into maxNum
+   repeat with itemNum = (storyItemNum + 1) to maxNum
+      put pageArray ["story"][itemNum]["id"] into deletedItemID
+      pageArray_AddDeleteAction pageArray, deletedItemID
+      delete variable pageArray ["story"][itemNum]
+   end repeat
+end pageArray_TrimToPageFold
+
+function pageArray_GetFirstPageFold pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "pagefold" then exit repeat
+      
+      put itemArray into storyArrayHeader [itemNum]
+   end repeat
+   return storyArrayHeader
+end pageArray_GetFirstPageFold
+
+function pageArray_GetLastPageFold pageArray
+   put pageArray ["story"] into storyArray
+   put storyArray_GetLastPageFold (storyArray) into itemNum
+   return itemNum
+end pageArray_GetLastPageFold
+
+
+--> PageArray | Section
 -
 command pageArray_ReplaceSection @pArray, sTitle, storyArray
    pageArray_DeleteSection pArray, sTitle

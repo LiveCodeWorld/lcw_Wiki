@@ -25,17 +25,38 @@ See also stack lib_Log.*/
 set the log_Line [word 1 of the params] of me to someRoute
 end processRequest
 
+before save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
+   set the log_Line [word 1 of the params] of me to wikiDomain,pageSlug
+end save_AfterAction
+
+--> GET
+-
 -- before route_GET someRoute, socketID, requestArray
 set the log_Line [word 1 of the params] of me to someRoute
 route_GET
 
-before get_SiteMapJson wikiDomain, socketID
-   set the log_Line [word 1 of the params] of me to wikiDomain
+-- before get_SiteMapJson wikiDomain, socketID
+set the log_Line [word 1 of the params] of me to wikiDomain
 end get_SiteMapJson
 
-before get_SiteIndexJson wikiDomain, socketID
-   set the log_Line [word 1 of the params] of me to wikiDomain
-end get_SiteIndexJson
+-- before get_SiteIndexJson wikiDomain, socketID
+set the log_Line [word 1 of the params] of me to wikiDomain
+get_SiteIndexJson
+
+before get_Image shortImageFile, wikiDomain, socketID, requestArray
+   put wiki_ConstructImageAssetFile (shortImageFile, wikiDomain) into imageFile
+   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer -- can we use this to find the image better
+   set the itemdelimiter to slash
+   put item -2 to -1 of sReferer into lastBit
+   --
+   put shortImageFile,wikiDomain,lastBit into logComment
+   set the log_Line [word 1 of the params] of me to logComment
+end get_Image
+
+-- before daemon_SendImage socketorRequestArray, someImage, pImageType, pSendCompressed
+put someImage,pImageType into logComment
+set the log_Line [word 1 of the params] of me to logComment
+end daemon_SendImage
 
 before get_WikiClientJsMap someRoute, socketID
    set the log_Line [word 1 of the params] of me to someRoute
@@ -61,6 +82,26 @@ before route_PUT someRoute, socketID, requestArray
    set the log_Line [word 1 of the params] of me to someRoute
 end route_PUT
 
+
+--> Action
+-
+before action_Move pageSlug, wikiDomain, actionArray
+   set the log_Line [word 1 of the params] of me to pageSlug,wikiDomain
+end action_Move
+
+before action_RemoveItem pageSlug, wikiDomain, actionArray
+   -- breakpoint
+   set the log_Line [word 1 of the params] of me to pageSlug,wikiDomain
+end action_RemoveItem
+
+before action_AddItem pageSlug, wikiDomain, actionArray
+   -- breakpoint
+   set the log_Line [word 1 of the params] of me to pageSlug,wikiDomain
+end action_AddItem
+
+
+--> Route
+-
 before route_POST someRoute, socketID, requestArray
    set the log_Line [word 1 of the params] of me to someRoute
 end route_POST
@@ -88,15 +129,8 @@ end undefined_Get
 
 --> Props
 -
-before daemon_Start
+after daemon_Start
    set the log_Text of me to empty
-end daemon_Start
-
-after daemon_Start
-   set the log_Line ["Server started. Using port"] of me to the daemon_Port of me
-end daemon_Start
-
-after daemon_Start
    set the log_Line ["Server started. Using port"] of me to the daemon_Port of me
    --
    set the log_Hilite of me to true
@@ -134,7 +168,7 @@ end daemon_SetPort
 
 --> Daemon | Before and Afters
 -
-before daemon_SendNotFound socketID
+before daemon_SendNotFound socketID, pLogComment
    put _GetSocketArray (socketID) into sArray
    put sArray ["theSeconds"] into tSeconds
    put sArray ["theData"] into tData
@@ -142,7 +176,13 @@ before daemon_SendNotFound socketID
    put sArray ["headers"] into tRequestHeaders
    put sArray ["theTarget"] into tObject
    
-   set the log_Line [word 1 of the params] of me to tRequest
+   -- Site-index.json not found for: map.fedwiki.org
+   switch word 1 of pLogComment
+      case "Site-index.json"
+         break
+      default
+         set the log_Line [word 1 of the params] of me to pLogComment
+   end switch
 end daemon_SendNotFound
 
 before daemon_SendRedirect redirectURL, socketID, pDescriptiveContent

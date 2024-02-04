@@ -14,144 +14,146 @@ Contains clean functions for wikipedia import into fedwiki.
 
 == TO DO ==
 Everything at the bottom of this code is in process of being moved to it's own library - lib_Encoding
-
-
-command fedwikipedia_CleanConvertTemplate @wikiSectionLine
-   -- some start text {{convert|22|–|25|C|F}} also {{convert|4|C-change|sigfig=1}} end text 
-   
-   put "[^\}]+" into untilCurlyBracket
-   put "\{\{convert\|(" & untilCurlyBracket & ")\}\}" into someReg
-   put "(?m)" before someReg -- multiline search
-   
-   set the itemdelimiter to "|"
-   repeat
-      if matchchunk (wikiSectionLine, someReg, someStart, someEnd) is true then
-         put char someStart to someEnd of wikiSectionLine into someText
-         switch the number of items of someText
-            case 3
-               -- 4|C-change|sigfig=1
-               put item 1 of someText into someNum
-               put item 2 of someText into someSymbol
-               replace "-change" with empty in someSymbol
-               put someNum & fromSymbol into cleanText
-               break
-            default -- case 5
-               put item 1 to - 3 of someText into someData
-               replace "|" with empty in someData
-               put item -2 of someText into fromSymbol
-               put item -1 of someText into toSymbol
-               put someData & fromSymbol into cleanText
-         end switch
-         
-         subtract 10 from someStart
-         add 2 to someEnd
-         put cleanText into char someStart to someEnd of wikiSectionLine
-      else
-         exit repeat
-      end if
-   end repeat
-end fedwikipedia_CleanConvertTemplate
-
-command fedwikipedia_CleanCitations @wikiText
-   _StripCitations wikiText
-end fedwikipedia_CleanCitations
-
-private command _StripCitations @wikiText
-   -- starting text <ref name="fdsa">{{cite web|author=Nisi Shawl |url=http://seattletimes.nwsource.com/html/books/2008758249_br22sterling.html |title=Books &#124; "The Caryatids": four clones need a home &#124; Seattle Times Newspaper |publisher=Seattletimes.nwsource.com |date=2009-02-19 |accessdate=2010-01-01}}</ref> something at the end
-   
-   put "[^\}]+" into untilCurlyBracket
-   put "\{\{cite (" & untilCurlyBracket & ")\}\}" into someReg
-   put "(<ref[^\>]*>)" before someReg
-   put "</ref>" after someReg
-   put "(?mi)" before someReg -- multiline search
-   
-   text_StripReg wikiText, someReg
-   return wikiText
-end _StripCitations
-
-private command _ProcessCitation @wikiText, someReg
-   repeat
-      if matchchunk (wikiText, someReg, refStart, refEnd, wikCiteStart, wikiCiteEnd) is true then
-         put char wikCiteStart to wikiCiteEnd of wikiText into wikiCitation
-         put _ExtractCitation (wikiCitation) into cleanCitation
-         
-         put cleanCitation into char refStart to (wikiCiteEnd + 8) of wikiText
-      else
-         exit repeat
-      end if
-   end repeat
-end _ProcessCitation
-
-private function _ExtractCitation wikiCitation
-   split wikiCitation with "|" and "="
-   put word 1 to -1 of wikiCitation ["url"] into citationURL
-   put word 1 to -1 of wikiCitation ["title"] into citationTitle
-   put "[" & citationURL && citationTitle & "]" into cleanCitation
-   return cleanCitation
-end _ExtractCitation
-
-command fedwikipedia_CleanTable @wikiText
-   _CleanTable wikiText
-end fedwikipedia_CleanTable
-
 */
+
+
+--> Remove
+-
+function fedwikipedia_ConstructSourceArray pageTitle, pageSlug, wikipediaUrl, wikipediaRevisionID, lookUpArray
+   -- for old Transport Again
+   put "https://livecode.world/mediawiki/transportAgain" into transportURL
+   put the milliseconds into dateTransported
+   put "https://github.com/LiveCodeWorld/lib_MediaWiki" into repoURL
+   put fedwiki_ConstructCreateSourceArray (transportURL, wikipediaUrl, dateTransported, repoURL, wikipediaRevisionID) into pSourceArray
+   -- put infoBoxArray into pSourceArray ["infobox"]
+   
+   text_Utf8Encode pageSlug -- this fixes bug / crash if page_Slug has non-utf8 characters
+   put pageSlug into pSourceArray ["pageSlug"]
+   put pageTitle into pSourceArray ["pageTitle"]
+   if lookUpArray is an array then
+      put lookUpArray into pSourceArray ["link_dictionary"]
+   end if
+   return pSourceArray
+end fedwikipedia_ConstructSourceArray
 
 
 --> Working On
 -  
-command _CleanTemplates @wikiText
-   /*
-   This needs fixing as it is a mess.
-   
-   Issue is that no regular expression seems able to detect complex nested templates such as cladograms
-   Nor can I find a way to return the text without templates - ie use api to strip them.
-   Looks like might be able to get rid of them with the following heuristic.
-   - Remove/delete/skip line if first char of indented line begins with:
-   - "{{" or "|" or "}}"
-   
-   Sometimes it starts with "* " and at other times as in "Ant" there are some annoying sentances thrown in the middle :(
-   
-   The best heuristic seems to be to count "{{" and "}}"
+function mediawiki_FetchSummaryPageArray mwTitle, pLang, pAddToc
+   -- used by "summary" of "mediawiki.lc"
+   -- see also "fedwiki_FetchWikipediaSummaryPageArray"
+   -- very similar to "mediawiki_FetchPageArray"
+   /*   
+   -- consider using "put mediawiki_FetchWikiText("Ant")"
+   -- also uses old "mediawiki_FetchSummaryDescription" to fetch multiple first lines
+   -- as restbase won't do that except in html
+   -- would be great to enable links in first paragraphs like "wikicommons_ConstructSectionPageArray" does
+   -- using sectionnum = 0 does not work with "wikicommons_ConstructSectionPageArray"
    */
    
-   -- now let's iterate whole text
-   -- we can try this once for the first header template, or repeat till we don't find a line beginnng with "{{"
-   put 0 into openCount
-   repeat 1000
-      put line_BeginsWith ("{{", wikiText) into startLineNum
-      
-      if startLineNum = 0 then exit repeat
-      repeat 1000
-         put word 1 to -1 of line startLineNum of wikiText into nextLine
-         switch
-            case nextLine is empty
-               delete line startLineNum of wikiText
-               next repeat
-               break
-               -- maybe faster to repeat code with breaks to avoid checking each condition
-            case char 1 to 2 of nextLine = "{{" -- could count
-            case char -2 to -1 of nextLine = "}}" -- could count
-            case char 1 of nextLine = "|"
-            case char 1 of nextLine = "*"
-               _AddBracketCount openCount, nextLine
-               delete line startLineNum of wikiText
-               break
-            default
-               -- case nextLine is empty
-               if openCount > 0 then
-                  delete line startLineNum of wikiText
-                  next repeat
-               else
-                  exit repeat
-               end if
-         end switch
-      end repeat
+   put mediaWiki_ConstructSlug (mwTitle) into mwSlug
+   put mediawiki_FetchSummaryDescription (mwSlug, true, true, pLang) into firstSection -- uses old stuff anyway to get more than one line
+   put restbase_FetchSummaryArray (mwSlug, pLang) into summaryArray -- fetch some metadata
+   put mediawiki_ConstructSummaryPageArray (firstSection, summaryArray) into pageArray
+   
+   # Add TOC Button
+   put "http://rest.livecode.world/mediawiki/tocButtons" into postURL
+   put empty into bgColor
+   put mwTitle into valueArray ["pageTitle"]
+   pageArray_AddButton pageArray, "Table of Contents", postURL, valueArray, "", "right", bgColor
+   
+   if pAddToc is true then
+      # Add TOC Section
+      put mediawiki_FetchMarkdownTOC (mwSlug) into markdownTOC
+      if markdownTOC is not empty then
+         put "# See also" && CR&CR before markdownTOC
+         pageArray_AddMarkdown pageArray, markdownTOC
+      end if
+   end if
+   --
+   pageArray_StripJournal pageArray
+   pageArray_AddWikipediaCred pageArray, mwTitle, mwSlug
+   --
+   return pageArray
+end mediawiki_FetchSummaryPageArray
+
+
+--> Wikipedia
+-
+command wikipedia_DownloadImages pageTitle
+   -- maximum height 1080
+   -- mediawiki_NormaliseTitle pageTitle, pageTitle, pageID, pLang
+   -- mediawiki_NormaliseTitle pageTitle, pageTitle, pageID
+   
+   put restbase_ListImageUrls (pageTitle) into imageUrls
+   if imageUrls is empty then
+      -- let's guess it is Spansih
+      put restbase_ListImageUrls (pageTitle, "es") into imageUrls
+   end if
+   
+   if imageUrls is empty then return empty
+   
+   put dropbox_MediaWikiImageFolder (pageTitle) into someFolder
+   folder_CreateNested someFolder
+   
+   set the itemdelimiter to slash
+   repeat for each line someURl in imageUrls
+      set the cursor to busy
+      put urldecode (item -1 of someURl) into shortFile
+      put "binfile:" & someFolder & shortFile into localURL
+      put url someURl into url localURL
    end repeat
    
-   -- strip the simple ones
-   _StripTemplates wikitext
-   return wikiText
-end _CleanTemplates
+   return imageUrls
+end wikipedia_DownloadImages
+
+function dropbox_MediaWikiImageFolder pageTitle
+   put dropbox_Folder ("Imagine Media Installation - Footage") & pageTitle & slash into someFolder
+   return someFolder
+end dropbox_MediaWikiImageFolder
+
+function dropbox_Folder pShortFolder
+   put "/Users/fortyfoxes/Dropbox/" into someFolder
+   if pShortFolder is not empty then
+      put pShortFolder & slash after someFolder
+   end if
+   return someFolder
+end dropbox_Folder
+
+
+--> Wikipedia | List
+-
+function wikicommons_ListImages shortImageFile
+   -- this does not seem to return good lists of images
+   -- lot's of dodgy characters = spam? in file names etc?
+   -- api.php?action=query&list=allimages&ailimit=5&aifrom=Albert&aiprop=dimensions|mime [try in ApiSandbox]
+   -- put "Albert Einstein" into fromName
+   -- put "IndustrialSymbiosisWasteHeatExchange.png" into shortImageFile
+   
+   put "action=query&list=allimages&format=json" into urlPattern
+   -- put "&titles=Image:[[shortImageFile]]" after urlPattern
+   put "&titles=[[shortImageFile]]" after urlPattern
+   put wikicommons_GetApiStem() & merge (urlPattern) into restURL
+   
+   put mediawiki_FetchJSON (restURL) into someJSON
+   return someJSON
+end wikicommons_ListImages
+
+function wikipedia_ListPages titleString, pNearMatch, pLang
+   -- if pNearMatch is true then the title is not returned properly capitalised
+   put wikipedia_FetchSearchJson (titleString, pNearMatch, pLang) into someJSON
+   put json_ToArray (someJSON) into queryResultArray
+   -- display_Array queryResultArray
+   
+   put queryResultArray ["query"]["search"] into searchResultArray
+   repeat with indexNum = 1 to item 2 of the extents of searchResultArray
+      put searchResultArray [indexNum]["title"] into pageTitle
+      put pageTitle & CR after pageTitles
+   end repeat
+   delete char -1 of pageTitles
+   sort lines of pageTitles
+   return pageTitles
+end wikipedia_ListPages
 
 function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    -- use "mediawiki_FetchSummaryPageArray" instead
@@ -159,29 +161,31 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    -- need to make a "parse" call to get TOC
    local pSectionNum
    
-   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, shortImageFile, infoBoxArray, pSectionNum, pApiStem
+   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, pageImageFile, infoBoxArray, pSectionNum, pApiStem
    put the result into sandboxArray
    put fedwikipedia_ConstructPageTocArray (sandboxArray) into tocArray
    
    fedwikipedia_ConstructTocLookupArray tocArray, lookUpArray, markdownTOC
-   if lookUpArray is an array then put "https://rest.livecode.world/mediawiki/importSection" into lookUpArray ["default"]["transport"]
+   if lookUpArray is an array then put "http://rest.livecode.world/mediawiki/importSection" into lookUpArray ["default"]["transport"]
    
    -- need to make a "query" call to get a nice clean text
-   mediawiki_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, pApiStem
+   mediawiki_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, true, true, pApiStem
    put the result into sandboxPageArray
    
-   -- put wikipedia_ConstructUrl (pageSlug) into wikipediaUrl
-   put sandboxPageArray ["fullurl"] into wikipediaUrl
-   put sandboxPageArray ["coordinates"] into coordArray
+   if shortImageFile is empty then
+      put pageImageFile into shortImageFile
+   end if
    
-   put fedwikipedia_ConstructSourceArray (pageTitle, pageSlug, wikipediaUrl, wikipediaRevisionID, lookUpArray) into pSourceArray
+   put wikipedia_ConstructUrl (pageSlug) into wikipediaUrl
+   -- put sandboxPageArray ["fullurl"] into wikipediaUrl
+   put sandboxPageArray ["coordinates"] into coordArray
    
    -- now let's construct the page
    set the itemdelimiter to "."
    if item -1 of shortImageFile is "webm" then
-      put wikicommons_ConstructVideoPageArray (pageTitle, simplePageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
+      put wikicommons_ConstructVideoPageArray (pageTitle, pageDescription, wikipediaUrl, shortImageFile, pSourceArray) into fedwikiPageArray
    else
-      put wikicommons_ConstructTwoImagePageArray (pageTitle, simplePageDescription, shortImageFile, wikipediaUrl, pSourceArray) into fedwikiPageArray
+      put wikicommons_ConstructTwoImagePageArray (pageTitle, pageDescription, shortImageFile, wikipediaUrl, pSourceArray) into fedwikiPageArray
    end if
    
    if coordArray is an array then
@@ -198,27 +202,6 @@ end fedwiki_FetchWikipediaSummaryPageArray
 
 --> Mediawiki | Fetch | Alternative
 -
-function mediawiki_FetchSummaryPageArray pageSlug, pLang
-   -- was "restbase_FetchSummaryPageArray"
-   -- see also "fedwiki_FetchWikipediaSummaryPageArray"
-   -- very similar to "mediawiki_FetchPageArray"
-   
-   /*   
-   -- consider using "put mediawiki_FetchWikiText("Ant")"
-   -- also uses old "mediawiki_FetchSummaryDescription" to fetch multiple first lines
-   -- as restbase won't do that except in html
-   -- would be great to enable links in first paragraphs like "wikicommons_ConstructSectionPageArray" does
-   -- using sectionnum = 0 does not work with "wikicommons_ConstructSectionPageArray"
-   */
-   
-   put mediawiki_FetchSummaryDescription (pageSlug, true, true, pLang) into firstSection -- uses old stuff anyway to get more than one line
-   put restbase_FetchSummaryArray (pageSlug, pLang) into summaryArray -- fetch some metadata
-   put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray
-   --
-   put mediawiki_ConstructSummaryPageArray (firstSection, summaryArray, mobileSectionArray) into pageArray
-   return pageArray
-end mediawiki_FetchSummaryPageArray
-
 command mediawiki_FetchPageParseInfo pageSlug, @pageDescription, @pageTitle, @shortImageFile, @infoBoxArray, pSectionNum, pApiStem
    -- Uses "parse" to extract wiktext sections. Lot's of fiddling with text. Messy as it returns lots of page templates that need cleaning. But we get wiki links
    
@@ -249,29 +232,6 @@ end mediawiki_FetchPageParseInfo
 /*
 These handlers are for parsing, and cleaning mediawiki stypled wikitext, to turn it into a form that is useful for Fedwiki.
 */
-
-command fedwikipedia_CleanWikiText @wikiText
-   -- _StripCitations wikiText -- these are always withing "<ref>" tags
-   _CleanReferences wikiText
-   _CleanSeeAlso wikiText
-   _CleanTable wikiText
-   _CleanComments wikiText
-   _CleanBlockQuotes wikiText
-   
-   _CleanTemplates wikiText
-   
-   -- hacks
-   replace "'''" with "__" in wikiText -- for bold markdown
-   replace "()" with empty in wikiText
-   replace "[ ]" with empty in wikiText
-   replace "&nbsp;" with empty in wikiText
-   replace "to(-)" with " to " in wikiText
-   -- replace "[]" with empty in wikiText
-   
-   replace (CR & "*") with (CR & "* ") in wikiText
-   --
-   put word 1 to -1 of wikiText into wikiText
-end fedwikipedia_CleanWikiText
 
 command fedwikipedia_CleanInternalLinks @wikiSectionLine
    -- used by "wikicommons_AddSectionToPageArray"
@@ -407,25 +367,6 @@ function fedwikipedia_ExtractShortImageFile droppedHTML
 end fedwikipedia_ExtractShortImageFile
 
 
---> Fedwiki | Tweak
--
-function fedwikipedia_ConstructSourceArray pageTitle, pageSlug, wikipediaUrl, wikipediaRevisionID, lookUpArray
-   put "https://livecode.world/mediawiki/transportAgain" into transportURL
-   put the milliseconds into dateTransported
-   put "https://github.com/LiveCodeWorld/lib_MediaWiki" into repoURL
-   put fedwiki_ConstructCreateSourceArray (transportURL, wikipediaUrl, dateTransported, repoURL, wikipediaRevisionID) into pSourceArray
-   -- put infoBoxArray into pSourceArray ["infobox"]
-   
-   text_Utf8Encode pageSlug -- this fixes bug / crash if page_Slug has non-utf8 characters
-   put pageSlug into pSourceArray ["pageSlug"]
-   put pageTitle into pSourceArray ["pageTitle"]
-   if lookUpArray is an array then
-      put lookUpArray into pSourceArray ["link_dictionary"]
-   end if
-   return pSourceArray
-end fedwikipedia_ConstructSourceArray
-
-
 --> Fedwiki | Convert
 -
 function fedwiki_ConvertWikipediaQueryArray wikipediaQueryArray
@@ -451,151 +392,6 @@ function fedwiki_ConvertWikipediaQueryArray wikipediaQueryArray
    
    return pageArray
 end fedwiki_ConvertWikipediaQueryArray
-
-
-
-command _CleanReferences @wikiText
-   -- strips them all for now, and in doing so strips citations as well.
-   /*
-   -- piping does not work
-   put "(<ref" & notClosing & shortClosing & ")" after someReg -- <ref name="dfsa" />
-   put "|" after someReg
-   put "(" & openingTag & notClosing & closingTag after someReg -- <ref name=...>...</ref> or <ref>...</ref>
-   */
-   
-   local someReg
-   
-   -- Good regExpressions
-   -- put "(<ref" & notClosing & "/>)" after someReg -- <ref name="dfsa" />
-   -- put "(<ref>" & notClosing & "</ref>)" after someReg
-   
-   -- some utility chunks
-   put "[^\>]*" into notClosing
-   put "\<ref" & notClosing & "\>" into openingTag
-   put "\</ref\>)" into closingTag
-   put "/\>)" into shortClosing
-   -- put "[^\<]*" into notOpening
-   
-   put "(?mi)" into someReg -- seems to have no effect???
-   put "(<ref>" & notClosing & closingTag after someReg -- <ref>...</ref>
-   text_StripReg wikiText, someReg
-   
-   put "(?mi)" into someReg -- seems to have no effect???
-   put "(\<ref" & notClosing & shortClosing after someReg -- <ref name="dfsa" />
-   text_StripReg wikiText, someReg
-   
-   put "(?mi)" into someReg -- seems to have no effect???
-   put "(" & openingTag & notClosing & closingTag after someReg -- <ref name=...>...</ref> or <ref>...</ref>
-   text_StripReg wikiText, someReg
-   
-   return wikiText
-end _CleanReferences
-
-
---> Private | Cleaners
--
-private command _AddBracketCount @openCount, nextLine
-   -- need to add the number of "{{" and subtract the number of "}}" to figure out what to add to total
-   -- word 1 to -1 of line startLineNum = nextLine
-   
-   -- could do for entire body of text
-   -- safer inside handler as we are not changing wikiText
-   text_StipQuoted nextLine
-   
-   put text_CountStrings ("{{", nextLine) into addNum
-   add addNum to openCount
-   
-   put text_CountStrings ("}}", nextLine) into subtractNum
-   subtract subtractNum from openCount
-end _AddBracketCount
-
-private command _StripTemplates @wikitext
-   -- now let's try a regular expression
-   -- we can try a regular expression
-   -- U is for non-greedy, m is for multiline search
-   -- put "(?miU)" before someReg -- multiline search
-   -- put "[^\}]*" into notThis
-   put ".*" into notThis
-   put "(\{\{" & notThis & "\}\})" into someReg
-   put "(?mi)" before someReg -- multiline search
-   --
-   text_StripReg wikiText, someReg
-end _StripTemplates
-
-private command _CleanTable @wikiText
-   -- woud be great to parse and create a fedwiki table?
-   
-   /*
-   Hello
-   
-   {| class="wikitable sortable" style="float:right; margin:10px;"
-   |-
-   ! [[Region]] !! Number of<br />species&nbsp;<ref name = HolldoblerWilsonAnts>Hölldobler & Wilson (1990), p. 4</ref>
-   |-
-   | [[Neotropic ecozone|Neotropics]] ||align="right"| 2162
-   |-
-   | [[Nearctic ecozone|Nearctic]] ||align="right"| 580
-   |-
-   | [[Europe]] ||align="right"| 180
-   |-
-   | [[Africa]] ||align="right"| 2500
-   |-
-   | [[Asia]] ||align="right"| 2080
-   |-
-   | [[Melanesia]] ||align="right"| 275
-   |-
-   | [[Australia]] ||align="right"| 985
-   |-
-   | [[Polynesia]] ||align="right"| 42
-   |}
-   
-   World
-   */
-   
-   put "[^\}]*" into notClosingBracket
-   put "(?mi)(\{\|" & notClosingBracket & "\|\})" into someReg
-   text_StripReg wikiText, someReg
-   return wikiText
-end _CleanTable
-
-command _CleanBlockQuotes @wikiText
-   replace "<blockquote>" with (CR & "<blockquote>") in wikiText
-   replace "</blockquote>" with ("</blockquote>" & CR) in wikiText
-end _CleanBlockQuotes
-
-private command _CleanSeeAlso @wikiSectionLine
-   -- some start text {{See also|1920s Berlin}} end text 
-   
-   put "[^\}]+" into untilCurlyBracket
-   put "\{\{See also\|(" & untilCurlyBracket & ")\}\}" into someReg
-   put "(?m)" before someReg -- multiline search
-   repeat
-      if matchchunk (wikiSectionLine, someReg, wikiAlsoStart, wikiAlsoEnd) is true then
-         put char wikiAlsoStart to wikiAlsoEnd of wikiSectionLine into wikiAlsoLink
-         if wikiAlsoStart = 12 then
-            put "See also [[" & wikiAlsoLink & "]]" into cleanAlso
-         else
-            put "(see also [[" & wikiAlsoLink & "]])" into cleanAlso
-         end if
-         put cleanAlso into char (wikiAlsoStart - 11) to (wikiAlsoEnd + 2) of wikiSectionLine
-      else
-         exit repeat
-      end if
-   end repeat
-end _CleanSeeAlso
-
-command _CleanComments @wikiText
-   -- As an example here is a <!-- Bot generated title --> that needs to be removed.
-   --
-   put "[^\>]*" into notClosingBracket
-   --
-   put "(\<\!--" into someReg
-   put notClosingBracket after someReg
-   put "--\>)" after someReg
-   --
-   put "(?mi)" before someReg -- multiline search
-   text_StripReg wikiText, someReg
-end _CleanComments
 
 
 --> HTML | Tidy

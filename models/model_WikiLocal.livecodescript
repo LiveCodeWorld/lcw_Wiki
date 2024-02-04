@@ -201,12 +201,6 @@ end wiki_ListEmptyFolders
 
 --> Fedwiki | Local | Folders
 -
-function fedwiki_LocalAssetsFolder pFedwikiDomain
-   put wiki_GetFolder (pFedwikiDomain) into wikiFolder
-   put wikiFolder & "assets/" into assetsFolder
-   return assetsFolder
-end fedwiki_LocalAssetsFolder
-
 command fedwiki_SetLocalWikiRoot localWikiRoot
    folder_Format localWikiRoot
    put fedwiki_GetLocalData() into localWikiData

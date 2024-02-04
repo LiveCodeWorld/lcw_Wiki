@@ -24,12 +24,17 @@ end menu_Target
 
 getprop menu_CheckTarget [browserView]
    try
-      put wiki_Started() into LocalArray ["wikiStarted"]
+      put wiki_NodeServerIsRunning() into LocalArray ["wikiStarted"]
       return exists (browserView)
    catch e
       return false
    end try
 end menu_CheckTarget
+
+getprop checked_UseNodeServer
+   put LocalArray ["wikiStarted"] into sBoolean
+   return sBoolean is true
+end checked_UseNodeServer
 
 getprop checked_StartWiki
    return LocalArray ["wikiStarted"] is true
@@ -80,17 +85,36 @@ on menu_LocalWiki wikiView, wikiDomain
    end if
 end menu_LocalWiki
 
+on menu_ListLocalWikis
+   display_LocalWikis
+end menu_ListLocalWikis
+
+on menu_CreateLocalWiki wikiView
+   put lcw_Ask ("Add new wiki domain to /etchosts?", "", "Local Wiki Domain") into wikiDomain
+   --
+   wikiServer_Create wikiDomain
+   display_LocalWikis
+   --
+   put wiki_Browser() into browserView
+   display_Wiki wikiDomain, browserView
+end menu_CreateLocalWiki
+
 private on _
 end _
 
 on menu_StartWiki wikiView
-   if wiki_Started() is true then
-      wiki_Stop
+   if wiki_NodeServerIsRunning() is true then
+      wiki_StopNodeServer
    else
-      -- wiki_Start -- display_Wiki starts wiki if needed
+      -- wiki_StartNodeServer -- display_Wiki starts wiki if needed
       display_Wiki "fedwiki.org", wikiView
    end if
 end menu_StartWiki
+
+on menu_UseNodeServer wikiView
+   put LocalArray ["wikiStarted"] into sBoolean
+   put sBoolean is false into LocalArray ["wikiStarted"]
+end menu_UseNodeServer
 
 on menu_SecurityType wikiView, securityType
    wiki_SetSecurityType securityType
@@ -129,9 +153,15 @@ end menu_UpdateEtcHosts
 private on ____
 end ____
 
-on menu_ListLocalWikis
-   display_LocalWikis
-end menu_ListLocalWikis
+on menu_SearchOpenverse dView
+   put lcw_Ask ("Enter search terms...", "cat|dog", "Openverse", dView) into searchBit
+   --
+   put openverse_Search (searchBit) into sData
+   -- display_Data sData, searchBit, "Openverse"
+   
+   put wikiPage_OpenVerseThumbNails (sData) into pageArray
+   display_PageArray pageArray
+end menu_SearchOpenverse
 
 on menu_StartWikiWithXterm
    wiki_StartWithXterm

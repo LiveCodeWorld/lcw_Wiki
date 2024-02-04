@@ -46,12 +46,33 @@ getprop port_Params
    return "3000,8080,9090,-,80"
 end port_Params
 
+getprop checked_StartWiki [wikiView]
+   put _DaemonIsRunning (wikiView) into sBoolean
+   return sBoolean is false
+end checked_StartWiki
+
+private function _DaemonIsRunning wikiView
+   -- put the daemon_IsRunning of wikiView into sBoolean
+   put wiki_NodeServerIsRunning() is false into sBoolean
+   return sBoolean
+end _DaemonIsRunning
+
 
 --> Global | Wiki | Server | Menu
 -
-on menu_WikiServer wsView
-   put the params
-end menu_WikiServer
+on menu_StartWiki wikiView   
+   if _DaemonIsRunning (wikiView) is true then
+      set the daemon_IsRunning of wikiView to false
+      wiki_StartNodeServer
+   else
+      wiki_StopNodeServer
+      set the daemon_IsRunning of wikiView to true
+   end if
+end menu_StartWiki
+
+on menu_CloseOpenSockets
+   socket_CloseOpen
+end menu_CloseOpenSockets
 
 on menu_Port wsView, sPort
    set the daemon_Port of wsView to sPort
@@ -76,8 +97,17 @@ on menu_DisplayPluginRouteData wsView
    display_Data PluginRouteData, "PluginRouteData", "Wiki Routing"
 end menu_DisplayPluginRouteData
 
+on menu_DisplaySocketData wsView
+   put the socket_Data of wsView into sData
+   display_Data  sData, "Socket Data"
+end menu_DisplaySocketData
+
 private on __
 end __
+
+on menu_EditMiddleware wsView
+   edit the script of stack "behavior_DaemonMiddleware"
+end menu_EditMiddleware
 
 on menu_SetBehaviors wsView
    menu_ClearBehaviors wsView

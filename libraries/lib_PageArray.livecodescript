@@ -17,7 +17,7 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 function dot_FetchHandlerGraphData hName, pJsonType
    -- https://graphviz.org/docs/outputs/json/
    if pJsonType is empty then put "json" into pJsonType -- "json0,dot_json,xdot_json"
-   put merge ("curl -s 'https://rest.livecode.world/graph/viz/[[hName]]' | dot -T[[pJsonType]]") into someShell
+   put merge ("curl -s 'http://rest.livecode.world/graph/viz/[[hName]]' | dot -T[[pJsonType]]") into someShell
    put shell (someShell) into dotJSON
    put json_ToArray (dotJSON) into hGraphData
    return hGraphData
@@ -150,20 +150,6 @@ command pageArray_ReplaceGraph @pageArray, dotText
       put dotText into pageArray ["story"][itemNum]["text"]
    end if
 end pageArray_ReplaceGraph
-
-
---> PageArray | PageFold
--
-command pageArray_TrimToPageFold @pageArray
-   put pageArray_FindItemType ("pagefold", pageArray) into storyItemNum
-   if storyItemNum = 0 then return false
-   put item 2 of the extens of pageArray ["story"] into maxNum
-   repeat with itemNum = (storyItemNum + 1) to maxNum
-      put pageArray ["story"][itemNum]["id"] into deletedItemID
-      pageArray_AddDeleteAction pageArray, deletedItemID
-      delete variable pageArray ["story"][itemNum]
-   end repeat
-end pageArray_TrimToPageFold
 
 command pageArray_Trim @pageArray, maxTrimNum
    put pageArray ["story"] into storyArray
@@ -312,7 +298,7 @@ command pageArray_CompactRefs @pageArray
    put pageArray ["story"] into storyArray
    if storyArray is not an array then
       put "This is not a single wiki page. Only drop references to single pages on this transporter." &CR&CR& droppedURL into errorText
-      fedwiki_ExitAndReturnError errorText
+      transport_ExitAndReturnError errorText
    end if
    
    put 1 into newItemNum
@@ -348,15 +334,6 @@ end pageArray_CompactRefs
 
 --> PageArray | Edit
 -
-command pageArray_StripJournal @pageArray
-   -- was "fedwiki_StripJournalToCreate" then "pageArray_StripJournal"
-   -- reconstruct a new creation array with new time deleting old journal history
-   put pageArray ["title"] into pageTitle
-   put storyArray_ConstructCreate (pageTitle) into newCreationArray
-   delete variable pageArray ["journal"]
-   put newCreationArray into pageArray ["journal"][1]
-end pageArray_StripJournal
-
 command pageArray_CleanJournal @pageArray, pPreserveActions
    switch pPreserveActions
       case empty
@@ -544,20 +521,3 @@ function pageArray_GetFirstCode pageArray
    end repeat
    return empty
 end pageArray_GetFirstCode
-
-function pageArray_GetFirstPageFold pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "pagefold" then exit repeat
-      
-      put itemArray into storyArrayHeader [itemNum]
-   end repeat
-   return storyArrayHeader
-end pageArray_GetFirstPageFold
-
-function pageArray_GetLastPageFold pageArray
-   put pageArray ["story"] into storyArray
-   put storyArray_GetLastPageFold (storyArray) into itemNum
-   return itemNum
-end pageArray_GetLastPageFold

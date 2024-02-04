@@ -72,7 +72,7 @@ function md_ConstructExternalLinkLine linkURL, pLinkLabel, pLinkKey
       case linkURL is "null" 
          return empty
       default
-         put fedwiki_ConstructExternalLink (linkURL, pLinkLabel) into externalLink
+         put fedwiki_ExternalLink (linkURL, pLinkLabel) into externalLink
          put "-" & space into mdLinkLine
          if pLinkKey is not empty then 
             put pLinkKey & space after mdLinkLine

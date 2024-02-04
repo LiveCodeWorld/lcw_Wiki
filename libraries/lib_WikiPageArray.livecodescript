@@ -22,6 +22,56 @@ There may be map and other stuff in that code that is not here?
 
 --> Working on
 -
+private command _AddPosterImage @pageArray, summaryArray, pAddedImages
+   -- maybe already added with wiki-text (so we check shortFile is not in pAddedImages)
+   
+   put summaryArray ["title"] into pageTitle
+   put summaryArray ["description"] into shortDescription
+   
+   put summaryArray ["originalimage"]["source"] into imageURL
+   put summaryArray ["originalimage"]["height"] into imageHeight
+   put summaryArray ["originalimage"]["width"] into imageWidth
+   
+   put summaryArray ["thumbnail"]["source"] into thumbURL
+   put summaryArray ["thumbnail"]["height"] into thumbHeight
+   put summaryArray ["thumbnail"]["width"] into thumbWidth
+   
+   set the itemdelimiter to slash
+   put urldecode (item -1 of imageURL) into shortImageFile
+   set the itemdelimiter to "."
+   set the wholematches to true
+   switch
+      case shortImageFile is among the lines of pAddedImages
+      case imageURL is empty
+         return empty
+      case item -1 of imageURL is among the items of "webm.ogv"
+         wikicommons_AddVideoToPageArray pageArray, shortImageFile
+         break
+      default
+         put pageTitle & "." && shortDescription into imageCaption
+         pageArray_AddImage pageArray, thumbURL, imageCaption, imageURL, pLat, pLong
+   end switch
+   return shortImageFile
+end _AddPosterImage
+
+private function _MediawikiTryAgain pageSlug, pFirstSectionOnly, pWikipediaURL, pLang, pApiStem
+   -- called by "mediawiki_FetchPageArray"
+   mediawiki_NormaliseTitle pageSlug, pageTitle, pageID, pLang
+   --
+   if pageTitle is empty then
+      put mediawiki_FetchDialoguePageArray (pageSlug) into fedwikiPageArray
+   else
+      if pWikipediaURL is empty then
+         -- should figure it out for new found pageTitle
+      end if
+      put mediawiki_FetchWikiText (pageSlug, pApiStem) into wikiText -- need all of the text
+      -- put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray
+      --
+      put mediawiki_ConstructPageArray (pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, pWikipediaURL) into fedwikiPageArray
+   end if
+   return fedwikiPageArray
+end _MediawikiTryAgain
+
 private command _AddMapSection @pageArray, summaryArray, pTileType
    -- add map section
    
@@ -36,7 +86,7 @@ private command _AddMapSection @pageArray, summaryArray, pTileType
       put "[[" & pageTitle & "]]." && shortDescription into pinTitle
       put fedwiki_ConstructOpenStreetMapLink (mapLat, mapLong, mapZoom, pinTitle) into mapText
       --
-      pageArray_AddMap pageArray, mapLat, mapLong, mapText, mapZoom, pinTitle
+      pageArray_AddMap pageArray, mapText, mapLat, mapLong, mapZoom, pinTitle
    end if
 end _AddMapSection
 
@@ -104,7 +154,7 @@ function mediawiki_FetchPageArray wikipediaURL, pFirstSectionOnly
    --
    return fedwikiPageArray
 end mediawiki_FetchPageArray
- 
+
 function mediawiki_GetPageArrayFromSlug pageSlug, wikiLang, pApiStem, pFirstSectionOnly
    -- fetch some metadata
    put pFirstSectionOnly is not false into pFirstSectionOnly
@@ -126,7 +176,7 @@ function mediawiki_GetPageArrayFromSlug pageSlug, wikiLang, pApiStem, pFirstSect
    
    -- now fetch
    put mediawiki_FetchWikiText (pageSlug, pApiStem) into wikiText -- need all of the text   
-   put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray -- used for TOC
+   -- put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray -- used for TOC
    
    -- and construct
    put mediawiki_ConstructPageArray (pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, wikipediaURL) into fedwikiPageArray
@@ -235,34 +285,36 @@ function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArra
    -- used by mediawiki_FetchPageArray
    -- does not call "_MediawikiTryAgain()" so can avoid recursion
    
-   -- Start constructing fedwikiPageArray
+   # Start constructing fedwikiPageArray
    put pageTitle into fedwikiPageArray ["title"]
    put empty into pSourceArray -- could credit wikipedia
-   put pageArray_ConstructJournal (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
+   put journalArray_Construct (pageTitle, pSourceArray) into fedwikiPageArray ["journal"]
    
-   -- process wikiText and add
+   # Process wikiText and add
    wikicommons_AddSectionToPageArray fedwikiPageArray, wikiText, pFirstSectionOnly
    put the result into addedImages
    
-   -- add original image (if not there)
+   # Add original image (if not there)
    _AddPosterImage fedwikiPageArray, summaryArray, addedImages -- maybe already added with wiktext
    put the result into posterImageFile
    
    -- add some utility tools
    -- fedwiki_AddTools fedwikiPageArray, pageTitle
    
-   -- add "# Sections"
+   /* -- old mobileSectionArray dependent stuff
+   # Add "# Sections"
    put _ConstructSubSectionResultArray (mobileSectionArray) into resultArray
    _AddTOC fedwikiPageArray, resultArray 
    
-   -- add see also
+   # Add see also
    _AddSeeAlsoSection fedwikiPageArray, mobileSectionArray, resultArray
+   */
    
-   -- move image to item 2
+   # Move image to item 2
    fedwiki_MakeTextParagraphFirst fedwikiPageArray -- in case image is first
    wikicommons_Moveimage fedwikiPageArray, 2
    
-   -- add link back to wikipedia
+   # Add link back to wikipedia
    fedwiki_AddExternalLinkToFirstSection fedwikiPageArray, pWikipediaURL
    
    -- add map if it exists
@@ -287,17 +339,20 @@ function mediawiki_ConstructSummaryPageArray firstSection, summaryArray, mobileS
    
    _AddPosterImage fedwikiPageArray, summaryArray
    
-   -- add rest of first section
+   # Add rest of first section
    repeat for each line nextLine in firstSection
       pageArray_AddText fedwikiPageArray, nextLine
    end repeat
    
-   -- now add maps, toc, see also etc
+   # Add maps
    _AddMapSection fedwikiPageArray, summaryArray
-   put _ConstructSubSectionResultArray (mobileSectionArray) into resultArray
-   _AddTOC fedwikiPageArray, resultArray
    
-   _AddSeeAlsoSection fedwikiPageArray, mobileSectionArray, resultArray
+   # Add TOC
+   -- put _ConstructSubSectionResultArray (mobileSectionArray) into resultArray
+   -- _AddTOC fedwikiPageArray, resultArray
+   
+   # Add See also
+   -- _AddSeeAlsoSection fedwikiPageArray, mobileSectionArray, resultArray
    
    -- ensure image is second item
    wikicommons_Moveimage fedwikiPageArray, 2
@@ -318,35 +373,6 @@ private command _DeconstructParseArray parseArray, @pageTitle, @pageDescription,
    mediawiki_CleanPageDescription pageDescription, infoBoxArray
    return infoBoxArray
 end _DeconstructParseArray
-
-private command _AddPosterImage @pageArray, summaryArray, pAddedImages
-   -- maybe already added with wiktext (so we check shortFile is not in pAddedImages)
-   
-   put summaryArray ["title"] into pageTitle
-   put summaryArray ["description"] into shortDescription
-   
-   put summaryArray ["originalimage"]["source"] into imageURL
-   put summaryArray ["thumbnail"]["source"] into thumbnailURL
-   
-   set the itemdelimiter to slash
-   put urldecode (item -1 of imageURL) into shortImageFile
-   set the itemdelimiter to "."
-   set the wholematches to true
-   switch
-      case shortImageFile is among the lines of pAddedImages
-      case imageURL is empty
-         return empty
-      case item -1 of imageURL is among the items of "webm.ogv"
-         wikicommons_AddVideoToPageArray pageArray, shortImageFile
-         break
-      default
-         put pageTitle & "." && shortDescription into imageCaption -- could get it from somewhere (it's not in mobileSectionArray)
-         put fedwiki_ConstructImageHtml (thumbnailURL, imageCaption, imageURL, false) into imageHTML
-         pageArray_AddHtml pageArray, imageHTML
-         put the result into lastitemNum
-   end switch
-   return shortImageFile
-end _AddPosterImage
 
 private command _AddTOC @fedwikiPageArray, resultArray
    put resultArray ["orderFormArray"] into orderFormArray
@@ -446,24 +472,6 @@ private function _ConstructSubSectionResultArray mobileSectionArray
    --
    return resultArray
 end _ConstructSubSectionResultArray
-
-private function _MediawikiTryAgain pageSlug, pFirstSectionOnly, pWikipediaURL, pLang, pApiStem
-   -- called by "mediawiki_FetchPageArray"
-   mediawiki_NormaliseTitle pageSlug, pageTitle, pageID, pLang
-   --
-   if pageTitle is empty then
-      put mediawiki_FetchDialoguePageArray (pageSlug) into fedwikiPageArray
-   else
-      if pWikipediaURL is empty then
-         -- should figure it out for new found pageTitle
-      end if
-      put mediawiki_FetchWikiText (pageSlug, pApiStem) into wikiText -- need all of the text
-      put restbase_FetchMobileSectionArray (pageSlug) into mobileSectionArray
-      --
-      put mediawiki_ConstructPageArray (pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, pWikipediaURL) into fedwikiPageArray
-   end if
-   return fedwikiPageArray
-end _MediawikiTryAgain
 
 
 --> Deps

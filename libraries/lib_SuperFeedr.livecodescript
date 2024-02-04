@@ -70,7 +70,7 @@ command superfeedr_AddFeed feedURL, pWebHookURL
    -d'hub.topic=http://push-pub.appspot.com/feed'
    -d'hub.callback=http://mycallback.tld/ok'
    */
-   if pWebHookURL is empty then put "https://rest.livecode.world/echo" into pWebHookURL
+   if pWebHookURL is empty then put "http://rest.livecode.world/echo" into pWebHookURL
    
    put "https://push.superfeedr.com" into restURL
    --

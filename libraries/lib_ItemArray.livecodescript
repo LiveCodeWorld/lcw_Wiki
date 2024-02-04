@@ -119,6 +119,13 @@ end itemArray_Add
 
 --> ItemArray
 -
+function itemArray_ConstructGraphviz sText, pDot, pSVG, pItemID
+   put itemArray_Construct ("graphviz", pItemID, sText) into itemArray
+   if pDot is not empty then put pDot into itemArray ["dot"]
+   if pSVG is not empty then put pSVG into itemArray ["svg"]
+   return itemArray
+end itemArray_ConstructGraphviz
+   
 function itemArray_ConstructReference pageSlug, wikiDomain, refText, pageTitle, pID
    itemArray_NormalizeID pID   
    put pID into itemArray ["id"]

@@ -16,6 +16,66 @@ and add them to a handler below in order to code simple rest calls that return a
 
 --> Working on
 -
+function sandbox_ConstructPageQueryFragment pageTitle, pSectionFormat, pIntroOnly, pPlain
+   -- use parse like "sandbox_ConstructSectionFragment" instead?
+   
+   text_Utf8Encode pageTitle
+   put urlencode (pageTitle) into pageTitle
+   
+   put "/w/api.php?action=query" into sandBoxFragment
+   put "&prop=" after sandBoxFragment
+   -- put "info|pageprops|coordinates|description|imageinfo|videoinfo|mapdata|info|pageimages" into propList
+   put "coordinates|description|imageinfo|videoinfo|mapdata|info|pageimages|pageprops" into propList
+   put "|extracts"  after propList
+   -- put "|pageterms"  after propList
+   -- put "|categories" after propList
+   put urlencode (propList) after sandBoxFragment
+   
+   if pPlain is true then put "&explaintext=1" after sandBoxFragment
+   if pIntroOnly is true then put "&exintro=1" after sandBoxFragment
+   
+   # Format
+   if pSectionFormat is empty then put "wiki" into pSectionFormat --  wiki, plain, raw
+   put "&exsectionformat=" & pSectionFormat after sandBoxFragment
+   
+   # Essentials
+   put "&titles=" & pageTitle after sandBoxFragment
+   put "&redirects" after sandBoxFragment
+   put "&formatversion=2" after sandBoxFragment
+   put "&format=json" after sandBoxFragment
+   return sandBoxFragment
+end sandbox_ConstructPageQueryFragment
+
+command sandbox_DeconstructPageArray sandboxArray, @pageTitle, @pageDescription, @shortImageFile, @lastRevisionID   
+   put sandboxArray ["query"]["pages"] into pagesArray
+   put line 1 of keys (pagesArray) into pageID
+   put pagesArray [pageID] into sandboxPageArray
+   
+   # Basics
+   put sandboxPageArray ["title"] into pageTitle
+   put sandboxPageArray ["extract"] into pageDescription
+   put sandboxPageArray ["lastrevid"] into lastRevisionID
+   
+   # Page Image
+   get sandboxPageArray ["pageimage"]
+   put it into shortImageFile
+   -- put textDecode (it, "UTF-8") into shortImageFile
+   put sandboxPageArray ["thumbnail"]["source"] into thumbURL
+   
+   # Page Props
+   -- put sandboxPageArray ["pageprops"]["page_image_free"] into shortImageFile
+   put sandboxPageArray ["pageprops"]["wikibase_item"] into wikibaseID
+   
+   # Coords
+   put sandboxPageArray ["coordinates"][1]["lat"] into sLat
+   put sandboxPageArray ["coordinates"][1]["lat"] into sLong
+   
+   return sandboxPageArray
+end sandbox_DeconstructPageArray
+
+
+--> Wikipedia
+-
 function wikipedia_FetchPageGeolocation pageTitle, pApiRoot
    -- https://en.wikipedia.org/w/api.php?action=query&format=json&prop=coordinates&titles=Wikimedia%20Foundation
    put "/w/api.php?action=query&format=json&prop=coordinates&titles=" into sandBoxFragment
@@ -146,66 +206,9 @@ function sandbox_FetchSectionArray pageTitle, sectionNum, pApiStem
    return sandboxArray
 end sandbox_FetchSectionArray
 
-command sandbox_DeconstructPageArray sandboxArray, @pageTitle, @pageDescription, @shortImageFile, @lastRevisionID
-   put sandboxArray ["query"]["pages"] into pagesArray
-   put line 1 of keys (pagesArray) into pageID
-   put pagesArray [pageID] into sandboxPageArray
-   
-   put sandboxPageArray ["title"] into pageTitle
-   put sandboxPageArray ["extract"] into pageDescription
-   put sandboxPageArray ["pageprops"]["page_image"] into shortImageFile
-   put sandboxPageArray ["lastrevid"] into lastRevisionID
-   return sandboxPageArray
-end sandbox_DeconstructPageArray
-
 
 --> Sandbox | Construct
 -
-function sandbox_ConstructPageQueryFragment pageTitle, pSectionFormat, pIntroOnly, pPlain
-   -- use parse like "sandbox_ConstructSectionFragment" instead?
-   -- /w/api.php?action=query&format=json&prop=extracts%7Ccategories%7Cpageprops%7Cinfo&titles=Therion&exintro=1&explaintext=1&exsectionformat=wiki
-   -- /w/api.php?action=query&format=json&prop=extracts%7Cinfo%7Cpageprops%7Cpageterms&continue=&titles=Trotsky&redirects=1&exintro=1&explaintext=1&exsectionformat=wiki
-   
-   -- /w/api.php?action=query&format=json
-   -- &prop=extracts%7Cinfo%7Cpageprops%7Cpageterms%7Ccoordinates
-   -- &titles=Alexanderplatz&redirects=1&exintro=1&explaintext=1&exsectionformat=wiki
-   -- &inprop=url%7Cdisplaytitle
-   
-   -- put true into pPlain
-   
-   text_Utf8Encode pageTitle
-   put urlencode (pageTitle) into pageTitle
-   
-   put "/w/api.php?action=query" into sandBoxFragment
-   put "&prop=extracts" after sandBoxFragment
-   -- put "&|info|pageprops|coordinates" after sandBoxFragment
-   -- put "|pageterms"  after sandBoxFragment
-   -- put "|categories" after sandBoxFragment
-   
-   if pIntroOnly is true then
-      put "&exintro=" & "1" after sandBoxFragment
-   end if
-   
-   if pPlain is true then
-      put "&explaintext" after sandBoxFragment
-   end if
-   
-   /*
-   wiki — e.g., == Wikitext ==
-   plain — no special decoration
-   raw — this extension's internal representation
-   */
-   if pSectionFormat is not empty then
-      put "&exsectionformat=" & pSectionFormat after sandBoxFragment
-   end if
-   
-   put "&titles=" & pageTitle after sandBoxFragment
-   -- put "&inprop=url|displaytitle" after sandBoxFragment
-   put "&redirects" after sandBoxFragment
-   put "&format=json" after sandBoxFragment
-   return sandBoxFragment
-end sandbox_ConstructPageQueryFragment
-
 function sandbox_ConstructPageHtmlFragment pageTitle
    -- use parse like "sandbox_ConstructSectionFragment" instead?
    put "/w/api.php?action=query&prop=extracts&format=json&titles=" into sandBoxFragment

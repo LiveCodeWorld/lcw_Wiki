@@ -115,29 +115,28 @@ on menu_DeleteSymLink dView
 end menu_DeleteSymLink
 
 on menu_RenameLocalWiki dView
-   put the selected_Line of dView into localhostDomain
+   put the selected_Line of dView into fromDomain
    --
-   put lcw_Ask ("Rename localhost...", localhostDomain, "Rename", dView) into wikiDomain
+   put lcw_Ask ("Rename localhost...", fromDomain, "Rename", dView) into toDomain
    --
-   put wiki_GetFolder (localhostDomain) into oFolder
-   put wiki_ConstructFolder (wikiDomain) into newFolder
+   put wiki_GetFolder (fromDomain) into oFolder
+   put wiki_ConstructFolder (toDomain) into newFolder
    if there is a folder newFolder then
       return "Error, folder" && newFolder && "already exists."
    end if
    --
    put system_GetAdminPassword() into systemPassword
    hosts_Rename fromDomain, toDomain, systemPassword
-   -- hosts_Add wikiDomain, systemPassword
    --
    revMoveFolder oFolder, newFolder
    --
    put wiki_Browser() into browserView
-   display_Wiki wikiDomain, browserView
+   display_Wiki toDomain, browserView
    --
    display_LocalWikis dView
 end menu_RenameLocalWiki
 
-on menu_AddTools dView
+-- on menu_AddTools dView
    put the selected_Line of dView into wikiDomain
    --
    put wiki_GetFolder (wikiDomain) into wikiFolder
@@ -157,6 +156,13 @@ on menu_AddToHosts dView
    put wiki_Browser() into browserView
    display_Wiki wikiDomain, browserView
 end menu_AddToHosts
+
+on menu_RecreateSitemap dView
+   put the selected_Line of dView into wikiDomain
+   --
+   wikiSiteMap_DeleteFile wikiDomain
+   wikiSiteMap_Create wikiDomain
+end menu_RecreateSitemap
 
 private on __
 end __

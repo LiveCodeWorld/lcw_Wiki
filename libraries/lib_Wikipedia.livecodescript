@@ -13,6 +13,16 @@ In this library we keep handlers that are hard wired to wikipedia, rather than h
 
 --> Working on
 -
+function wikpedia_Accreditation mwTitle, mwSlug
+   put scaffold_Get ("Wikipedia Accreditation") into mdCred
+   curly_ReplaceText mdCred, "mwSlug", mwSlug
+   curly_ReplaceText mdCred, "mwTitle", mwTitle
+   return mdCred
+end wikpedia_Accreditation
+
+
+--> Wikipedia | Construct
+-
 function wikipedia_ConstructUrl pageTitle, pSectionTitle
    replace "-" with space in pageTitle
    -- with a proper pageTitle we keep capitalisation?

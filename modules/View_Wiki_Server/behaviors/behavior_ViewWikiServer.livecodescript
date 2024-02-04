@@ -51,7 +51,10 @@ getprop log_Hilite
 end log_Hilite
 
 setprop log_Hilite sBoolean
-   set the hilite of _ToggleButton() to sBoolean is true
+   set the hilite of _ToggleButton() to sBoolean
+   if sBoolean is false then
+      socket_CloseOpen
+   end if
 end log_Hilite
 
 
@@ -65,11 +68,8 @@ end preOpenControl
 on mouseUp
    switch word 1 of the target
       case "button"
-         if the hilite of the target is true then
-            daemon_Start
-         else
-            daemon_Stop the shiftkey is "Down"
-         end if
+         put the daemon_IsRunning of me into sBoolean
+         set the daemon_IsRunning of me to (sBoolean is false)
          break
       default
    end switch

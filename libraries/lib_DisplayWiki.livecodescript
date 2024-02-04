@@ -119,6 +119,8 @@ private command _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
    _NormalizeWikiBrowser pBrowserView
    --
    wiki_Start
+   -- wiki_StartNodeServer
+   --
    if the result is not empty then wait 20 ticks
    --
    display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle

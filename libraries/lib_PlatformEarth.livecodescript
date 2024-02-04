@@ -38,6 +38,7 @@ command wiki_TrashEmpty pEmptyLocalDomains, pDisplayView
    end repeat
 end wiki_TrashEmpty
 
+
 --> Working on
 -
 function pageArray_FromURL droppedURL, pWikiDomain
@@ -144,13 +145,13 @@ end platform_ToggleMenuBar
 on platform_Wikipedia browserView, pageSlug
    -- put mediawiki_FetchPageArray ("https://en.wikipedia.org/wiki/Well-being")
    put mediawiki_GetPageArrayFromSlug (pageSlug) into pageArray
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end platform_Wikipedia
 
 on platform_Roster browserView
    put wiki_ListLocalShortAll ("*astral*") into wikiDomains
    put roster_ConstructPageArray (wikiDomains) into pageArray
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end platform_Roster
 
 on platform_Test browserView, otherItems

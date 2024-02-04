@@ -49,19 +49,18 @@ end hosts_Delete
 command hosts_Rename fromDomain, toDomain, pSystemPassword
    _NormalizeSystemPassword pSystemPassword
    --
-   breakpoint
    put hosts_Get (pSystemPassword) into hostsText
    if item 1 of hostsText = "Error" then return hostsText
    put hosts_GetArray (hostsText) into hostsArray
    --
-   delete variable hostsArray ["domains"][sDomain]
+   delete variable hostsArray ["domains"][fromDomain]
    --
    put "127.0.0.1" into hostsArray ["domains"][toDomain]["ip"]
    put "127.0.0.1" && toDomain into hostsArray ["domains"][toDomain]["line"]
    --
    put hosts_TextFromArray (hostsArray) into newText
-   hosts_Set hostsText, pSystemPassword
-   return hostsText
+   hosts_Set newText, pSystemPassword
+   return newText
 end hosts_Rename
    
 command hosts_Add localDomainsToAdd, pSystemPassword, pLaunch

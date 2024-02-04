@@ -47,9 +47,14 @@ getprop displayDomain_Param [browserView]
    return wikiDomain
 end displayDomain_Param
 
-getprop displayDomain_Params
+private function _ListToplevelDomains
    put wiki_ListTopLevelDomains() into wikiDomains
    url_SortDomainIndex wikiDomains
+   return wikiDomains
+end _ListToplevelDomains
+
+getprop displayDomain_Params
+   put _ListToplevelDomains() into wikiDomains
    --
    if wikiDomains is empty then
       return "ChatGPT,Localhost"
@@ -57,6 +62,11 @@ getprop displayDomain_Params
       return wikiDomains & ",-,ChatGPT,Localhost"
    end if
 end displayDomain_Params
+
+getprop createDomainList_Params
+   put _ListToplevelDomains() into wikiDomains
+   return wikiDomains
+end createDomainList_Params
 
 
 --> Global | Obeya | Studio | Wiki | Menu
@@ -73,36 +83,35 @@ on menu_DisplayDomain browserView, wikiDomain
    end switch
 end menu_DisplayDomain
 
+on menu_CreateDomainList browserView, wikiDomain
+   set the itemdelimiter to "."
+   put item 1 of wikiDomain into tldWord
+   --
+   put wikiPage_FilteredDomainList (tldWord) into pageArray
+   set the ghost_PageArray of browserView to pageArray
+end menu_CreateDomainList
+
 private on _
 end _
 
-on menu_Fedwiki browserView
-   put wikiPage_FilteredDomainList ("Fedwiki") into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_Fedwiki
+getprop speak_Params [browserView]
+   return the page_Titles of browserView
+end speak_Params
 
-on menu_Livecode browserView
-   put wikiPage_FilteredDomainList ("Livecode") into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_Livecode
-
-on menu_Thought browserView
-   put wikiPage_FilteredDomainList ("Thought") into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_Thought
-
-on menu_Platform browserView
-   put wikiPage_FilteredDomainList ("Platform") into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_Platform
-
-on menu_Astral browserView
-   put wikiPage_FilteredDomainList ("Astral") into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_Astral
-
-private on __
-end __
+on menu_Speak browserView, pageTitle
+   put the wiki_Domain of browserView into wikiDomain
+   put the lineUp_Data  of browserView into lineUpData
+   put indexArray_Find (lineUpData, "title", pageTitle) into itemNum
+   put lineUpData [itemNum] into pageArray
+   --
+   put pageArray_Text (pageArray) into pageText
+   --
+   put pageSlug & ".mp3" into shortFile
+   put wiki_ConstructAssetFile (shortFile, wikiDomain) into audioFile
+   openAI_TextToSpeech pageText, audioFile
+   --
+   finder_Reveal audioFile
+end menu_Speak
 
 on menu_Today browserView
    put wikiPage_TodaysActivity() into pageArray
@@ -114,8 +123,8 @@ on menu_EmptyFolders browserView
    set the ghost_PageArray of browserView to pageArray
 end menu_EmptyFolders
 
-private on ___
-end ___
+private on __
+end __
 
 on menu_ListLocalWikis
    display_LocalWikis
@@ -129,6 +138,9 @@ on menu_ListDynadotWikis displayView
    put lcw_Ask ("Which domain...", "outlandish.academy", "Dynadot Domain", displayView) into domainName
    display_DynadotWikis domainName, displayView, ""
 end menu_ListDynadotWikis
+
+private on ___
+end ___
 
 on menu_ObeyaStudioTools browserView
    put the view_Name of browserView into viewName

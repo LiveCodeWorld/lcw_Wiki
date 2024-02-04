@@ -15,6 +15,30 @@ This model lets you read, write and list these pages.
 
 --> Working on
 -
+command wikiServer_Create wikiDomain
+   # Create folders
+   put wiki_ConstructFolder (wikiDomain) into wikiFolder
+   repeat for each item shortFolder in "pages,recycle,status"
+      put wikiFolder & shortFolder & slash into sFolder
+      folder_CreateNested sFolder
+   end repeat
+   
+   # Create Image and Assets folders
+   put wikiFolder & "assets/plugins/image" & slash into sFolder
+   folder_CreateNested sFolder
+   
+   # Add domain to /etc/hosts
+   put system_GetAdminPassword() into systemPassword
+   hosts_Add wikiDomain, systemPassword
+   
+   # Create files
+   put "welcome-visitors" into pageSlug
+   put wikiServer_GetPageJson (pageSlug) into pageJSON
+   pageJson_Set wikiDomain, pageSlug, pageJSON
+   
+   put wikiServer_GetFavicon() into pngData
+   wiki_SetFavicon wikiDomain, pngData
+end wikiServer_Create
 
 
 --> WikiPage | Default
@@ -24,13 +48,11 @@ command wikiServer_CopyHomeToDefault wikiDomain, pForkDomains
 end wikiServer_CopyHomeToDefault
 
 command wikiServer_CopyPageToDefault wikiDomain, pageSlug, pForkDomains
-   breakpoint
-   --
    put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
    pageArray_StripJournal pageArray
    pageArray_AddFork pageArray, pForkDomains
    --
-   wikiServer_SetPageArray pageSlug, pageArray
+   wikiServer_SetPageArray pageArray
    return the result
 end wikiServer_CopyPageToDefault
 
@@ -44,7 +66,21 @@ function wikiServer_ListPages pListShort
 end wikiServer_ListPages
 
 
---> PageArray | Default | Model
+--> WikiServer | Favicon
+-
+function wikiServer_GetFavicon
+   put wikiServer_DefaultStatusFolder() into defaultStatusFolder
+   put defaultStatusFolder & "favicon.png" into faviconFile
+   if there is a file faviconFile then
+      put url ("binfile:" & faviconFile) into pngData
+      return pngData
+   else
+      return empty
+   end if
+end wikiServer_GetFavicon
+
+
+--> WikiServer | PageArray
 -
 function wikiServer_GetPageArray pageSlug
    put wikiServer_GetPageJson (pageSlug) into pageJSON

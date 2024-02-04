@@ -10,6 +10,13 @@ version: 0.1
 
 --> WikiPlugin
 -
+function wikiPlugin_ListClientRelativePaths pluginName
+   -- recursive directory walk
+   put wikiPlugin_ConstructClientFolder (pluginName) into pluginClientFolder
+   put directory_ListNestedPaths (pluginClientFolder, true) into relPaths
+   return relPaths
+end wikiPlugin_ListClientRelativePaths
+
 function wikiPlugin_ListClientShortFiles pluginName
    put wikiPlugin_ConstructClientFolder (pluginName) into pluginClientFolder
    put file_ListShort (pluginClientFolder) into shortFiles
@@ -61,6 +68,11 @@ function wikiPlugin_GetPageJson pluginName, pShortFile
    put wikiPlugin_ConstructPagesFile (pluginName, pShortFile) into pluginPageFile
    if there is a file pluginPageFile then
       put url ("binfile:" & pluginPageFile) into binaryJSON
+      --
+      put json_ToArray (binaryJSON) into pageArray
+      put pluginName into pageArray ["plugin"]
+      put json_FromArray (pageArray) into binaryJSON
+      --
       return binaryJSON
    else
       return empty

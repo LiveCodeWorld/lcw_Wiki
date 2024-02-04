@@ -16,7 +16,7 @@ For more complicated data for which using page-json is suitable, we can use the 
 */
 
 
---> Working on
+--> Working on (see lib_WikiRoster)
 -
 function roster_DepStackNames
    -- here just to make updates of multiple roster controllers easy
@@ -68,7 +68,7 @@ command atopia_ReturnSitesPageArray wikiDomain, pPageTitle
    put federation_ListDomains (wikiDomain) into rosterDomains
    put roster_ConstructSitesPageArray (wikiDomain, rosterDomains, pPageTitle) into pageArray
    --
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end atopia_ReturnSitesPageArray
 
 command roster_ReturnAtopiaPageArray wikiDomain, pTitle, pRosterTitle
@@ -87,7 +87,7 @@ command roster_ReturnPageArray wikiDomain, pFetchLive
       put atopia_FetchRosterDomains (wikiDomain) into refTable
       put roster_ConstructPageArray (refTable) into pageArray
    end if
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
    return pageArray
 end roster_ReturnPageArray
 
@@ -111,30 +111,6 @@ end roster_FetchLivePageArray
 
 --> Roster | Fetch
 -
-function roster_FetchTemplate pWikiDomain, pPageTitle, pForkDomains
-   if pForkDomains is empty then put "fedwiki.org,roster.fedwiki.org,sites.fedwiki.org" into pForkDomains
-   --
-   switch
-      case (pPageTitle is empty) AND (pWikiDomain is empty)
-         put "roster.fedwiki.org" into pWikiDomain
-         put "Sites Template" into pPageTitle
-         break
-      case (pPageTitle is empty)
-         put _ConstructSitesTitle (pWikiDomain) into pPageTitle
-         break
-      case (pWikiDomain is empty)
-         put "roster.fedwiki.org" into pWikiDomain
-         break
-      default
-         -- both not empty. Good to go
-   end switch
-   --
-   put fedwiki_ConstructSlug (pPageTitle) into pSlug
-   put pageArray_Fetch (pWikiDomain, pSlug) into pageArray
-   pageArray_CleanFork pageArray, pForkDomains
-   return pageArray
-end roster_FetchTemplate
-
 function roster_FetchLive wikiDomain
    -- live version (uses "tree")
    -- see also "atopia_FetchFolders"
@@ -163,7 +139,7 @@ end roster_FetchLive
 
 command roster_ReturnFiltered wikiDomains, pTitle, pRosterTitle
    put roster_ConstructPageArray (wikiDomains, pRosterTitle) into pageArray
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end roster_ReturnFiltered
 
 command roster_ReturnPageArray wikiDomain, pTitle, pRosterTitle
@@ -198,24 +174,12 @@ command federation_ReturnSitesPageArray wikiDomain, pPageTitle
    put federation_ListDomains (wikiDomain) into rosterDomains
    put roster_ConstructSitesPageArray (wikiDomain, rosterDomains, pPageTitle) into pageArray
    --
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end federation_ReturnSitesPageArray
 
 command federation_ReturnActivityRoster rosterTitle, pSincePeriod
    put federation_ListRecentDomains (pSincePeriod) into rosterText
    put rosterTitle & CR & CR before rosterText
    put roster_ConstructPageArray (rosterText) into pageArray
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end federation_ReturnActivityRoster
-
-
---> Private
--
-private function _ConstructSitesTitle wikiDomain
-   set the itemdelimiter to "."
-   repeat for each item someItem in wikiDomain
-      put text_InitialCaps (someItem) & space after pageTitle
-   end repeat
-   put "Sites" after pageTitle
-   return pageTitle
-end _ConstructSitesTitle

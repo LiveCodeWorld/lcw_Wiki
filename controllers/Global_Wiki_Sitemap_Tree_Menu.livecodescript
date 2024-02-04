@@ -1,7 +1,7 @@
 ﻿script "Global | Wiki | Sitemap | Tree | Menu"
 --> MetaData
 -
-copyright: Anonymous
+copyright: David Bovill
 license: GPLv3
 name: Global | Wiki | Sitemap | Tree | Menu
 type: controller

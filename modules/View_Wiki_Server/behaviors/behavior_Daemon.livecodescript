@@ -24,12 +24,130 @@ local SocketData   -- Array used to gather socket data from potentially multiple
 
 local DropDelay = 60
 local SessionArray
-
-local DefaultPort = 3000
+local DefaultPort = 80
 
 
 --> Working on
 -
+getprop socket_Data
+   -- get cleared regularly so not really useful
+   return SocketData
+end socket_Data
+
+function daemon_GetSocketData
+   return SocketData
+end daemon_GetSocketData
+
+command daemon_DeleteSocketData
+   delete variable SocketData
+end daemon_DeleteSocketData
+
+getprop daemon_IsLogging
+   put the behavior of stack "behavior_WikiRouter" is not empty into isLogging
+   return isLogging
+end daemon_IsLogging
+
+setprop daemon_IsLogging isLogging
+   if exists (stack "behavior_DaemonLog") is false then return empty
+   if exists (stack "behavior_WikiRouter") is false then return empty
+   --
+   if isLogging is false then
+      set the log_Text of me to empty
+      set the behavior of stack "behavior_WikiRouter" to empty
+   else
+      put the name of stack "behavior_DaemonLog" into bObject
+      set the behavior of stack "behavior_WikiRouter" to bObject
+   end if
+end daemon_IsLogging
+
+
+--> Dameon | POST
+-
+function daemon_RequestJsonArray requestArray
+   put requestArray ["theData"] into sJSON
+   return json_ToArray (sJSON)
+end daemon_RequestJsonArray
+
+function daemon_GetRequestText requestArray
+   -- either data for an http POST, or PUT is stored in requestArray ["theData"]
+   -- put SocketData [socketID]["theData"] into theData
+   return requestArray ["theData"]
+end daemon_GetRequestText
+
+function daemon_ReceivedHeader sKey, requestArray
+   put _ReceivedHeaderArray (requestArray) into receivedHeaderArray
+   put word 1 to -1 of receivedHeaderArray [sKey] into sValue
+   return sValue
+end daemon_ReceivedHeader
+   
+private function _ReceivedHeaderArray requestArray
+   put requestArray ["receivedHeaders"] into receivedHeaderArray
+   split receivedHeaderArray with CR and ":"
+   return receivedHeaderArray
+end _ReceivedHeaderArray
+
+command daemon_SendAsset socketorRequestArray, assetFile, pSendCompressed
+   /* -- not an image
+   HTTP/1.1 200 OK
+   Access-Control-Allow-Origin: *
+   Accept-Ranges: bytes
+   Cache-Control: public, max-age=0
+   Last-Modified: Fri, 02 Feb 2024 14:49:02 GMT
+   ETag: W/"bd58ef-18d6a4b633f"
+   Content-Type: audio/mp4
+   Content-Length: 12409071
+   Date: Sun, 04 Feb 2024 08:47:28 GMT
+   Connection: keep-alive
+   Keep-Alive: timeout=5
+   --
+   HTTP/1.1 200 OK
+   Content-Type: audio/mp4
+   Access-Control-Allow-Origin: *
+   Connection: keep-alive
+   Date: 2/4/248:49 AM
+   Accept-Ranges: bytes
+   Content-Length: 12409071
+   */
+   
+   put url ("binfile:" & assetFile) into someAsset
+   --
+   put "audio/mp4" into contentType
+   --
+   put _NormalizeSocket (socketorRequestArray) into socketID
+   put _OkHeaders (contentType) into someHeader
+   put CRLF & "Accept-Ranges: bytes" after someHeader
+   put CRLF & "Keep-Alive: timeout=5" after someHeader
+   put CRLF & "Cache-Control: public, max-age=0" after someHeader
+   --
+   daemon_Send someHeader, someAsset, socketID, pSendCompressed
+   return the result
+end daemon_SendAsset
+
+command daemon_SendImage socketorRequestArray, someImage, pImageType, pSendCompressed
+   /* image/gif
+   image/jpeg
+   image/png
+   image/tiff
+   image/vnd.microsoft.icon
+   image/x-icon
+   image/vnd.djvu
+   image/svg+xml */
+   
+   if pImagetype is empty then put "png" into pImageType
+   put "image/" & pImageType into imageHeader
+   --
+   put _NormalizeSocket (socketorRequestArray) into socketID
+   put _OkHeaders (imageHeader) into someHeader
+   --
+   daemon_Send someHeader, someImage, socketID, pSendCompressed
+   return someHeader
+end daemon_SendImage
+
+command daemon_SendPNG socketorRequestArray, faviconPNG, pSendCompressed
+   daemon_SendImage socketorRequestArray, faviconPNG, "png", pSendCompressed
+   return the result
+end daemon_SendPNG
+
 private command _AddSessionCookie @someHeader
    return empty
    
@@ -157,6 +275,8 @@ setprop daemon_IsRunning [closeAll] someBoolean
    if someBoolean is true then
       if daemonIsRunning is false then
          daemon_Start
+      else
+         set the log_Hilite of me to someBoolean
       end if
    else
       if closeAll is true then
@@ -164,6 +284,8 @@ setprop daemon_IsRunning [closeAll] someBoolean
       else
          if daemonIsRunning is true then
             daemon_Stop
+         else
+            set the log_Hilite of me to someBoolean
          end if
       end if
    end if
@@ -211,14 +333,6 @@ command daemon_Stop pCloseAll
       close socket portToListenOn
    end if
 end daemon_Stop
-
-function daemon_GetSocketData
-   return SocketData
-end daemon_GetSocketData
-
-command daemon_DeleteSocketData
-   delete variable SocketData
-end daemon_DeleteSocketData
 
 
 --> Daemon | Connection
@@ -284,18 +398,10 @@ on processRequest pSocketID, theData
 end processRequest
 
 
---> Dameon | POST
--
-function daemon_GetPostData requestArray
-   -- put SocketData [socketID]["theData"] into theData
-   return requestArray ["theData"]
-end daemon_GetPostData
-
-
 --> Dameon | Send
 -
 command daemon_SendArray socketOrRequestArray, sArray, pSendCompressed
-   put json_FromArray (pageArray) into someJSON
+   put json_FromArray (sArray) into someJSON
    daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
    put the result into someHeader
    return someHeader
@@ -305,15 +411,9 @@ command daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
    put _NormalizeSocket (socketorRequestArray) into socketID
    put _OkHeaders ("application/json; charset=utf-8") into someHeader
    daemon_Send someHeader, someJSON, socketID, pSendCompressed
+   -- put socketID & CR & someJSON
    return someHeader
 end daemon_SendJSON
-
-command daemon_SendPNG socketorRequestArray, faviconPNG, pSendCompressed
-   put _NormalizeSocket (socketorRequestArray) into socketID
-   put _OkHeaders ("image/png") into someHeader
-   daemon_Send someHeader, faviconPNG, socketID, pSendCompressed
-   return someHeader
-end daemon_SendPNG
 
 command daemon_SendJS socketOrRequestArray, sJavascript, pSendCompressed
    put _NormalizeSocket (socketorRequestArray) into socketID
@@ -347,15 +447,10 @@ command daemon_SendMovedTemporarily socketID, locationURL
    return the result
 end daemon_SendMovedTemporarily
 
-command daemon_SendNotFound socketID
+command daemon_SendNotFound socketID, pLogComment
    put _NotFoundHeaders() into someHeader
    daemon_Send someHeader, "Page not found", socketID, false
    return the result
-   
-   -- put _CustomHeaders (404, "Error: 404", "file not found") into someHeader
-   put someHeader & CRLF & CRLF & contentToSend into headersAndContent
-   write headersAndContent to socket socketID
-   return headersAndContent
 end daemon_SendNotFound
 
 command daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
@@ -651,6 +746,8 @@ private command _SetEnvironmentalVariables requestArray
 end _SetEnvironmentalVariables
 
 command _CleanSocketData pSocketId
+   -- display_Data SocketData, "SocketData"
+   
    /*
    Clean out SocketData of any partial connection data that is older than the 'on newConnection' dropDelay number of seconds.
    If the connection to RevHTTPd does not complete but there has been some data stored in this array, this routine finds it and deletes it when it is too old.

@@ -16,6 +16,20 @@ A library for interfacing with MediaWiki instances.
 
 --> Working on
 -
+command mediawiki_FetchPageQueryInfo pageSlug, @plainDescription, @pageTitle, @shortImageFile, @lastRevisionID, pIntroOnly, pPlain, pApiStem
+   -- no longer shortImageFile, lastRevisionID
+   # Construct
+   -- put true into pIntroOnly
+   -- put false into pPlain
+   put sandbox_ConstructPageQueryFragment (pageSlug, "wiki", pIntroOnly, pPlain) into sandBoxFragment
+   
+   # Fecth
+   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   sandbox_DeconstructPageArray sandboxArray, pageTitle, plainDescription, shortImageFile, lastRevisionID
+   put the result into sandboxPageArray
+   return sandboxPageArray
+end mediawiki_FetchPageQueryInfo
+
 
 --> Sandbox | REST
 -
@@ -165,16 +179,6 @@ function mediawiki_FetchPage pageTitle, pProps, pReturnChunks, pOtherBits, pApiS
    return someResult
 end mediawiki_FetchPage
 
-command mediawiki_FetchPageQueryInfo pageSlug, @pageDescription, @pageTitle, @shortImageFile, @lastRevisionID, pApiStem
-   put true into pIntroOnly
-   put true into pPlain
-   put sandbox_ConstructPageQueryFragment (pageSlug, "wiki", pIntroOnly, pPlain) into sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   sandbox_DeconstructPageArray sandboxArray, pageTitle, pageDescription, shortImageFile, lastRevisionID
-   put the result into sandboxPageArray
-   return sandboxPageArray
-end mediawiki_FetchPageQueryInfo
-
 function mediawiki_FetchPageBits pageTitle, pProps, pOtherBits, pApiStem, pFormat
    if pProps is empty then put "revisions" into pProps
    if pFormat is empty then put "json" into pFormat
@@ -213,12 +217,6 @@ function mediawiki_ExtractImagesFromArray pagesArray
    delete char -1 of shortFileBits
    return shortFileBits
 end mediawiki_ExtractImagesFromArray
-
-command mediawiki_CleanPageDescription @pageDescription, @infoBoxArray
-   put mediawikia_ExtractInfobox (pageDescription) into infoBox
-   put mediawiki_ConvertInfoBox (infoBox) into infoBoxArray
-   fedwikipedia_CleanWikiText pageDescription
-end mediawiki_CleanPageDescription
 
 
 --> Mediawiki | Template | Infobox

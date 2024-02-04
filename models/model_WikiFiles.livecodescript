@@ -103,8 +103,7 @@ command wiki_SetFavicon wikiDomain, pngData
 end wiki_SetFavicon
 
 function wiki_FaviconFile wikiDomain
-   put wiki_ConstructStatusFolder (wikiDomain) into statusFolder
-   put statusFolder & "favicon.png" into faviconFile
+   put wiki_ConstructFaviconFile (wikiDomain) into faviconFile
    if there is a file faviconFile then
       return faviconFile
    else
@@ -112,16 +111,11 @@ function wiki_FaviconFile wikiDomain
    end if
 end wiki_FaviconFile
 
-function wiki_GetDefaultFavicon
-   put wikiServer_DefaultStatusFolder() into defaultStatusFolder
-   put defaultStatusFolder & "favicon.png" into faviconFile
-   if there is a file faviconFile then
-      put url ("binfile:" & faviconFile) into pngData
-      return pngData
-   else
-      return empty
-   end if
-end wiki_GetDefaultFavicon
+function wiki_ConstructFaviconFile wikiDomain
+   put wiki_ConstructStatusFolder (wikiDomain) into statusFolder
+   put statusFolder & "favicon.png" into faviconFile
+   return faviconFile
+end wiki_ConstructFaviconFile
 
 
 --> Wiki | Folders
@@ -162,6 +156,61 @@ end wiki_ModulesFolder
 
 --> Wiki | Status | Files
 -
+function wiki_ListAssets wikiDomain, pRelPath, pListShort
+   put wiki_ConstructAssetsFolder (wikiDomain) into assetsFolder
+   if pRelPath is not empty then
+      text_AddTrailing pRelPath, slash
+      put pRelPath after assetsFolder
+   end if
+   if pListShort is true then
+      return file_ListShort (assetsFolder)
+   else
+      return file_ListLong (assetsFolder)
+   end if
+end wiki_ListAssets
+
+function wiki_ImageAssetFile shortFile, wikiDomain
+   put wiki_ConstructImageAssetFile (shortFile, wikiDomain) into imageFile
+   if there is a file imageFile then
+      return imageFile
+   else
+      return empty
+   end if
+end wiki_ImageAssetFile
+
+function wiki_ConstructImageAssetFile shortFile, wikiDomain
+   put wiki_ConstructImageAssetsFolder (wikiDomain) into imageAssetsFolder
+   put imageAssetsFolder & shortFile into imageFile
+   return imageFile
+end wiki_ConstructImageAssetFile
+
+function wiki_AssetsFolder wikiDomain
+   put wiki_ConstructAssetsFolder (wikiDomain) into assetsFolder
+   if there is a folder assetsFolder then
+      return assetsFolder
+   else
+      return empty
+   end if
+end wiki_AssetsFolder
+
+function wiki_ConstructImageAssetsFolder wikiDomain
+   put wiki_ConstructFolder (wikiDomain) into wikiFolder
+   put wikiFolder & "assets/plugins/image/" into imageAssetsFolder
+   return imageAssetsFolder
+end wiki_ConstructImageAssetsFolder
+
+function wiki_ConstructAssetFile relAssetPath, wikiDomain
+   put wiki_ConstructAssetsFolder (wikiDomain) into assetsFolder
+   put assetsFolder & relAssetPath into sFile
+   return sFile
+end wiki_ConstructAssetFile
+
+function wiki_ConstructAssetsFolder wikiDomain
+   put wiki_ConstructFolder (wikiDomain) into wikiFolder
+   put wikiFolder & "assets/" into assetsFolder
+   return assetsFolder
+end wiki_ConstructAssetsFolder
+
 function wiki_GetStatusFolder wikiDomain
    put wiki_ConstructStatusFolder (wikiDomain) into statusFolder
    if there is a folder statusFolder then
@@ -192,7 +241,7 @@ function wiki_RecycleFolder wikiDomain
    put wikiFolder& "recycle/" into wikiRecycleFolder
    return wikiRecycleFolder
 end wiki_RecycleFolder
-   
+
 function wiki_PagesFolder wikiDomain
    -- fedwiki_LocalPagesFolder
    put wiki_GetFolder (wikiDomain) into wikiFolder

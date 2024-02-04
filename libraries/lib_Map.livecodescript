@@ -15,6 +15,36 @@ it is used by the Map Transport
 
 --> Working on
 -
+command pageArray_AddMap @pageArray, mapText, pMapLat, pMapLong, pMapZoom, pPinText, pTileType, pID
+   if mapText is empty then put "Map" into mapText
+   
+   # Create basic itemArray
+   itemArray_NormalizeID pID
+   put pID into itemArray ["id"]
+   put "map" into itemArray ["type"]
+   put mapText into itemArray ["text"]
+   
+   # Add lat+long
+   if pMapLat is not empty then
+      put pMapLat into itemArray ["latlng"]["lat"]
+      put pMapLong into itemArray ["latlng"]["lng"]
+   end if
+   
+   # Add pin
+   if pPinText is not empty then
+      -- "text": "Map\n52.207483, 0.115771 Master's Garden"
+      put CR & mapLat & comma && mapLong && pPinText after mapText
+   end if
+   
+   # Add Zoom
+   if pMapZoom is not empty then
+      put pMapZoom into itemArray ["zoom"]
+   end if
+   --
+   itemArray_Add itemArray, pageArray
+   return the result
+end pageArray_AddMap
+
 
 --> PageArray | Map
 -
@@ -25,14 +55,14 @@ function pageArray_ConstructMapAndImage imageURL, pPageTitle, pImageCaption, pPa
    put imageMagick_ExtractExifArray (identityInfo) into gpsArray
    map_DeconstructGpsArray gpsArray, mlat, mlon, mZoom
    --
-   put pageArray_ConstructImage (imageURL, pPageTitle, pPageDescription, pLinkURL, pImageCaption) into pageArray
+   put wikiPage_Image (imageURL, pPageTitle, pPageDescription, pLinkURL, pImageCaption) into pageArray
    --
    if the result is false then
       put "This image does not have exif geolocation data." into someMarkDown
       pageArray_AddMarkdown pageArray, someMarkDown
    else
       pageArray_AddMarkdown pageArray, "This map shows location where the image was taken accordng to its embedded location data."
-      pageArray_AddMap pageArray, mlat, mlon, "This image was taken near here", mZoom, pImageCaption
+      pageArray_AddMap pageArray, "This image was taken near here", mlat, mlon, mZoom, pImageCaption
    end if
    --
    pageArray_AddPagefold pageArray, "Metadata"
@@ -63,7 +93,7 @@ command pageArray_AddImageMetadata @pageArray, imageURL, pMapDescription
          put "This image was taken near this location." into pMapDescription
       end if
       put 15 into mZoom
-      pageArray_AddMap pageArray, mlat, mlon, pMapDescription, mZoom
+      pageArray_AddMap pageArray, pMapDescription, mlat, mlon, mZoom
    end if
    --
    put "Below you can see all the metadata that we find embedded in the image:" into someMarkdown
@@ -94,7 +124,7 @@ function pageArray_ConstructMap mlat, mlon, exifArray
       --
       map_AddPinLine mapText, mLat, mLon, pinTitle
       --
-      pageArray_AddMap pageArray, mlat, mlon, mapText, mZoom
+      pageArray_AddMap pageArray, mapText, mlat, mlon, mZoom
    else
       put "Image Test" into pageArray ["title"]
    end if
@@ -103,28 +133,6 @@ function pageArray_ConstructMap mlat, mlon, exifArray
    --
    return pageArray
 end pageArray_ConstructMap
-
-command pageArray_AddMap @pageArray, mapLat, mapLong, mapText, mapZoom, pPinText, pTileType, pID
-   if mapLat is empty then return empty
-   --
-   itemArray_NormalizeID pID
-   put pID into itemArray ["id"]
-   if mapLat is not empty then
-      put mapLat into itemArray ["latlng"]["lat"]
-      put mapLong into itemArray ["latlng"]["lng"]
-   end if
-   if mapText is empty then put "Map" into mapText
-   if pPinText is not empty then
-      -- "text": "Map\n52.207483, 0.115771 Master's Garden"
-      put CR & mapLat & comma && mapLong && pPinText after mapText
-   end if
-   put mapText into itemArray ["text"]
-   put "map" into itemArray ["type"]
-   put mapZoom into itemArray ["zoom"]
-   --
-   itemArray_Add itemArray, pageArray
-   return the result
-end pageArray_AddMap
 
 
 --> Map
@@ -183,7 +191,7 @@ command wmflabs_ReturnPageArray pageName, geoInfo
    geo_ExtractLatLong geoInfo, mLat, mLon, regionInfo
    --
    if mLat is not a number or mLat is not a number then
-      fedwiki_ExitAndReturnError ("Problem parsing map data" && geoInfo,mLat,mLon), "Error"
+      transport_ExitAndReturnError ("Problem parsing map data" && geoInfo,mLat,mLon), "Error"
       exit to top
    end if
    put 15 into mZoom -- should work out from regionInfo
@@ -194,7 +202,7 @@ command wmflabs_ReturnPageArray pageName, geoInfo
    --
    put openStreetMap_FetchPageArray (pageTitle, mLat, mLon, mZoom, mapDescription, pinTitle) into pageArray
    --
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end wmflabs_ReturnPageArray
 
 
@@ -208,7 +216,7 @@ end openStreetMap_ConstructUrl
 function openStreetMap_FetchWikipediaMapPageArray wikiSlug, pMapDescription
    put wikipedia_FetchPageGeolocation (wikiSlug) into geoCoords
    if geoCoords is empty then
-      fedwiki_ReturnError "Error", "Wikipedia page has no map coordinates!"
+      transport_ReturnError "Error", "Wikipedia page has no map coordinates!"
    end if
    --
    put item 1 of geoCoords into mLat
@@ -253,7 +261,7 @@ command openStreetMap_ReturnPageArray droppedURL
    --
    put openStreetMap_FetchPageArray (pageTitle, mLat, mLon, mZoom, mapDescription, pinTitle) into pageArray
    --
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end openStreetMap_ReturnPageArray
 
 function openStreetMap_FetchPageArray pageTitle, mlat, mlon, mZoom, pMapDescription, pPinTitle
@@ -265,7 +273,7 @@ function openStreetMap_FetchPageArray pageTitle, mlat, mlon, mZoom, pMapDescript
    
    -- create a page and description
    put pageArray_Construct (pageTitle, pMapDescription) into pageArray
-   pageArray_AddMap pageArray, mlat, mlon, pMapDescription, mZoom
+   pageArray_AddMap pageArray, pMapDescription, mlat, mlon, mZoom
    --
    pageArray_CleanJournal pageArray
    return pageArray
@@ -305,10 +313,10 @@ command googleMaps_ReturnPageArray droppedURL
    --
    map_AddPinLine mapText, mLat, mLon, pinTitle
    --
-   pageArray_AddMap pageArray, mlat, mlon, mapText, mZoom
+   pageArray_AddMap pageArray, mapText, mlat, mlon, mZoom
    pageArray_CleanJournal pageArray
    --
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end googleMaps_ReturnPageArray
 
 
@@ -454,7 +462,7 @@ command geo_ParseGeoStuff geoStuff, @nwse, @someDegrees, @someMinutes, @someSeco
    end repeat
    --
    put pageArray_Construct ("Should not exit here", ii && geoStuff) into pageArray
-   fedwiki_ReturnPageArray pageArray
+   transport_ReturnPageArray pageArray
 end geo_ParseGeoStuff
 
 command geo_ExtractLatLong geoStuff, @decLat, @decLong, @regionInfo

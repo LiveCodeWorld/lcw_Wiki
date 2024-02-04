@@ -18,14 +18,8 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   -- called first
-   pass menu_Target
+   return the display_View of tObject
 end menu_Target
-
-getprop menu_CheckTarget [mTarget]
-   -- use to do initialisation
-   pass menu_CheckTarget
-end menu_CheckTarget
 
 getprop menu_CheckTarget [displayView]
    return true
@@ -42,6 +36,12 @@ on menu_CheckDate displayView
    put pageArray_GetCreationDate (pageArray) into cDate
    put cDate
 end menu_CheckDate
+
+on menu_TestGhostPage
+   put the page_Array of displayView into pageArray
+   --
+   put the displayed_Object of displayView
+end menu_TestGhostPage displayView
 
 on menu_TestRewritePageArray displayView
    put the wiki_Domain of displayView into wikiDomain
@@ -92,7 +92,7 @@ on menu_IdentifyServerError displayView
    --
    put pageArray_GetFormValue ("rssURL", pageArray) into rssURL
    put rssURL into jsonArray ["rssURL"]
-   put "https://rest.livecode.world/podcast/testRSS" into restUrl
+   put "http://rest.livecode.world/podcast/testRSS" into restUrl
    --
    put rss_GetPageArray (rssURL) into pageArray
    put pageArray ["story"] into storyArray
@@ -112,7 +112,3 @@ on menu_IdentifyServerError displayView
    lcw_AnswerWarning  "All good!", displayView
    return true
 end menu_IdentifyServerError
-
-
---> Deps
--

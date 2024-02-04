@@ -23,163 +23,24 @@ See also - https://www.mediawiki.org/wiki/REST_API
 -- https://rest.wikimedia.org/en.wikipedia.org/v1/page/summary/wiki -- old
 -- https://en.wikipedia.org/api/rest_v1/page/summary/ANT
 -- put url "https://en.wikipedia.org/api/rest_v1/page/summary/Ant"
-
 */
 
 --> Working on
 -
-command wikipedia_DownloadImages pageTitle
-   -- maximum height 1080
-   -- mediawiki_NormaliseTitle pageTitle, pageTitle, pageID, pLang
-   -- mediawiki_NormaliseTitle pageTitle, pageTitle, pageID
-   
-   put restbase_ListImageUrls (pageTitle) into imageUrls
-   if imageUrls is empty then
-      -- let's guess it is Spansih
-      put restbase_ListImageUrls (pageTitle, "es") into imageUrls
-   end if
-   
-   if imageUrls is empty then return empty
-   
-   put dropbox_MediaWikiImageFolder (pageTitle) into someFolder
-   folder_CreateNested someFolder
-   
-   set the itemdelimiter to slash
-   repeat for each line someURl in imageUrls
-      set the cursor to busy
-      put urldecode (item -1 of someURl) into shortFile
-      put "binfile:" & someFolder & shortFile into localURL
-      put url someURl into url localURL
-   end repeat
-   
-   return imageUrls
-end wikipedia_DownloadImages
+function mediaWiki_ConstructSlug pageTitle
+   -- Page title. Use underscores instead of spaces. Use percent-encoding. Example: Main_Page.
+   replace space with "_" in pageTitle
+   put textEncode (pageTitle, "UTF-8") into utf8Title
+   put urlencode (utf8Title) into pageSlug
+   return pageSlug
+end mediaWiki_ConstructSlug
 
-function dropbox_MediaWikiImageFolder pageTitle
-   put dropbox_Folder ("Imagine Media Installation - Footage") & pageTitle & slash into someFolder
-   return someFolder
-end dropbox_MediaWikiImageFolder
-
-function dropbox_Folder pShortFolder
-   put "/Users/fortyfoxes/Dropbox/" into someFolder
-   if pShortFolder is not empty then
-      put pShortFolder & slash after someFolder
-   end if
-   return someFolder
-end dropbox_Folder
-
-
---> Wikipedia | List
--
-function wikipedia_ListPages titleString, pNearMatch, pLang
-   -- if pNearMatch is true then the title is not returned properly capitalised
-   put wikipedia_FetchSearchJson (titleString, pNearMatch, pLang) into someJSON
-   put json_ToArray (someJSON) into queryResultArray
-   -- display_Array queryResultArray
-   
-   put queryResultArray ["query"]["search"] into searchResultArray
-   repeat with indexNum = 1 to item 2 of the extents of searchResultArray
-      put searchResultArray [indexNum]["title"] into pageTitle
-      put pageTitle & CR after pageTitles
-   end repeat
-   delete char -1 of pageTitles
-   sort lines of pageTitles
-   return pageTitles
-end wikipedia_ListPages
-
-function wikicommons_ListImages shortImageFile
-   -- this does not seem to return good lists of images
-   -- lot's of dodgy characters = spam? in file names etc?
-   -- api.php?action=query&list=allimages&ailimit=5&aifrom=Albert&aiprop=dimensions|mime [try in ApiSandbox]
-   -- put "Albert Einstein" into fromName
-   -- put "IndustrialSymbiosisWasteHeatExchange.png" into shortImageFile
-   
-   put "action=query&list=allimages&format=json" into urlPattern
-   -- put "&titles=Image:[[shortImageFile]]" after urlPattern
-   put "&titles=[[shortImageFile]]" after urlPattern
-   put wikicommons_GetApiStem() & merge (urlPattern) into restURL
-   
-   put mediawiki_FetchJSON (restURL) into someJSON
-   return someJSON
-end wikicommons_ListImages
-
-
---> Restbase | Fetch
--
-function restbase_ListImageUrls pageTitle, pLang, pRestbaseEndpoint  
-   put restbase_FetchMediaArray (pageTitle, pLang, pRestbaseEndpoint) into mediaItemArray
-   repeat for each key itemNum in mediaItemArray
-      put mediaItemArray [itemNum]["original"]["source"] into imageURL
-      if imageURL is empty then
-         put mediaItemArray [itemNum]["sources"][1]["url"] into imageURL
-         put imageURL & CR after imageUrls
-      else
-         put imageURL & CR after imageUrls
-      end if
-   end repeat
-   delete char -1 of imageUrls
-   return imageUrls
-end restbase_ListImageUrls
-
-function restbase_ListImages pageSlug, pLang, pRestbaseEndpoint
-   put restbase_FetchMediaArray (pageSlug, pLang, pRestbaseEndpoint) into mediaItemArray
-   repeat for each key itemNum in mediaItemArray
-      put mediaItemArray [itemNum]["titles"]["normalized"] into imageTitle
-      put mediaItemArray [itemNum]["original"]["source"] into imageURL
-      put imageURL into imageArray [imageTitle]
-   end repeat
-   put keys (imageArray) into imageTitles
-   return imageTitles
-end restbase_ListImages
-
-function restbase_FetchMediaArray pageTitle, pLang, pRestbaseEndpoint
-   --  -H "accept: application/json; charset=utf-8; profile="https://www.mediawiki.org/wiki/Specs/Media/1.3.1""
-   -- put merge ("https://en.wikipedia.org/api/rest_v1/page/media/[[pageSlug]]?redirect=true") into restURL
-   -- put urlencode (pageTitle) into pageSlug
-   
-   put restbase_ConstructSlugRestURL (pageTitle, "page/media/", pLang, pRestbaseEndpoint) into restURL
-   put mediawiki_FetchJSON (restURL) into someJSON
-   put json_ToArray (someJSON) into someArray
-   put someArray ["items"] into mediaItemArray
-   return mediaItemArray
-end restbase_FetchMediaArray
-
-function restbase_FetchSlugArray @pageSlug, restPath, pLang
-   -- updates pageSlug if there is a redirect
-   
-   put restbase_FetchSlugJSON (pageSlug, restPath, pLang) into someJSON
-   put json_ToArray (someJSON) into someArray
-   return someArray
-end restbase_FetchSlugArray
-
-function restbase_FetchSlugJSON @pageSlug, restPath, pLang, pRestbaseEndpoint   
-   put restbase_ConstructSlugRestURL (pageSlug, restPath, pLang, pRestbaseEndpoint) into restURL
-   put mediawiki_FetchJSON (restURL) into someJSON
-   
-   -- manual handling of redirects
-   if the environment = "server" then return someJSON -- need to use libUrlLastRHHeaders() on the server
-   put libUrlLastRHHeaders() into receivedHeaders
-   if word 2 of receivedHeaders is among the items of "301,302" then
-      -- "HTTP/1.1 301 Moved Permanently"
-      put http_ConstructheaderArray (receivedHeaders) into headerArray
-      put headerArray ["location"] into newTitle -- location: Ant
-      if newTitle is empty then return empty
-      put newTitle into pageSlug
-      put restbase_FetchSlugJSON (pageSlug, restPath, pLang) into someJSON
-   end if
-   --
-   return someJSON
-end restbase_FetchSlugJSON
-
-
---> RestBase | Fetch Summary Page
--
 function restbase_FetchWikipediaSectionPageArray pageSlug, sectionNum, someLang
    -- Retrieve the latest HTML for a page title optimised for viewing with native mobile applications. 
    -- Note that the output is split by sections.
    -- also uses wikicommons_ConstructTwoImagePageArray
    
-   put restbase_FetchMobileSectionArray (pageSlug, someLang) into sectionPageArray
+   -- put restbase_FetchMobileSectionArray (pageSlug, someLang) into sectionPageArray
    
    put sectionPageArray ["lead"]["description"] into pageDescription
    put sectionPageArray ["lead"]["displayTitle"] into pageTitle
@@ -200,32 +61,56 @@ function restbase_FetchWikipediaSectionPageArray pageSlug, sectionNum, someLang
 end restbase_FetchWikipediaSectionPageArray
 
 
+--> Restbase | Fetch
+-
+function restbase_FetchRelated pageTitle, pLang
+   put restbase_FetchData (pageTitle, "page/related/", pLang) into rData
+   --
+   put rData ["pages"] into pageIndexArray
+   return pageIndexArray
+end restbase_FetchRelated
+
+function restbase_ListImageUrls pageTitle, pLang  
+   put restbase_FetchMediaArray (pageTitle, pLang) into mediaIndexArray
+   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
+      -- put mediaIndexArray [itemNum]["title"] into shortImageFile
+      -- put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
+      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
+      put imageURL & CR after imageURLs
+   end repeat
+   delete char -1 of imageUrls
+   return imageUrls
+end restbase_ListImageUrls
+
+function restbase_ListImages pageSlug, pLang
+   put restbase_FetchMediaArray (pageSlug, pLang) into mediaIndexArray
+   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
+      put mediaIndexArray [itemNum]["title"] into shortImageFile
+      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
+      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
+      put imageURL into imageArray [shortImageFile]
+   end repeat
+   put keys (imageArray) into imageTitles
+   return imageTitles
+end restbase_ListImages
+
+function restbase_FetchMediaArray pageTitle, pLang
+   -- https://en.wikipedia.org/api/rest_v1/page/media-list/Ant?redirect=false
+   put restbase_FetchData (pageTitle, "page/media-list/", pLang) into rData
+   put rData ["items"] into mediaItemArray
+   return mediaItemArray
+end restbase_FetchMediaArray
+
+function restbase_FetchData pageTitle, restPath, pLang
+   put mediaWiki_ConstructSlug (pageTitle) into pageSlug
+   put restbase_FetchSlugJSON (pageSlug, restPath, pLang) into someJSON
+   put json_ToArray (someJSON) into rData
+   return rData
+end restbase_FetchData
+
+
 --> Restbase | REST
 -
-function restbase_FetchPageMetadata @pageSlug, pLang
-   -- https://en.wikipedia.org/api/rest_v1/page/metadata/Ant?redirect=true
-   
-   put restbase_FetchSlugArray (pageSlug, "page/metadata/", pLang) into mobileSectionArray
-   return mobileSectionArray
-end restbase_FetchPageMetadata
-
-function restbase_FetchMobileSectionArray pageSlug, pLang
-   -- Retrieve the latest HTML for a page title optimised for viewing with native mobile applications. 
-   -- Note that the output is split by sections.
-   
-   put restbase_FetchMobileSectionJSON (pageSlug, pLang) into someJSON
-   put json_ToArray (someJSON) into mobileSectionArray
-   return mobileSectionArray
-end restbase_FetchMobileSectionArray
-
-function restbase_FetchMobileSectionJSON pageSlug, pLang
-   -- https://en.wikipedia.org/api/rest_v1/page/mobile-sections/Ant
-   -- Retrieve the latest HTML for a page title optimised for viewing with native mobile applications. Note that the output is split by sections.
-   
-   put restbase_FetchSlugJSON (pageSlug, "page/mobile-sections/", pLang) into someJSON
-   return someJSON
-end restbase_FetchMobileSectionJSON
-
 function restbase_FetchMobileLeadArray pageSlug
    put restbase_FetchMobileLeadJSON (pageSlug) into someJSON
    put json_ToArray (someJSON) into mobileSectionArray
@@ -240,13 +125,13 @@ function restbase_FetchMobileLeadJSON pageSlug, pLang
    return someJSON
 end restbase_FetchMobileLeadJSON
 
-function restbase_FetchSummaryArray @pageSlug, pLang
+function restbase_FetchSummaryArray pageSlug, pLang
    put restbase_FetchSummaryJSON (pageSlug, pLang) into someJSON
    put json_ToArray (someJSON) into mobileSectionArray
    return mobileSectionArray
 end restbase_FetchSummaryArray
 
-function restbase_FetchSummaryJSON @pageSlug, pLang
+function restbase_FetchSummaryJSON pageSlug, pLang
    -- The summary response includes a text extract of the first several sentences, as well as information about a thumbnail that represents the page.
    -- https://en.wikipedia.org/api/rest_v1/page/summary/ANT?redirect=false
    
@@ -255,14 +140,32 @@ function restbase_FetchSummaryJSON @pageSlug, pLang
 end restbase_FetchSummaryJSON
 
 
---> Restbase | Construct
+--> Restbase | Rest
 -
+function restbase_FetchSlugJSON pageSlug, restPath, pLang, pRestbaseEndpoint   
+   put restbase_ConstructSlugRestURL (pageSlug, restPath, pLang, pRestbaseEndpoint) into restURL
+   put mediawiki_FetchJSON (restURL) into someJSON
+   
+   -- manual handling of redirects
+   if the environment = "server" then return someJSON -- need to use libUrlLastRHHeaders() on the server
+   put libUrlLastRHHeaders() into receivedHeaders
+   if word 2 of receivedHeaders is among the items of "301,302" then
+      -- "HTTP/1.1 301 Moved Permanently"
+      put http_ConstructheaderArray (receivedHeaders) into headerArray
+      put headerArray ["location"] into newTitle -- location: Ant
+      if newTitle is empty then return empty
+      put newTitle into pageSlug
+      put restbase_FetchSlugJSON (pageSlug, restPath, pLang) into someJSON
+   end if
+   --
+   return someJSON
+end restbase_FetchSlugJSON
+
 function restbase_ConstructSlugRestURL pageSlug, restPath, pLang, pRestbaseEndpoint
    if pLang is empty then put "en" into pLang
    if pRestbaseEndpoint is empty then put ".wikipedia.org/api/rest_v1/" into pRestbaseEndpoint
-   --
-   replace space with "_" in pageSlug
-   --
+   
+   # Construct URL
    put restPath & pageSlug into apiPath
    put "https://" & pLang & pRestbaseEndpoint into restURL
    put apiPath after restURL

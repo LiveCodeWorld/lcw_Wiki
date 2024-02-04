@@ -99,17 +99,34 @@ on menu_LaunchEtcHosts
    end if
 end menu_LaunchEtcHosts
 
-on menu_NewEtcHosts dView
+on menu_CreateLocalWiki dView
+   put the selected_Line of dView into wikiDomain
+   put lcw_Ask ("Add new wiki domain to /etchosts?", wikiDomain, "Local Wiki Domain", dView) into wikiDomain
+   --
+   wikiServer_Create wikiDomain
+   display_LocalWikis dView
+   --
+   put wiki_Browser() into browserView
+   display_Wiki wikiDomain, browserView
+end menu_CreateLocalWiki
+
+on menu_RecreateEtcHosts dView
+   lcw_Answer "Recreate /etc/hosts from local wiki folders?", dView
+   --
    set the wiki_Filter of dView to empty
    display_LocalWikis dView
-   -- put the displayed_Index of dView into wikiFolders
    put wiki_ListLocalShortAll() into wikiFolders
    --
    put hosts_NewText (wikiFolders) into hostsText
    hosts_Set hostsText
    --
    launch_EtcHosts
-end menu_NewEtcHosts
+end menu_RecreateEtcHosts
+
+on menu_InitialiseGit dView
+   put wiki_RootFolder() into gitRootFolder
+   git_InitFolder gitRootFolder
+end menu_InitialiseGit
 
 private on ___
 end ___

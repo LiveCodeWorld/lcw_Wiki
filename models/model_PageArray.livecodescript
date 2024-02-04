@@ -25,6 +25,171 @@ For now this means domains on the Atopia server.
 
 --> Working on
 - 
+function graph_Extract sText
+   put "(digraph \{(?:.|\n|\r)*?\})" into sRegExp
+   if matchText (sText, sRegExp, dotText) is true then
+      return dotText
+   else
+      return empty
+   end if
+end graph_Extract
+
+command pageArray_AddGraphviz @pageArray, sText, pDot, pSVG, pID
+   put itemArray_ConstructGraphviz (sText, pDot, pSVG, pID) into itemArray
+   itemArray_Add itemArray, pageArray
+   return  the result
+end pageArray_AddGraphviz
+
+command pageArray_StripJournal @pageArray, pSourceArray, pMilliseconds
+   put pageArray ["title"] into pageTitle
+   put pageArray ["story"] into storyArray
+   --
+   put journalArray_Construct (pageTitle, pSourceArray, pMilliseconds, storyArray) into journalArray
+   put journalArray into pageArray ["journal"]
+end pageArray_StripJournal
+
+function journalArray_Construct pageTitle, pSourceArray, pMilliseconds, pStoryArray
+   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
+   --
+   put "create" into createArray ["type"]
+   put pMilliseconds into createArray ["date"]
+   put pageTitle into createArray ["item"]["title"]
+   if pStoryArray is an array then put pStoryArray into createArray ["item"]["story"]
+   if pSourceArray is an array then put pSourceArray into createArray ["source"]
+   --
+   put createArray into journalArray [1]
+   return journalArray
+end journalArray_Construct
+
+
+--> PageArray | Cred
+-
+command pageArray_AddWikipediaCred @pageArray, mwTitle, mwSlug
+   put wikpedia_Accreditation (mwTitle, mwSlug) into mdCred
+   put mdCred into pageArray ["journal"][1]["provenance"]
+   delete variable pageArray ["plugin"]
+end pageArray_AddWikipediaCred
+
+
+--> PageArray | Add | Form
+-
+command pageArray_AddForm @pageArray, submitName, postURL, pInputValue, pInputName, pBgColor, pLabel, pInputSize, pHiddenArray, pAlign, pID
+   if pInputName is empty then put "title" into pInputName
+   if pInputSize is empty then put 32 into pInputSize
+   --
+   put pInputName into inputArray ["inputVarName"]
+   put pInputValue into inputArray ["inputDefault"]
+   put pInputSize into inputArray ["inputSize"]
+   --
+   put fedwiki_ConstructForm (submitName, postURL, pHiddenArray, inputArray, pLabel, pAlign, pBgColor) into formHTML
+   pageArray_AddHTML pageArray, formHTML, pID
+   return formHTML
+end pageArray_AddForm
+
+command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pID
+   put fedwiki_ConstructButtonForm (buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor) into formHTML
+   pageArray_AddHTML pageArray, formHTML, pID
+   return formHTML
+end pageArray_AddButton
+
+function fedwiki_ConstructSearchForm buttonName, postURL, inputVarName, pInputSize, pInputDefault, pAlign, pHiddenKeyValueArray, pBgColor
+   put inputVarName into pInputArray ["inputVarName"]
+   put pInputSize into pInputArray ["inputSize"]
+   put pInputDefault into pInputArray ["inputDefault"]
+   --
+   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInputArray, empty, pAlign, pBgColor) into formHTML
+   return formHTML
+end fedwiki_ConstructSearchForm
+
+function fedwiki_ConstructButtonForm buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pInline
+   put empty into pInput -- a button is a form without an input field
+   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline) into formHTML
+   return formHTML
+end fedwiki_ConstructButtonForm
+
+function fedwiki_ConstructForm buttonName, postURL, inputKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline
+   if pAlign is empty then put "right" into pAlign
+   if pBgColor is empty then
+      put "<div align=[[pAlign]]>" & CR into htmlTemplate
+   else
+      put "<div align=[[pAlign]] style='background-color:[[pBgColor]];color:black;padding:12px'>" & CR after htmlTemplate
+   end if
+   put _GetHiddenInput (inputKeyValueArray) into hiddenTemplateBit
+   --
+   if pInline then
+      put "<form action='[[postURL]]' style='display:inline'>" & CR after htmlTemplate
+   else
+      put "<form action='[[postURL]]'>" & CR after htmlTemplate
+   end if
+   --
+   if pLabel is not empty then
+      put "[[pLabel]]: &nbsp;&nbsp;" & CR after htmlTemplate
+   end if
+   --
+   if pInput is not empty then
+      if pInput is an array then
+         put pInput ["inputVarName"] into inputVarName
+         put pInput ["inputSize"] into inputSize
+         put pInput ["inputDefault"] into inputDefault
+      else
+         put pInput into inputVarName
+         put empty into inputDefault
+      end if
+      if inputSize is empty then put 32 into inputSize
+      --
+      put "<input name=[[inputVarName]] value='[[inputDefault]]' size=[[inputSize]]>" & CR after htmlTemplate
+   end if
+   --
+   if hiddenTemplateBit is not empty then
+      put "[[hiddenTemplateBit]]"  & CR after htmlTemplate
+   end if
+   put "<button type='submit'>[[buttonName]]</button>" & CR after htmlTemplate
+   put "</form></div>" after htmlTemplate
+   --
+   replace "'" with quote in htmlTemplate
+   put merge (htmlTemplate) into someHTML
+   return someHTML
+end fedwiki_ConstructForm
+
+private function _GetHiddenInput inputKeyValueArray
+   repeat for each key inputKey in inputKeyValueArray
+      put inputKeyValueArray [inputKey] into inputValue
+      if inputValue is not empty then
+         put _ConstructHiddenBit (inputKey, inputValue) & CR after hiddenTemplateBit
+      end if
+   end repeat
+   delete char -1 of hiddenTemplateBit
+   return hiddenTemplateBit
+end _GetHiddenInput
+
+private function _ConstructHiddenBit inputKey, inputValue
+   put "<input name='[[inputKey]]'" & space into hiddenBit
+   put "value='[[inputValue]]'" & space after hiddenBit
+   put "type='hidden'>" after hiddenBit
+   replace "'" with quote in hiddenBit
+   return merge (hiddenBit)
+end _ConstructHiddenBit
+
+
+--> PageArray | Image
+- 
+command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
+   if pageArray is not an array then return false
+   if imageURL is empty then return false
+   _SetImageDescription pImageCaption, pLinkURL, imageURL
+   --
+   put fedwiki_ConstructThumbHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
+   pageArray_AddHtml pageArray, imageHTML
+   return true
+end pageArray_AddThumbnail
+
+command pageArray_AddEmbeddedImage @pageArray, someImage, pImageCaption, pImageType
+   if pImageType is empty then put image_DetectType (someImage) into pImageType
+   --
+   put fedwiki_ConstructEncodedImageArray (someImage, pImageType, pImageCaption) into imageArray
+   itemArray_Add imageArray, pageArray
+end pageArray_AddEmbeddedImage
+
 
 --> PageArray
 -
@@ -52,15 +217,6 @@ function pageArray_ConstructImageCaption pImageCaption, pImageSourceUrl, pImageU
    return pImageCaption
 end pageArray_ConstructImageCaption
 
-function pageArray_ConstructImage imageURL, pPageTitle, pPageDescription, pImageCaption, pImageSourceUrl, iWidth, iHeight, iSize, pLat, pLong
-   put pageArray_ConstructImageCaption (pImageCaption, pImageSourceUrl, imageURL) into sCaption
-   put _ConstructImagePageArray (pPageTitle, pPageDescription) into pageArray
-   put _ConstructImageItemArray (imageURL, pImageSourceUrl, iWidth, iHeight, iSize, sCaption, pLat, pLong) into itemArray
-   itemArray_Add itemArray, pageArray
-   --
-   return pageArray
-end pageArray_ConstructImage
-
 function pageArray_ConstructHtmlImage imageURL, pPageTitle, pPageDescription, pLinkURL, pImageCaption
    put _ConstructImagePageArray (pPageTitle, pPageDescription) into pageArray
    --
@@ -75,16 +231,6 @@ command pageArray_AddActivity @pageArray, rosterTitle, pSinceWhen, pConversation
    itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddActivity
-
-command pageArray_AddImage @pageArray, imageURL, pImageCaption, pLinkURL
-   if pageArray is not an array then return false
-   if imageURL is  empty then return false
-   _SetImageDescription pImageCaption, pLinkURL, imageURL
-   --
-   put fedwiki_ConstructImageHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
-   pageArray_AddHtml pageArray, imageHTML
-   return true
-end pageArray_AddImage
 
 command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
    put pageArray_FindItemType ("json", pageArray) into itemNum
@@ -140,89 +286,19 @@ command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
 end pageArray_AddJsonArray
 
 
---> PageArray | Image
--
-function pageArray_ConstructImageEditPage imageURL, imageAttributeArray, pAddMetaData
-   html_DeconstructImageArray imageAttributeArray, srcURL, imageCaption, imageWidth, imageHeight, imageClass
-   if imageCaption is empty then put "This is a full width image" into imageCaption
-   --
-   put pageArray_FetchTemplate ("fedwiki.org", "edit-image-template", "Edit Image Tool", "fedwiki.org") into pageArray
-   --
-   curly_ReplacePageArray pageArray, "ImageURL", imageURL
-   --
-   put fedwiki_ConstructExternalLink (imageURL) into imageLink
-   curly_ReplacePageArray pageArray, "ImageLink", imageLink
-   --
-   curly_ReplacePageArray pageArray, "ImageCaption", imageCaption
-   
-   /*
-   pageArray_AddImage pageArray, imageURL, imageCaption
-   --
-   if imageCaption is empty then put "This is an [[full thumbnail image]]" into imageCaption
-   pageArray_AddThumbnail pageArray, imageURL, imageCaption
-   */
-   
-   if pAddMetaData is not false then
-      -- this fetches the image a second time with curl
-      pageArray_AddImageMetadata pageArray, imageURL
-   end if
-   --
-   return pageArray
-end pageArray_ConstructImageEditPage
-
-function pageArray_ConstructGoogleImagePage imageURL, imageAttributeArray
-   html_DeconstructImageArray imageAttributeArray, srcURL, imageCaption, imageWidth, imageHeight, imageClass
-   --
-   put "Your Dropped Image" into pageTitle
-   put "Here is a simple image you dropped on to wiki. From here you can do several things." into pageText
-   put " Below is a simple [[full width image]], that uses the [[about html plugin]] to display the image using html." after pageText
-   put pageArray_Construct (pageTitle, pageText) into pageArray
-   put empty into linkURL
-   --
-   put srcURL into dataURL
-   --
-   if imageCaption is empty then put "This is an [[full width image]]" into imageCaption
-   pageArray_AddImage pageArray, dataURL, imageCaption
-   --
-   if imageCaption is empty then put "This is an [[full thumbnail image]]" into imageCaption
-   pageArray_AddThumbnail pageArray, dataURL, imageCaption
-   --
-   return pageArray
-end pageArray_ConstructGoogleImagePage
-
-command pageArray_AddEmbeddedImage @pageArray, someImage, pImageCaption, pImageType
-   if pImageType is empty then put image_DetectType (someImage) into pImageType
-   --
-   put fedwiki_ConstructEncodedImageArray (someImage, pImageType, pImageCaption) into imageArray
-   itemArray_Add imageArray, pageArray
-end pageArray_AddEmbeddedImage
-
-command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
-   if pageArray is not an array then return false
-   if imageURL is  empty then return false
-   _SetImageDescription pImageCaption, pLinkURL, imageURL
-   --
-   put fedwiki_ConstructThumbHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
-   pageArray_AddHtml pageArray, imageHTML
-   return true
-end pageArray_AddThumbnail
-
-
 --> PageArray | Construct
 -
-function pageArray_Construct pageTitle, someMarkdown
+function pageArray_Construct pageTitle, someMarkdown, pPlugin
    -- was "fedwiki_ConstructSimplePageArray"
    put pageTitle into pageArray ["title"]
    pageArray_AddMarkdown pageArray, someMarkdown
-   put pageArray_ConstructJournal (pageTitle) into pageArray ["journal"] 
+   put journalArray_Construct (pageTitle) into pageArray ["journal"]
+   --
+   if pPlugin is not empty then
+      put pPlugin into pageArray ["plugin"]
+   end if
    return pageArray
 end pageArray_Construct
-
-function pageArray_ConstructJournal pageTitle, pSourceArray, pMilliseconds
-   put storyArray_ConstructCreate (pageTitle, pSourceArray, pMilliseconds) into createArray
-   put createArray into journalArray [1]
-   return journalArray
-end pageArray_ConstructJournal
 
 
 --> PageArray | LastUpdated
@@ -365,12 +441,6 @@ end pageArray_AddDeleteAction
 
 --> PageArray | Add
 -
-command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pID
-   put fedwiki_ConstructButtonForm (buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor) into formHTML
-   pageArray_AddHTML pageArray, formHTML, pID
-   return formHTML
-end pageArray_AddButton
-
 command pageArray_AddMarkdown @pageArray, someMarkdown, pID
    if someMarkdown is empty then return 0
    put itemArray_Construct ("markdown", pID, someMarkdown) into itemArray
@@ -461,33 +531,11 @@ private function _ConstructImagePageArray pPageTitle, pPageDescription
    end if
    --
    put pPageTitle into pageArray ["title"]
-   put pageArray_ConstructJournal (pPageTitle) into pageArray ["journal"] 
+   put journalArray_Construct (pPageTitle) into pageArray ["journal"] 
    pageArray_AddMarkdown pageArray, pPageDescription
    --
    return pageArray
 end _ConstructImagePageArray
-
-private function _ConstructImageItemArray imageURL, iSource, iWidth, iHeight, iSize, pCaption, pLat, pLong, pID
-   itemArray_SetID pID
-   put pID into itemArray ["id"]
-   
-   put "image" into itemArray ["type"]
-   --
-   put imageURL into itemArray ["url"]
-   put iSource into itemArray ["source"]
-   put pCaption into itemArray ["text"]
-   --
-   put iSize into itemArray ["size"]
-   put iWidth into itemArray ["width"]
-   put iHeight into itemArray ["height"]
-   
-   # Add Geo
-   if pLat is not empty then
-      put pLat into itemArray ["location"]["latitude"]
-      put pLong into itemArray ["location"]["longitude"]
-   end if
-   return itemArray
-end _ConstructImageItemArray
 
 
 --> Deps

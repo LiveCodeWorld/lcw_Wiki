@@ -21,6 +21,192 @@ local PluginRouteData
 
 --> Working on
 -
+command action_ForkPage pageSlug, wikiDomain, actionArray
+   -- put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   -- if pageArray is not an array then return "Error, page-json is faulty for" && wikiDomain,pageSlug
+   
+   -- create a blank new page
+   put actionArray ["date"] into forkDate
+   -- put actionArray ["item"] into pageArray
+   put actionArray ["forkpage"] into pageArray
+   put actionArray ["site"] into forkDomain
+   if forkDomain = wikiDomain then
+      put empty into forkDomain
+   end if
+   -- put pageArray ["title"] into pageTitle
+   -- put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   
+   -- put actionArray ["id"] into itemID
+   pageArray_SetFork pageArray, forkDomain, forkDate
+   
+   # Update the JSON file and sitemap
+   save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
+   --
+   return pageArray
+end action_ForkPage
+
+command get_WikiLineUp someRoute, socketID, requestArra, pOwnedBy
+   # Fetch default server page
+   put wikiClient_GetStaticHtml() into someHTML
+   
+   # Render server page together with json
+   put pageArray ["title"] into pPageTitle
+   put _ConstructLineupDiv (someRoute) into pageDiv
+   
+   # Set end script login and ownership params
+   _SetEndScript someHTML, pPageTitle, pOwnedBy
+   
+   # Set "pages" div
+   put pageArray ["story"] into storyArray
+   wiki_SetTagOffsets someHTML, "pages", startCharNum, endCharNum
+   put the result into innerHTML
+   if innerHTML is not empty then
+      put pageDiv into char startCharNum to endCharNum of someHTML
+   end if
+   --
+   daemon_SendText socketID, someHTML
+   return "Sent welcome-visitors for" && wikiDomain
+end get_WikiLineUp
+
+command _SetFirstMultipart rPostData, @someImage, @shortFileName, @mimeType
+   -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
+   /*
+   -----------------------------57324694142348375092642508047
+   Content-Disposition: form-data; name="image"; filename="39e2e88aeea0aa7739a599333f5bb38d.jpg"
+   Content-Type: image/jpeg
+   */
+   
+   # Quick parsing hack assuming its an image in a single part
+   set the itemdelimiter to ":"
+   put line 1 of rPostData into boundaryLine
+   put token -1 of item 2 line 2 of rPostData into shortFileName
+   put word -1 of line 3 of rPostData into mimeType
+   --
+   delete line 1 to 3 of rPostData
+   put word 1 to -1 of rPostData into someImage
+   delete line -1 of someImage
+   --
+   return "Finished"
+end _SetFirstMultipart
+
+command get_WikiPageJsonNotFound someRoute, socketID, requestArray
+   -- /jacob-soll.json
+   set the itemdelimiter to slash
+   put item -1 of someRoute into pageSlugToCreate
+   if char -5 to -1 of pageSlugToCreate = ".json" then
+      delete char -5 to -1 of pageSlugToCreate
+   end if
+   
+   # If not found, wiki-client tries pages remote server and then present a ghost-create page]
+   if the optionKey is "Down" then
+      put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+      if the shiftKey is "Down" then
+         put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+         
+         mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
+         if pageID is a number then
+            put mediawiki_FetchSummaryPageArray (pageTitle) into pageArray
+            put "markdown" into pageArray ["plugin"]
+         else
+            put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
+         end if
+      else
+         put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
+      end if
+      --
+      daemon_SendArray socketID, pageArray
+      return "Sent JSON. Socket still open."
+   else
+      put wikiServer_GetPageArray (pageSlugToCreate) into pageArray
+      if pageArray is an array then
+         put json_FromArray (pageArray) into someJSON
+         daemon_SendJSON socketID, someJSON
+         return "Sent default page JSON. Socket still open."
+      else
+         put word 1 of the params && someRoute into logComment
+         daemon_SendNotFound socketID, logComment
+         return "Returned 404 page not found."
+      end if
+   end if
+end get_WikiPageJsonNotFound
+
+command get_Asset assetPath, wikiDomain, socketID, requestArray, pSendCompressed
+   put wiki_ConstructAssetFile (assetPath, wikiDomain) into assetFile
+   if there is a file assetFile then
+      daemon_SendAsset requestArray, assetFile, pSendCompressed
+      return the result
+   else
+      put "get_Asset" && wikiDomain & "," && assetFile into logComment
+      daemon_SendNotFound socketID, logComment
+      return "Returned 404 image not found."
+   end if
+end get_Asset
+
+command get_Image shortImageFile, wikiDomain, socketID, requestArray
+   put wiki_ConstructImageAssetFile (shortImageFile, wikiDomain) into imageFile
+   -- put daemon_ReceivedHeader ("Referer", requestArray) into sReferer -- can we use this to find the image better
+   --
+   if there is a file imageFile then
+      put url ("binfile:" & imageFile) into someImage
+      set the itemdelimiter to "."
+      put item -1 of shortImageFile into fileExt
+      switch fileExt
+         case "gif"
+            daemon_SendImage socketID, someImage, "gif"
+            break
+         case "jpeg"
+         case "jpg"
+            daemon_SendImage socketID, someImage, "jpeg"
+            break
+         case "png"
+            daemon_SendImage socketID, someImage, "png"
+            break
+         default
+            daemon_SendImage socketID, someImage
+      end switch
+      return "Sent image" && someRoute
+   else
+      -- /assets/plugins/image/f9189e09ad44c357a66cea9550a721d3.jpg
+      put "_SendImage" && imageFile & "," && wikiDomain into logComment
+      daemon_SendNotFound socketID, logComment
+      return "Returned 404 image not found."
+   end if
+end get_Image
+
+command get_FlagClick someRoute, socketID, requestArray, pPageTitle
+   get_WikiDomain someRoute, socketID, requestArray, pPageTitle
+end get_FlagClick
+
+command get_WikiDomain someRoute, socketID, requestArray, pPageTitle, pOwnedBy
+   /* Site reload
+   Takes the default welcome-visitors server template and merges the params
+   It takes the tags and pageDiv section using _ConstructSimplePageDiv() and replaces curly-tags
+   The wiki-client does all the dynamic heavy lifting, so no need for server to render anything.*/
+   
+   if pPageTitle is empty then put "Welcome Visitors" into pPageTitle
+   put fedwiki_ConstructSlug (pPageTitle) into pageSlug
+   
+   # Fetch default server page
+   put wikiClient_GetStaticHtml() into someHTML
+   
+   # Construct rendered page div
+   put _ConstructSimplePageDiv (pageSlug) into pageDiv
+   
+   # Set end script login and ownership params
+   _SetEndScript someHTML, pPageTitle, pOwnedBy
+   
+   # Set "pages" div
+   wiki_SetTagOffsets someHTML, "pages", startCharNum, endCharNum
+   put the result into innerHTML
+   if innerHTML is not empty then
+      put pageDiv into char startCharNum to endCharNum of someHTML
+   end if
+   
+   # Send HTML   
+   daemon_SendText socketID, someHTML
+   return merge ("Sent [[pageSlug]] for [[wikiDomain]]")
+end get_WikiDomain
+
 
 --> Props
 -
@@ -32,7 +218,7 @@ end plugin_RouteData
 --> Not implemented
 -
 command get_SecurityJS socketID, someRoute, requestArray
-   daemon_SendNotFound socketID
+   daemon_SendNotFound socketID, word 1 of the params
    return "Security.js not implemented for" && someRoute
 end get_SecurityJS
 
@@ -40,15 +226,23 @@ end get_SecurityJS
 --> Undefined
 -
 command undefined_Action socketID, someRoute, requestArray, pageSlug, wikiDomain, actionArray
-   daemon_SendNotFound socketID
+   put "undefined_Action" && someRoute into logComment
+   daemon_SendNotFound socketID, logComment
 end undefined_Action
 
+command undefined_Post socketID, someRoute, requestArray, pageSlug, wikiDomain, actionArray
+   put "undefined_Post" && someRoute into logComment
+   daemon_SendNotFound socketID, logComment
+end undefined_Post
+
 command undefined_Put socketID, someRoute, requestArray, pageSlug, wikiDomain, actionArray
-   daemon_SendNotFound socketID
+   put "undefined_Put" && someRoute into logComment
+   daemon_SendNotFound socketID, logComment
 end undefined_Put
 
 command undefined_Get socketID, someRoute, requestArray, pageSlug, wikiDomain, actionArray
-   daemon_SendNotFound socketID
+   put "undefined_Get" && someRoute into logComment
+   daemon_SendNotFound socketID, logComment
 end undefined_Get
 
 
@@ -76,6 +270,18 @@ command daemon_RouteRequest requestArray
    # Core handler that lib_Daemon dispatches  
    _DeconstructRequestArray requestArray, socketID, someMethod, someRoute, queryString, requestUrl
    switch someMethod
+      case "OPTIONS"
+         -- seems to iterate through each elemtn of neighbourhood
+         -- but domain is not shown in "daemon_ReceivedHeader"
+         put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+         if wikiDomain = "rest.livecode.world" then
+            put daemon_GetRequestText (requestArray) into routeData
+            put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+         end if
+         --
+         daemon_SendOptions routeData, socketID
+         return "Options:" && wikiDomain
+         break
       case "GET"
          route_GET someRoute, socketID, requestArray
          break
@@ -90,6 +296,39 @@ command daemon_RouteRequest requestArray
          break
    end switch
 end daemon_RouteRequest
+
+command daemon_SendOptions routeData, socketID
+   /*
+   Accept-Encoding: gzip, deflate
+   Access-Control-Request-Method: POST
+   Access-Control-Request-Headers: content-type
+   Referer: http://thought.garden/
+   Origin: http://thought.garden
+   Connection: keep-alive
+   
+   HTTP/1.1 200 OK
+   Allow: GET,HEAD
+   Content-Type: text/html; charset=utf-8
+   Content-Length: 8
+   ETag: W/"8-ZRAf8oNBS3Bjb/SU2GYZCmbtmXg"
+   Date: Wed, 10 Jan 2024 13:00:26 GMT
+   Connection: keep-alive
+   Keep-Alive: timeout=5 
+   */
+   -- put "GET,HEAD" into headerArray ["Allow"]
+   -- put "text/html; charset=utf-8" into headerArray ["Content-Type"]
+   put "*" into headerArray ["Access-Control-Allow-Origin"]
+   put "POST, GET, OPTIONS" into headerArray ["Access-Control-Allow-Methods"]
+   put "Content-Type" into headerArray ["Access-Control-Allow-Headers"]
+   --
+   put "HTTP/1.1 200 OK" into someHeader
+   put CRLF & daemon_DeconstructHeaderArray (headerArray) after someHeader
+   
+   -- daemon_SendRaw someHeader, routeData, socketID
+   daemon_Send someHeader, routeData, socketID
+   --
+   return "Options:" && wikiDomain
+end daemon_SendOptions
 
 
 --> DELETE
@@ -113,8 +352,88 @@ command delete_RecycledPage pageSLug, wikiDomain, socketID
 end delete_RecycledPage
 
 
+--> POST
+-
+command post_Favicon requestArray, socketID
+   put daemon_GetRequestText (requestArray) into rPostData
+   get URLDecode (rPostData)
+   put item 1 of it into imageTypeBit -- image=data:image/png;base64
+   put item 2 to -1 of it into encodedData
+   --
+   put base64Decode (encodedData) into someImage
+   set the itemdelimiter to ":"
+   put item 2 of imageTypeBit into mimeType  
+   set the itemdelimiter to slash
+   put item 2 of mimeType into fileExt
+   --
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   put wiki_ConstructFaviconFile (wikiDomain) into faviconFile
+   put someImage into url ("binfile:" & faviconFile)
+   --
+   daemon_SendOK socketID, "OK"
+   return "Saved favicon:" && wikiDomain && shortImageFile
+end post_Favicon
+
+command post_Image shortImageFile, requestArray, socketID
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   put wiki_ConstructImageAssetFile (shortImageFile, wikiDomain) into imageFile
+   if there is a file imageFile then
+      -- seems to be called twice?
+      breakpoint
+      return "Error, image file exists:" && imageFile
+   end if
+   
+   put daemon_GetRequestText (requestArray) into rPostData
+   _SetFirstMultipart rPostData, someImage, shortFileName, mimeType
+   
+   if shortFileName = shortImageFile then
+      set the itemdelimiter to slash
+      put item -1 of mimeType into imageType
+      --
+      put someImage into url ("binfile:" & imageFile)
+      --
+      -- display_Text someImage, shortImageFile
+      daemon_SendOK socketID, "OK"
+      return "Saved image to asset folder:" && wikiDomain && shortImageFile
+   else
+      beep
+      breakpoint
+      return "Error, pasing image using post_Image"
+   end if
+end post_Image
+
+
 --> GET | Exceptions
 -
+command get_ListAssets wikiDomain, requestArray, socketID
+   -- "/plugin/assets/list?assets=pages/model-furniture"
+   
+   # Get text of assets plugin from querystring
+   get requestArray ["QUERY_STRING"] -- assets=pages/model-furniture
+   put urldecode (it) into queryString
+   split it with "&" and "="
+   put it ["assets"] into relAssetPath
+   
+   -- set the itemdelimiter to ":"
+   -- put word 1 to -1 of item 1 of queryString into sKey -- "assets"
+   -- put word 1 to -1 of item 2 of queryString into relAssetPath -- "pages/model-furniture" as text of assets plugin
+   
+   # Construct json from files on server
+   -- put "{'error':null,'files':['living-room.scad','living-room.stl','seating.scad','seating.stl']}" into sJSON
+   -- replace "'" with quote in sJSON
+   put wiki_ListAssets (wikiDomain, relAssetPath, true) into shortFiles
+   put "null" into jsonArray ["error"]
+   put 1 into itemNum
+   repeat for each line shortFile in shortFiles
+      put shortFile into jsonArray ["files"][itemNum]
+      add 1 to itemNum
+   end repeat
+   put json_FromArray (jsonArray) into sJSON
+   --
+   daemon_SendJSON socketID, sJSON
+   return "Sent assets file JSON. Socket still open."
+end get_ListAssets
+
 command get_SiteMapJson wikiDomain, socketID
    put wikiSiteMap_GetJson (wikiDomain) into binaryJSON
    daemon_SendSiteMapJSON socketID, binaryJSON
@@ -124,19 +443,22 @@ end get_SiteMapJson
 
 command get_SiteIndexJson wikiDomain, socketID
    put wikiSiteIndex_GetJson (wikiDomain) into binaryJSON
-   daemon_SendJSON socketID, binaryJSON
-   return "Sent Sitemap JSON. Socket still open."
+   if binaryJSON is empty then
+      put "Site-index.json not found for:" && wikiDomain into logComment
+      daemon_SendNotFound socketID, logComment
+      return logComment
+   else
+      daemon_SendJSON socketID, binaryJSON
+      return "Sent site-index.json. Socket still open."
+   end if
 end get_SiteIndexJson
 
-
---> GET | Exceptions
--
 command get_RecycledPageJson pageSLug, wikiDomain, socketID
    -- GET /recycler/livecode-sites.json HTTP/1.1
    put pageJson_GetRecycled (wikiDomain, pageSlug) into someJSON
    --
    if someJSON is empty then
-      daemon_SendNotFound socketID
+      daemon_SendNotFound socketID, word 1 of the params
       return "Returned 404 page not found."
    else
       daemon_SendJSON socketID, someJSON
@@ -164,40 +486,13 @@ end get_WikiClientJsMap
 
 --> GET | Processing
 -
-command get_FlagClick socketID
-   get_WikiDomain socketID
-end get_FlagClick
-
-command get_WikiDomain socketID
-   # Fetch default server page
-   put wikiClient_GetStaticHtml() into htmlTemplate
-   
-   # Merge htmlTemplate with simple div based on route
-   put _ConstructHtml (htmlTemplate) into someHTML
-   
-   daemon_SendText socketID, someHTML
-   return "Sent welcome-visitors for" && wikiDomain
-end get_WikiDomain
-
-command get_WikiLineUp someRoute, socketID, requestArray
-   # Fetch default server page
-   put wikiClient_GetStaticHtml() into htmlTemplate
-   
-   # Render server page together with json
-   put _ConstructLineUpHtml (htmlTemplate, someRoute) into someHTML
-   --
-   daemon_SendText socketID, someHTML
-   return "Sent welcome-visitors for" && wikiDomain
-end get_WikiLineUp
-
-command get_WikiPageJson pageSlug, wikiDomain, socketID   
+command get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
    # First the wiki-client looks for page at origin server
    put pageJson_Get (wikiDomain, pageSlug) into someJSON
    --
    if someJSON is empty then
-      # If not found, wiki-client tries pages remote server
-      daemon_SendNotFound socketID
-      return "Returned 404 page not found."
+      get_WikiPageJsonNotFound someRoute, socketID, requestArray
+      return the result
    else
       daemon_SendJSON socketID, someJSON
       return "Sent JSON. Socket still open."
@@ -222,8 +517,8 @@ command get_PluginJavascriptMap pluginName, shortFile, socketID
       daemon_SendJSON socketID, mapJSON
       return "Sent mapJSON. Socket still open."
    else
-      breakpoint
-      daemon_SendNotFound socketID
+      put word 1 of the params && pageSlug,pluginName into logComment
+      daemon_SendNotFound socketID, logComment
       return "Error, cannot locate mapJSON not sent. Socket still open." && mapFile
    end if
 end get_PluginJavascriptMap
@@ -238,7 +533,8 @@ command get_PluginJavascript pluginName, shortJavascriptFile, socketID
       daemon_SendJS socketID, sJavascript
       return "Sent plugin js" && shortJavascriptFile
    else
-      daemon_SendNotFound socketID
+      put word 1 of the params && shortJavascriptFile,pluginName into logComment
+      daemon_SendNotFound socketID, logComment
       return "Error, cannot find plugin javascript file" && shortJavascriptFile
    end if
 end get_PluginJavascript
@@ -271,7 +567,7 @@ command get_LocalFavicon wikiDomain, socketID
    -- wiki-client only asks server for local favicons on startup
    put wiki_GetFavicon (wikiDomain) into sPNG
    if sPNG is empty then
-      put wiki_GetDefaultFavicon() into sPNG
+      put wikiServer_GetFavicon() into sPNG
    end if
    daemon_SendPNG socketID, sPNG
    return the result
@@ -280,12 +576,14 @@ end get_LocalFavicon
 command get_ClientPNG someRoute, socketID
    -- /images/noise.png
    put wikiClient_ConstructFile (someRoute) into pngFile
+   --
    if there is a file pngFile then
-      put url ("binfile:" & pngFile) into sPNG
-      daemon_SendPNG socketID, sPNG
+      put url ("binfile:" & pngFile) into sImage
+      daemon_SendPNG socketID, sImage
       return "Sent client png" && someRoute
    else
-      daemon_SendNotFound socketID
+      put "get_ClientPNG" && pngFile & "," && someRoute into logComment
+      daemon_SendNotFound socketID, logComment
       return "Returned 404 image not found."
    end if
 end get_ClientPNG
@@ -293,39 +591,24 @@ end get_ClientPNG
 
 --> Route
 -
-command route_POST someRoute, socketID, requestArray
-   # Logins and Transporters?
-   switch someRoute
-      case "/persona_login"
-         break
-      default
-         put daemon_GetPostData (requestArray) into rPostData
-         daemon_SendJSON socketID, "{'hello': 'world'}"
-   end switch
-end route_POST
-
-command route_DELETE someRoute, socketID, requestArray
-   put _HostFromRequest (requestArray) into wikiDomain
-   --
-   switch
-      case matchText (someRoute, "/recycler/(.+).json" , pageSLug)
-         delete_RecycledPage pageSLug, wikiDomain, socketID
-         return the result
-      case matchText (someRoute, "/(.+).json" , pageSLug) -- /voyage-methodology.json
-         delete_PageJson pageSLug, wikiDomain, socketID
-         return the result
-      default
-         breakpoint
-   end switch
-end route_DELETE
-
 command route_GET someRoute, socketID, requestArray
-   put _HostFromRequest (requestArray) into wikiDomain
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    --
    put PluginRouteData [someRoute] into routeArray
    put routeArray ["type"] into routeType
    --
    switch
+      case matchText (someRoute, "/assets/plugins/image/(.+)" , shortImageFile)
+         get_Image shortImageFile, wikiDomain, socketID, requestArray         
+         break
+      case someRoute = "/plugin/assets/list"
+         get_ListAssets wikiDomain, requestArray, socketID
+         return the result
+      case matchText (someRoute, "/assets/(.+)" , encodedPath)
+         put URLDecode (encodedPath) into assetPath
+         get_Asset assetPath, wikiDomain, socketID, requestArray 
+         return the result
+         
       case someRoute = "/system/sitemap.json"
          get_SiteMapJson wikiDomain, socketID
          return the result
@@ -333,12 +616,6 @@ command route_GET someRoute, socketID, requestArray
          get_SiteIndexJson wikiDomain, socketID
          return the result
          
-      case someRoute = "/"
-         get_WikiDomain socketID
-         return the result
-      case someRoute = "/view/welcome-visitors"
-         get_FlagClick socketID
-         return the result
       case routeType = "pluginMap"
          put routeArray ["pluginName"] into pluginName
          put routeArray ["mapFile"] into shortMapFile
@@ -359,6 +636,11 @@ command route_GET someRoute, socketID, requestArray
          get_PluginPageJson pluginName, pageSlug, socketID
          return the result
          
+      case someRoute begins with "/plugins/"
+         breakpoint -- should have been trapped by PluginRouteData
+         route_Plugin someRoute, socketID, requestArray
+         return the result
+         
       case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
          get_RecycledPageJson pageSLug, wikiDomain, socketID
          return the result
@@ -367,9 +649,6 @@ command route_GET someRoute, socketID, requestArray
          return the result
       case someRoute = "/view/welcome-visitors/view/changes.js.map"
          get_WikiClientJsMap someRoute, socketID
-         return the result
-      case someRoute begins with "/plugins/"
-         route_Plugin someRoute, socketID, requestArray
          return the result
          
       case someRoute = "/security/security.js"
@@ -403,14 +682,60 @@ command route_GET someRoute, socketID, requestArray
          return the result
          
       case matchText (someRoute, "/(.+).json" , pageSLug)
-         get_WikiPageJson pageSLug, wikiDomain, socketID
+         get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
          return the result
+         
+      case someRoute = "/"
+         get_WikiDomain someRoute, socketID, requestArray
+         return the result
+      case someRoute = "/view/welcome-visitors"
+         -- case matchText (someRoute, "/view/welcome-visitors/view/(.+)" , pageSLug)
+         -- http://server.livecode.world/view/welcome-visitors
+         get_FlagClick someRoute, socketID, requestArray
+         return the result
+         
       default
-         -- undefined_Get socketID, someRoute, requestArray
-         get_WikiLineUp someRoute, socketID, requestArray
-         return the result
+         if _LinupTest (someRoute) is true then
+            get_WikiLineUp someRoute, socketID, requestArray
+            return the result
+         else
+            -- /plugin/assets/list
+            undefined_Get socketID, someRoute, requestArray
+            return the result
+         end if
    end switch
 end route_GET
+
+command route_POST someRoute, socketID, requestArray
+   # Logins and Transporters?
+   switch
+      case matchText (someRoute, "/plugin/image/upload/(.+)", shortImageFile)
+         post_Image shortImageFile, requestArray, socketID
+         return the result
+      case someRoute = "/favicon.png"
+         post_Favicon requestArray, socketID
+         return the result
+      default
+         put daemon_GetRequestText (requestArray) into rPostData
+         daemon_SendJSON socketID, "{'hello': 'world'}"
+         return the result
+   end switch
+end route_POST
+
+command route_DELETE someRoute, socketID, requestArray
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   --
+   switch
+      case matchText (someRoute, "/recycler/(.+).json" , pageSLug)
+         delete_RecycledPage pageSLug, wikiDomain, socketID
+         return the result
+      case matchText (someRoute, "/(.+).json" , pageSLug) -- /voyage-methodology.json
+         delete_PageJson pageSLug, wikiDomain, socketID
+         return the result
+      default
+         breakpoint
+   end switch
+end route_DELETE
 
 command route_PUT someRoute, socketID, requestArray
    set the itemdelimiter to "/"
@@ -463,6 +788,31 @@ end route_Plugin
 
 --> Action
 -
+
+command action_Move pageSlug, wikiDomain, actionArray
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   
+   # Re-order storyArray
+   put pageArray ["story"] into storyArray
+   put actionArray ["order"] into orderArray
+   repeat for each key orderNum in orderArray
+      put orderArray [orderNum] into itemID
+      put pageArray_FindItemID (itemID, pageArray) into oldStoryItemNum
+      put storyArray [oldStoryItemNum] into newPageArray [orderNum]
+   end repeat
+   put newPageArray into pageArray ["story"]
+   
+   # Add a "move" to the journal
+   put pageArray ["journal"] into journalArray
+   journalArray_Add journalArray, actionArray, "move"
+   put journalArray into pageArray ["journal"]
+   
+   # Update the JSON file and sitemap
+   save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
+   --
+   return pageArray
+end action_Move
+
 command action_EditItem pageSlug, wikiDomain, actionArray
    put pageArray_Get (wikiDomain, pageSlug) into pageArray
    
@@ -494,13 +844,19 @@ command action_AddItem pageSlug, wikiDomain, actionArray
    --
    put actionArray ["id"] into itemID
    put actionArray ["after"] into afterID
-   put actionArray ["item"]["type"] into itemType
-   put itemArray_Construct (itemType, itemID) into itemArray
+   put actionArray ["item"] into itemArray
+   -- put itemArray ["type"] into itemType
+   -- put itemArray_Construct (itemType, itemID) into itemArray
    
    put pageArray_FindItemID (afterID, pageArray) into afterItemNum
    put pageArray ["story"] into storyArray
    storyArray_InsertAfter storyArray, afterItemNum, itemArray
    put storyArray into pageArray ["story"]
+   
+   # Add to journal
+   put pageArray ["journal"] into journalArray
+   journalArray_Add journalArray, itemArray, "add"
+   put journalArray into pageArray ["journal"]
    
    # Update the JSON file and sitemap
    save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
@@ -515,7 +871,7 @@ command action_RemoveItem pageSlug, wikiDomain, actionArray
    put actionArray ["id"] into itemID
    put pageArray_FindItemID (itemID, pageArray) into storyItemNum
    
-   -- let's delete the item and renumber
+   # Delete the item and renumber
    put pageArray ["story"] into storyArray
    put item 2 of the extents of storyArray into maxNum
    repeat with toMoveNum = (storyItemNum + 1) to maxNum
@@ -525,7 +881,7 @@ command action_RemoveItem pageSlug, wikiDomain, actionArray
    delete variable storyArray [maxNum]
    put storyArray into pageArray ["story"]
    
-   -- add to journal
+   # Add to journal
    put pageArray ["journal"] into journalArray
    journalArray_Add journalArray, actionArray, "remove"
    put journalArray into pageArray ["journal"]
@@ -535,53 +891,6 @@ command action_RemoveItem pageSlug, wikiDomain, actionArray
    --
    return pageArray
 end action_RemoveItem
-
-command action_Move pageSlug, wikiDomain, actionArray
-   put pageArray_Get (wikiDomain, pageSlug) into pageArray
-   
-   # Re-order storyArray
-   put pageArray ["story"] into storyArray
-   put actionArray ["order"] into orderArray
-   repeat for each key orderNum in orderArray
-      put orderArray [orderNum] into itemID
-      put pageArray_FindItemID (itemID, pageArray) into oldStoryItemNum
-      put storyArray [oldStoryItemNum] into newPageArray [orderNum]
-   end repeat
-   put newPageArray into pageArray ["story"]
-   
-   # Add a "move" to the journal
-   put pageArray ["journal"] into journalArray
-   journalArray_Add journalArray, actionArray, "move"
-   put journalArray into pageArray ["journal"]
-   
-   # Update the JSON file and sitemap
-   save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
-   --
-   return pageArray
-end action_Move
-
-command action_ForkPage pageSlug, wikiDomain, actionArray
-   -- put pageArray_Get (wikiDomain, pageSlug) into pageArray
-   -- if pageArray is not an array then return "Error, page-json is faulty for" && wikiDomain,pageSlug
-   
-   -- create a blank new page
-   put actionArray ["date"] into forkDate
-   put actionArray ["item"] into pageArray
-   put actionArray ["site"] into forkDomain
-   if forkDomain = wikiDomain then
-      put empty into forkDomain
-   end if
-   -- put pageArray ["title"] into pageTitle
-   -- put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   
-   -- put actionArray ["id"] into itemID
-   pageArray_SetFork pageArray, forkDomain, forkDate
-   
-   # Update the JSON file and sitemap
-   save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
-   --
-   return pageArray
-end action_ForkPage
 
 command action_CreatePage pageSlug, wikiDomain, actionArray
    -- create a blank new page
@@ -602,17 +911,15 @@ end action_CreatePage
 --> PUT
 -
 command put_Action someRoute, requestArray, socketID
-   put daemon_GetPostData (requestArray) into sInput
-   
-   set the itemdelimiter to slash
-   put item 3 of someRoute into pageSlug    
-   put _HostFromRequest (requestArray) into wikiDomain
-   
-   --  action:{"type":"create","item":{"title":"HiKey Board","story":[]},"date":1438036497154}
+   put daemon_GetRequestText (requestArray) into sInput
    split sInput with "&" and "="
    put sInput [action] into encodedAction
    put urldecode (encodedAction) into actionJSON
    put json_ToArray (actionJSON) into actionArray
+   
+   set the itemdelimiter to slash
+   put item 3 of someRoute into pageSlug    
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    
    put actionArray ["type"] into actionType
    switch actionType
@@ -709,14 +1016,6 @@ private function _ConstructSiteMapItemArray pageTitle, pageSynopsis, pDateInMill
    return mapArray
 end _ConstructSiteMapItemArray
 
-private function _HostFromRequest requestArray
-   put requestArray ["receivedHeaders"] into receivedHeaderArray
-   split receivedHeaderArray with CR and ":"
-   put word 1 to -1 of receivedHeaderArray ["Host"] into fromHost
-   set the itemdelimiter to ":"
-   return item 1 of fromHost
-end _HostFromRequest
-
 private command _DeconstructRequestArray requestArray, @socketID, @someMethod, @someRoute, @queryString, @requestUrl
    put requestArray ["socketID"] into socketID
    put requestArray ["Request Method"] into someMethod
@@ -726,6 +1025,41 @@ private command _DeconstructRequestArray requestArray, @socketID, @someMethod, @
 end _DeconstructRequestArray
 
 command _LoadPluginRoutes pluginName
+   -- put "recycler" into pluginName
+   put wikiPlugin_ListPageSlugs (pluginName) into pageSlugs
+   repeat for each line pageSlug in pageSlugs
+      -- someRoute = "/about-recycler-plugin.json"
+      put "/" & pageSlug & ".json" into someRoute
+      --
+      put "pluginPageSlug" into PluginRouteData [someRoute]["type"]
+      put pluginName into PluginRouteData [someRoute]["pluginName"]
+      put pageSlug into PluginRouteData [someRoute]["pageSlug"]
+   end repeat
+   
+   put wikiPlugin_ListClientRelativePaths (pluginName) into relPaths
+   set the itemdelimiter to "."
+   repeat for each line relPath in relPaths
+      put "/" & pluginName & "/" & relPath into someRoute
+      --
+      put item -1 of relPath into sFileExtension
+      switch sFileExtension
+         case "js"
+            put "pluginJavascript" into PluginRouteData [someRoute]["type"]
+            put pluginName into PluginRouteData [someRoute]["pluginName"]
+            put relPath into PluginRouteData [someRoute]["jsFile"]
+            break
+         case "map"
+            put "pluginMap" into PluginRouteData [someRoute]["type"]
+            put pluginName into PluginRouteData [someRoute]["pluginName"]
+            put relPath into PluginRouteData [someRoute]["mapFile"]
+            break
+         default
+            next repeat
+      end switch
+   end repeat
+end _LoadPluginRoutes
+
+command _SimpleLoadPluginRoutes pluginName
    -- put "recycler" into pluginName
    put wikiPlugin_ListPageSlugs (pluginName) into pageSlugs
    repeat for each line pageSlug in pageSlugs
@@ -758,7 +1092,7 @@ command _LoadPluginRoutes pluginName
             next repeat
       end switch
    end repeat
-end _LoadPluginRoutes
+end _SimpleLoadPluginRoutes
 
 private function _RecycledSlugsJson wikiDomain
    # Question: is this is normally provided by client-server registration?
@@ -778,31 +1112,6 @@ private function _RecycledSlugsData wikiDomain
    end repeat
    return slugData
 end _RecycledSlugsData
-
-private function _ConstructHtml htmlTemplate, pPageTitle, pOwnedBy
-   /* Takes the default welcome-visitors server template and merges the params
-   It takes the tags and pageDiv section using _ConstructSimplePageDiv() and replaces curly-tags
-   The wiki-client does all the dynamic heavy lifting, so no need for server to render anything.*/
-   
-   if pPageTitle is empty then put "Welcome Visitors" into pPageTitle
-   put fedwiki_ConstructSlug (pPageTitle) into pageSlug
-   
-   # Construct rendered page div
-   put _ConstructSimplePageDiv (pageSlug) into pageDiv
-   
-   # Set end script login and ownership params
-   _SetEndScript htmlTemplate, pPageTitle, pOwnedBy
-   
-   # Set "pages" div
-   put pageArray ["story"] into storyArray
-   wiki_SetTagOffsets htmlTemplate, "pages", startCharNum, endCharNum
-   put the result into innerHTML
-   if innerHTML is not empty then
-      put pageDiv into char startCharNum to endCharNum of htmlTemplate
-   end if
-   
-   return htmlTemplate
-end _ConstructHtml
 
 private function _ConstructSimplePageDiv pageSlug
    put "<div class='page' id='[[pageSlug]]' tabindex='-1'  >" & CR into pageDivTemplate
@@ -848,23 +1157,13 @@ private function _ConstructLineupDiv someRoute
    return pageDivContents
 end _ConstructLineupDiv
 
-function _ConstructLineUpHtml htmlTemplate, someRoute, pOwnedBy
-   if pTabChars is empty then put "  " into pTabChars
-   put pageArray ["title"] into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   
-   put _ConstructLineupDiv (someRoute) into pageDiv
-   
-   # Set end script login and ownership params
-   _SetEndScript htmlTemplate, pageTitle, pOwnedBy
-   
-   # Set "pages" div
-   put pageArray ["story"] into storyArray
-   wiki_SetTagOffsets htmlTemplate, "pages", startCharNum, endCharNum
-   put the result into innerHTML
-   if innerHTML is not empty then
-      put pageDiv into char startCharNum to endCharNum of htmlTemplate
+private function _LinupTest someRoute
+   -- fast but crude
+   set the itemdelimiter to slash
+   get item 2 of someRoute
+   if it = "view" or "." is among the chars of it then
+      return true
+   else
+      return false
    end if
-   
-   return htmlTemplate
-end _ConstructLineUpHtml
+end _LinupTest

@@ -63,35 +63,6 @@ end pageArray_InsertStoryAfter
 
 --> StoryArray
 -
-function storyArray_GetLastPageFold storyArray
-   -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
-   put item 2 of the extents of storyArray into maxNum
-   repeat with itemNum = maxNum down to 1
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "pagefold" then
-         return itemNum
-      end if
-   end repeat
-   return 0
-end storyArray_GetLastPageFold
-
-command storyArray_AddDividerToEnd @storyArray, lastDividerItemArray
-   put item 2 of the extents of newStoryArray into nextItemNum
-   add 1 to nextItemNum
-   put lastDividerItemArray into newStoryArray [nextItemNum]
-   return nextItemNum
-end storyArray_AddDividerToEnd
-
-function storyArray_ConstructCreate pageTitle, pMilliseconds, pSourceArray
-   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
-   put "create" into createArray ["type"]
-   put pMilliseconds into createArray ["date"]
-   put pageTitle into createArray ["item"]["title"]
-   put empty into createArray ["item"]["story"]
-   if pSourceArray is an array then put pSourceArray into createArray ["source"]
-   return createArray
-end storyArray_ConstructCreate
-
 function storyArray_ExtractOrderedIDArray storyArray
    put item 2 of the extents of storyArray into maxItem
    repeat with itemNum = 1 to maxItem
