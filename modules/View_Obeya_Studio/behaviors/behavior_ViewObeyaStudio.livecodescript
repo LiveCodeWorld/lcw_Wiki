@@ -15,6 +15,28 @@ version: 0.3
 local LocalArray
 
 
+--> Events
+-
+-- on resizeControl
+   LayoutControl
+end resizeControl
+
+command LayoutControl pRect
+   if pRect is empty then put the rect of this cd into pRect
+   get the menubar of the defaultstack
+   if it is not empty then
+      put the menubar_View of me into mView
+      if exists (mView) then
+         -- put the height of mView into sHeight
+         put 20 into sHeight
+         -- subtract sHeight from item 2 of pRect
+         add sHeight to item 2 of pRect
+      end if
+   end if
+   set the rect of me to pRect
+end LayoutControl
+
+
 --> Working on
 -
 getprop page_Html [pSlug]
@@ -80,7 +102,7 @@ command _DisplayToolsPage pageTitle, wikiDomain, urlPath
          set the wikipedia_Page of me to pageSlug
          break
       default 
-         put pageJson_ConstructFile (wikiDomain, pageSlug) into jsonFile
+         put wikiFile_Construct (wikiDomain, pageSlug) into jsonFile
          if there is a file jsonFile then
             put wikiPage_EditPage (pageSlug, wikiDomain) into pageArray
          else
@@ -252,28 +274,6 @@ getprop page_JsonFile [pSlug]
    put _PageJsonConstructFile (wikiDomain, pSlug) into pageJsonFile
    return pageJsonFile
 end page_JsonFile
-
-
---> Events
--
-on resizeControl
-   LayoutControl
-end resizeControl
-
-command LayoutControl pRect
-   if pRect is empty then put the rect of this cd into pRect
-   get the menubar of the defaultstack
-   if it is not empty then
-      put the menubar_View of me into mView
-      if exists (mView) then
-         -- put the height of mView into sHeight
-         put 20 into sHeight
-         -- subtract sHeight from item 2 of pRect
-         add sHeight to item 2 of pRect
-      end if
-   end if
-   set the rect of me to pRect
-end LayoutControl
 
 
 --> Working on
@@ -795,8 +795,8 @@ private function _GetJavascriptResult sJavascript
 end _GetJavascriptResult
 
 function _PageJsonConstructFile wikiDomain, pSlug
-   -- was "pageJson_ConstructFile"
-   put wiki_GetFolder (wikiDomain) into wikiDomainFolder
+   -- was "wikiFile_Construct"
+   put wikiFolder_Get (wikiDomain) into wikiDomainFolder
    put wikiDomainFolder & pSlug into pageJsonFile
    return pageJsonFile
 end _PageJsonConstructFile

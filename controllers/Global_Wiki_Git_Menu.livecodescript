@@ -30,7 +30,7 @@ command _MoveWikis wikiDomains, dView, pReDomain
    repeat for each line wikiDomain in wikiDomains
       display_Spin wikiDomain, dView, "green"
       --
-      put wiki_GetFolder (wikiDomain) into wikiFolder
+      put wikiFolder_Get (wikiDomain) into wikiFolder
       if there is a folder wikiFolder then
          breakpoint
          put wikiDomain & CR after existingDomains

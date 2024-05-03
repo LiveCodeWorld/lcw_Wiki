@@ -16,17 +16,52 @@ You can refer to sections by index or title.
 
 --> Working on
 -
-function storyArray_GetLastPageFold storyArray
-   -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
-   put item 2 of the extents of storyArray into maxNum
-   repeat with itemNum = maxNum down to 1
+command pageArray_AddSection @pageArray, storyArray, sectionTitle, pAfterSectionTitle
+   pageArray_SetSectionOffsets sectionTitle, pageArray, startItemNum, endItemNum
+   if the result is true then
+      # Replace section
+      pageArray_ReplaceSection pageArray, sectionTitle, storyArray
+      return "replaced"
+   end if
+   
+   if pAfterSectionTitle is empty then
+      pageArray_AddStory pageArray, storyArray
+      return "end"
+   else
+      pageArray_SetSectionOffsets pAfterSectionTitle, pageArray, startItemNum, endItemNum
+      if the result is true then
+         pageArray_InsertStoryAfter pageArray, storyArray, endItemNum
+         return "after"
+      else
+         pageArray_AddStory pageArray, storyArray
+         return "end"
+      end if
+   end if
+end pageArray_AddSection
+
+function pageArray_GetSectionText pageArray, sectionTitle
+   put pageArray_GetSection (sectionTitle, pageArray) into sectionStory
+   --
+   put item 2 of the extents of sectionStory into maxItem
+   repeat with itemNum = 2 to maxItem
+      put sectionStory [itemNum] into itemArray
+      put itemArray ["text"] into itemText
+      put itemText & CR&CR after sectionText
+   end repeat
+   return word 1 to -1 of sectionText
+end pageArray_GetSectionText
+
+function pageArray_GetFirstCode pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
       put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "pagefold" then
-         return itemNum
+      if itemArray ["type"] = "code" then
+         put storyArray [itemNum]["text"] into itemText
+         return itemText
       end if
    end repeat
-   return 0
-end storyArray_GetLastPageFold
+   return empty
+end pageArray_GetFirstCode
 
 
 --> PageArray | PageFold

@@ -17,77 +17,12 @@ local Wiki_RootFolder
 
 --> Working on
 -
-function wiki_ListRecyclePageSlugs wikiDomain
-   put wiki_ConstructRecycleFolder (wikiDomain) into recycleFolder
-   put file_ListShort (recycleFolder) into shortFiles
-   return shortFiles
-end wiki_ListRecyclePageSlugs
-
-function wiki_ConstructRecycleFolder wikiDomain
-   put wiki_ConstructFolder (wikiDomain) into wikiFolder
-   put wikiFolder & "recycle/" into recycleFolder
-   return recycleFolder
-end wiki_ConstructRecycleFolder
-
-
-
---> Wiki | Files
--
-function wikiJson_ConstructSiteIndexFile pWikiDomain
-   put wiki_ConstructStatusFolder (pWikiDomain) into statusFolder
-   put statusFolder & "site-index.json" into siteIndexFile
-   return siteIndexFile
-end wikiJson_ConstructSiteIndexFile
-
-function wikiJson_ConstructSiteMapFile pWikiDomain
-   -- .wiki/audio.commons.academy/status/sitemap.json
-   put wiki_ConstructStatusFolder (pWikiDomain) into statusFolder
-   put statusFolder & "sitemap.json" into siteMapFile
-   return siteMapFile
-end wikiJson_ConstructSiteMapFile
-
-function pageJson_ConstructRecycledFile wikiDomain, pSlug
-   if pSlug is empty then put "welcome-visitors" into pSlug
-   --
-   put wiki_RecycleFolder (wikiDomain) into wikiRecycleFolder
-   if wikiRecycleFolder is empty then return empty
-   put wikiRecycleFolder & pSlug into recycledFile
-   return recycledFile
-end pageJson_ConstructRecycledFile
-
-function pageJson_ConstructFile wikiDomain, pSlug
-   if pSlug is empty then put "welcome-visitors" into pSlug
-   --
-   put wiki_PagesFolder (wikiDomain) into pagesFolder
-   if pagesFolder is empty then return empty
-   put pagesFolder & pSlug into pageJsonFile
-   return pageJsonFile
-end pageJson_ConstructFile
-
-
---> Wiki | config
--
-function wiki_GetConfigFile
-   -- see "lib_AtopiaDomainOwnership"
-   put wiki_ConstructConfigFile() into wikiConfigFile
-   if there is a file wikiConfigFile then
-      return wikiConfigFile
-   else
-      return empty
-   end if
-end wiki_GetConfigFile
-
-function wiki_ConstructConfigFile
-   put wiki_RootFolder() into wikiRootFolder
-   put wikiRootFolder & "config.json" into wikiConfigFile
-   return wikiConfigFile
-end wiki_ConstructConfigFile
 
 
 --> Wiki | Favicon
 -
 function wiki_GetFavicon wikiDomain
-   put wiki_FaviconFile (wikiDomain) into faviconFile
+   put wikiFile_Favicon (wikiDomain) into faviconFile
    if there is a file faviconFile then
       put url ("binfile:" & faviconFile) into pngData
       return pngData
@@ -97,43 +32,10 @@ function wiki_GetFavicon wikiDomain
 end wiki_GetFavicon
 
 command wiki_SetFavicon wikiDomain, pngData
-   put wiki_FaviconFile (wikiDomain) into faviconFile
+   put wikiFile_Favicon (wikiDomain) into faviconFile
    put pngData into url ("binfile:" & faviconFile)
    return faviconFile
 end wiki_SetFavicon
-
-function wiki_FaviconFile wikiDomain
-   put wiki_ConstructFaviconFile (wikiDomain) into faviconFile
-   if there is a file faviconFile then
-      return faviconFile
-   else
-      return empty
-   end if
-end wiki_FaviconFile
-
-function wiki_ConstructFaviconFile wikiDomain
-   put wiki_ConstructStatusFolder (wikiDomain) into statusFolder
-   put statusFolder & "favicon.png" into faviconFile
-   return faviconFile
-end wiki_ConstructFaviconFile
-
-
---> Wiki | Folders
--
-function wiki_GetFolder sDomain
-   put wiki_ConstructFolder (sDomain) into folderPath 
-   if there is a folder folderPath then
-      return folderPath
-   else
-      return empty
-   end if
-end wiki_GetFolder
-
-function wiki_ConstructFolder sDomain
-   put wiki_RootFolder() into wikiRoot
-   put wikiRoot & sDomain & slash into folderPath 
-   return folderPath
-end wiki_ConstructFolder
 
 
 --> Wiki | Folders | Base
@@ -154,10 +56,26 @@ function wiki_ModulesFolder
 end wiki_ModulesFolder
 
 
---> Wiki | Status | Files
+--> WikiUrl
 -
-function wiki_ListAssets wikiDomain, pRelPath, pListShort
-   put wiki_ConstructAssetsFolder (wikiDomain) into assetsFolder
+function wikiUrl_Asset relAssetPath, wikiDomain
+   -- http://podcast.anarchive.earth/assets/audio/Astral%20Cinema.m4a
+   put "http://" & wikiDomain & "/assets/" into assetsURL
+   put urlEncode (relAssetPath) after assetsURL
+   return assetsURL
+end wikiUrl_Asset
+
+
+--> WikiFile | List
+-
+function wikiFile_ListRecycled wikiDomain
+   put wikiFolder_ConstructRecycled (wikiDomain) into recycleFolder
+   put file_ListShort (recycleFolder) into shortFiles
+   return shortFiles
+end wikiFile_ListRecycled
+
+function wikiFile_ListAssets wikiDomain, pRelPath, pListShort
+   put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
    if pRelPath is not empty then
       text_AddTrailing pRelPath, slash
       put pRelPath after assetsFolder
@@ -167,88 +85,224 @@ function wiki_ListAssets wikiDomain, pRelPath, pListShort
    else
       return file_ListLong (assetsFolder)
    end if
-end wiki_ListAssets
+end wikiFile_ListAssets
 
-function wiki_ImageAssetFile shortFile, wikiDomain
-   put wiki_ConstructImageAssetFile (shortFile, wikiDomain) into imageFile
-   if there is a file imageFile then
-      return imageFile
+
+--> WikiFile | Pages
+-
+function wikiFile_FoundPageMarkDown pageSlug, wikiDomain, pTrimFirstNumber
+   put wikiFile_FoundAndMissingArray (pageSlug, wikiDomain, pTrimFirstNumber) into sArray
+   return sArray ["found"]
+end wikiFile_FoundPageMarkDown
+
+function wikiFile_MissingPageMarkDown pageSlug, wikiDomain, pTrimFirstNumber
+   put wikiFile_FoundAndMissingArray (pageSlug, wikiDomain, pTrimFirstNumber) into sArray
+   return sArray ["missing"]
+end wikiFile_MissingPageMarkDown
+
+function wikiFile_FoundAndMissingArray pageSlug, wikiDomain, pTrimFirstNumber
+   put wikiFile_ListPageSlugs (wikiDomain) into pageSlugs
+   put wikiFile_ListShort (pageSlug, wikiDomain) into shortFiles
+   --
+   set the itemdelimiter to "."
+   repeat for each line shortAudioFile in shortFiles
+      put item 1 of shortAudioFile into testTitle
+      /*
+      get char 1 to 2 of testTitle
+      if it is a number then
+         delete word 1 of testTitle
+      end if
+      */
+      put transcribe_TitleFromShortFile (shortAudioFile) into testTitle
+      put fedwiki_ConstructSlug (testTitle) into testSlug
+      
+      put pTrimFirstNumber is not false into pTrimFirstNumber
+      put testSlug is not among the lines of pageSlugs into slugExists
+      if pTrimFirstNumber AND slugExists then
+         put "- [[" & testTitle & "]]" & CR after foundTitleMarkdown
+      else
+         put "- [[" & testTitle & "]]" & CR after missingTitleMarkdown
+      end if
+   end repeat
+   delete char -1 of missingTitleMarkdown
+   delete char -1 of foundTitleMarkdown
+   
+   put missingTitleMarkdown into sArray ["missing"]
+   put foundTitleMarkdown into sArray ["found"]
+   return sArray
+end wikiFile_FoundAndMissingArray
+
+function wikiFile_ListShort pageSlug, wikiDomain
+   put wikiFolder_ConstructPageAssets (pageSlug, wikiDomain) into pageFolder
+   put file_ListShort (pageFolder) into shortFiles
+   return shortFiles
+end wikiFile_ListShort
+
+function wikiFile_ListPageSlugs sDomain
+   put wikiFolder_Pages (sDomain) into wikiPagesFolder
+   if there is a folder wikiPagesFolder then
+      put file_ListShort (wikiPagesFolder) into pageSlugs
+      return pageSlugs
    else
       return empty
    end if
-end wiki_ImageAssetFile
+end wikiFile_ListPageSlugs
 
-function wiki_ConstructImageAssetFile shortFile, wikiDomain
-   put wiki_ConstructImageAssetsFolder (wikiDomain) into imageAssetsFolder
-   put imageAssetsFolder & shortFile into imageFile
-   return imageFile
-end wiki_ConstructImageAssetFile
 
-function wiki_AssetsFolder wikiDomain
-   put wiki_ConstructAssetsFolder (wikiDomain) into assetsFolder
-   if there is a folder assetsFolder then
-      return assetsFolder
+--> WikiFile
+-
+function wikiFile_Config
+   -- see "lib_AtopiaDomainOwnership"
+   put wikiFile_ConstructConfig() into wikiConfigFile
+   if there is a file wikiConfigFile then
+      return wikiConfigFile
    else
       return empty
    end if
-end wiki_AssetsFolder
+end wikiFile_Config
 
-function wiki_ConstructImageAssetsFolder wikiDomain
-   put wiki_ConstructFolder (wikiDomain) into wikiFolder
-   put wikiFolder & "assets/plugins/image/" into imageAssetsFolder
-   return imageAssetsFolder
-end wiki_ConstructImageAssetsFolder
+function wikiFile_Favicon wikiDomain
+   put wikiFile_ConstructFavicon (wikiDomain) into faviconFile
+   if there is a file faviconFile then
+      return faviconFile
+   else
+      return empty
+   end if
+end wikiFile_Favicon
 
-function wiki_ConstructAssetFile relAssetPath, wikiDomain
-   put wiki_ConstructAssetsFolder (wikiDomain) into assetsFolder
+
+--> WikiFile | Construct
+-
+function wikiFile_ConstructAsset relAssetPath, wikiDomain
+   put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
    put assetsFolder & relAssetPath into sFile
    return sFile
-end wiki_ConstructAssetFile
+end wikiFile_ConstructAsset
 
-function wiki_ConstructAssetsFolder wikiDomain
-   put wiki_ConstructFolder (wikiDomain) into wikiFolder
-   put wikiFolder & "assets/" into assetsFolder
-   return assetsFolder
-end wiki_ConstructAssetsFolder
+function wikiFile_ConstructRecycled wikiDomain, pSlug
+   if pSlug is empty then put "welcome-visitors" into pSlug
+   --
+   put wikiFolder_Recycled (wikiDomain) into wikiRecycleFolder
+   if wikiRecycleFolder is empty then return empty
+   put wikiRecycleFolder & pSlug into recycledFile
+   return recycledFile
+end wikiFile_ConstructRecycled
 
-function wiki_GetStatusFolder wikiDomain
-   put wiki_ConstructStatusFolder (wikiDomain) into statusFolder
-   if there is a folder statusFolder then
-      return statusFolder
+function wikiFile_ConstructImageAsset shortFile, wikiDomain
+   put wikiFolder_ConstructImageAssets (wikiDomain) into imageAssetsFolder
+   put imageAssetsFolder & shortFile into imageFile
+   return imageFile
+end wikiFile_ConstructImageAsset
+
+function wikiFile_ConstructSiteIndex pWikiDomain
+   put wikiFolder_ConstructStatus (pWikiDomain) into statusFolder
+   put statusFolder & "site-index.json" into siteIndexFile
+   return siteIndexFile
+end wikiFile_ConstructSiteIndex
+
+function wikiFile_ConstructSiteMap pWikiDomain
+   -- .wiki/audio.commons.academy/status/sitemap.json
+   put wikiFolder_ConstructStatus (pWikiDomain) into statusFolder
+   put statusFolder & "sitemap.json" into siteMapFile
+   return siteMapFile
+end wikiFile_ConstructSiteMap
+
+function wikiFile_ConstructConfig
+   put wiki_RootFolder() into wikiRootFolder
+   put wikiRootFolder & "config.json" into wikiConfigFile
+   return wikiConfigFile
+end wikiFile_ConstructConfig
+
+function wikiFile_ConstructFavicon wikiDomain
+   put wikiFolder_ConstructStatus (wikiDomain) into statusFolder
+   put statusFolder & "favicon.png" into faviconFile
+   return faviconFile
+end wikiFile_ConstructFavicon
+
+function wikiFile_Construct wikiDomain, pSlug
+   if pSlug is empty then put "welcome-visitors" into pSlug
+   --
+   put wikiFolder_Pages (wikiDomain) into pagesFolder
+   if pagesFolder is empty then return empty
+   put pagesFolder & pSlug into pageJsonFile
+   return pageJsonFile
+end wikiFile_Construct
+
+
+--> WikiFolder
+-
+function wikiFolder_Recycled wikiDomain
+   put wikiFolder_ConstructRecycled (wikiDomain) into wikiRecycleFolder
+   if there is a folder wikiRecycleFolder then
+      return wikiRecycleFolder
    else
       return empty
    end if
-end wiki_GetStatusFolder
+end wikiFolder_Recycled
 
-function wiki_ConstructStatusFolder wikiDomain
-   put wiki_ConstructFolder (wikiDomain) into wikiFolder
+function wikiFolder_Pages wikiDomain
+   put wikiFolder_Construct (wikiDomain) into wikiFolder 
+   put wikiFolder & "pages/" into wikiPagesFolder
+   if there is a folder wikiPagesFolder then
+      return wikiPagesFolder
+   else
+      return empty
+   end if
+end wikiFolder_Pages
+
+function wikiFolder_Get sDomain
+   put wikiFolder_Construct (sDomain) into folderPath 
+   if there is a folder folderPath then
+      return folderPath
+   else
+      return empty
+   end if
+end wikiFolder_Get
+
+
+--> WikiFolder | Construct
+-
+function wikiFolder_ConstructPageAssets pageSlug, wikiDomain
+   put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
+   put assetFolder & pageSlug & slash into oggFolder
+   return oggFolder
+end wikiFolder_ConstructPageAssets
+
+function wikiFolder_ConstructImageAssets wikiDomain
+   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder & "assets/plugins/image/" into imageAssetsFolder
+   return imageAssetsFolder
+end wikiFolder_ConstructImageAssets
+
+function wikiFolder_ConstructAssets wikiDomain
+   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder & "assets/" into assetsFolder
+   return assetsFolder
+end wikiFolder_ConstructAssets
+
+function wikiFolder_ConstructStatus wikiDomain
+   put wikiFolder_Construct (wikiDomain) into wikiFolder
    put wikiFolder & "status/" into statusFolder
    return statusFolder
-end wiki_ConstructStatusFolder
+end wikiFolder_ConstructStatus
 
-
---> Wiki | Folder
--
-function wiki_CommonsFolder
+function wikiFolder_ConstructCommons
    put wiki_RootFolder() into wikiRoot
    put wikiRoot & "commons/" into wikiCommonsFolder
    return wikiCommonsFolder
-end wiki_CommonsFolder
+end wikiFolder_ConstructCommons
 
-function wiki_RecycleFolder wikiDomain
-   put wiki_GetFolder (wikiDomain) into wikiFolder
-   if wikiFolder is empty then return empty
-   put wikiFolder& "recycle/" into wikiRecycleFolder
-   return wikiRecycleFolder
-end wiki_RecycleFolder
+function wikiFolder_ConstructRecycled wikiDomain
+   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder & "recycle/" into recycleFolder
+   return recycleFolder
+end wikiFolder_ConstructRecycled
 
-function wiki_PagesFolder wikiDomain
-   -- fedwiki_LocalPagesFolder
-   put wiki_GetFolder (wikiDomain) into wikiFolder
-   if wikiFolder is empty then return empty
-   put wikiFolder& "pages/" into wikiPagesFolder
-   return wikiPagesFolder
-end wiki_PagesFolder
+function wikiFolder_Construct sDomain
+   put wiki_RootFolder() into wikiRoot
+   put wikiRoot & sDomain & slash into folderPath 
+   return folderPath
+end wikiFolder_Construct
 
 
 --> Nvm & Node | Paths

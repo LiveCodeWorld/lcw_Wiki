@@ -3,7 +3,7 @@
 -
 license: GPLv3
 name: lib_Markdown
-type: script library
+type: library
 version: 0.1
 
 
@@ -36,6 +36,46 @@ end markdown
 
 --> Markdown
 -
+function markdown_GetSection mdText, pSectionTitle
+   if pSectionTitle is empty then
+      set the wholeMatches to false
+      put lineOffset ("# ", mdText) into firstTitleLineNum
+      if firstTitleLineNum = 0 then
+         return mdText
+      else
+         put line 1 to (firstTitleLineNum - 1) of mdText into firstBit
+         return firstBit
+      end if
+   end if
+   
+   # Find Section
+   put "#" && pSectionTitle into mdTitle
+   
+   set the wholeMatches to true
+   put lineOffset (mdTitle, mdText) into lineNum
+   if lineNum = 0 then return empty
+   
+   set the wholeMatches to false
+   put lineOffset ("# ", mdText, lineNum) into nextLineNum
+   if nextLineNum = 0 then
+      put line lineNum to -1 of mdText into mdSection
+   else
+      put lineNum + nextLineNum - 1 into endLineNum
+      put line lineNum to endLineNum of mdText into mdSection
+   end if
+   return mdSection
+end markdown_GetSection
+
+function markdown_ToText itemText
+   get _StripInternal (itemText)
+   put _StripExternal (it) into sText
+   --
+   replace "__" with empty in sText
+   replace "**" with empty in sText
+   --
+   return sText
+end markdown_ToText
+
 function markdown_LinkedBullets sIndex
    repeat for each line sLine in sIndex
       put "-" && md_Link(sLine) & CR after sMarkdown

@@ -29,7 +29,7 @@ function wiki_ListMediaPhotos pListShort
 end wiki_ListMediaPhotos
 
 function wiki_MediaAssetFolder
-   put wiki_GetFolder ("media.localhost") into mediaWikiFolder
+   put wikiFolder_Get ("media.localhost") into mediaWikiFolder
    put mediaWikiFolder & "assets/plugins/image/" into mediaAssetFolder
    if there is a folder mediaAssetFolder then
       return mediaAssetFolder

@@ -45,15 +45,6 @@ end journalArray_Add
 
 --> Forks
 -
-command pageArray_SetFork @pageArray, wikiDomain, pForkDate
-   put pageArray ["journal"] into journalArray
-   put item 2 of the extents of journalArray into indexNum
-   add 1 to indexNum
-   put itemArray_ConstructFork (wikiDomain, pForkDate) into itemArray
-   put itemArray into journalArray [indexNum]
-   put journalArray into pageArray ["journal"]
-end pageArray_SetFork
-
 function itemArray_ConstructFork wikiDomain, pForkDate, pItemID
    if pForkDate is empty then put the milliseconds into pForkDate
    --
@@ -65,11 +56,45 @@ function itemArray_ConstructFork wikiDomain, pForkDate, pItemID
    return itemArray
 end itemArray_ConstructFork
 
+function itemArray_ConstructImage imageURL, iSource, pWidth, pHeight, pSize, pCaption, pLat, pLong, pID
+   if pSize is empty then
+      put "wide" into pSize
+   end if
+   itemArray_NormalizeID pID
+   put pID into itemArray ["id"]
+   
+   put "image" into itemArray ["type"]
+   --
+   put imageURL into itemArray ["url"]
+   put iSource into itemArray ["source"]
+   put pCaption into itemArray ["text"]
+   --
+   put pSize into itemArray ["size"]
+   if pWidth is not empty then
+      put pWidth into itemArray ["width"]
+   end if
+   if pHeight is not empty then
+      put pHeight into itemArray ["height"]
+   end if
+   
+   # Add Geo
+   if pLat is not empty then
+      put pLat into itemArray ["location"]["latitude"]
+      put pLong into itemArray ["location"]["longitude"]
+   end if
+   return itemArray
+end itemArray_ConstructImage
+
 function itemArray_ConstructFactory pID
    put itemArray_Construct ("factory", pID) into factoryArray
    return factoryArray
 end itemArray_ConstructFactory
 
+function itemArray_ConstructAssets sText, pID
+   put itemArray_Construct ("assets", pID, sText) into itemArray
+   return itemArray
+end itemArray_ConstructAssets
+   
 function itemArray_Construct itemType, pID, pText
    itemArray_NormalizeID pID
    put pID into itemArray ["id"]

@@ -43,6 +43,19 @@ end wiki_Merge
 
 --> Curly | Merge
 -
+function curly_ReplaceAll someText, curlyKey, curlyReplacement
+   put "(?Uim)\{\{\s*" & curlyKey & "\s*\}\}" into someReg
+   return replacetext (someText, someReg, curlyReplacement)
+   --
+   put "(?Uim)\{\{\s*" & curlyKey & "\s*\}\}" into someReg
+   repeat
+      if matchChunk (someText, someReg , sNum, eNum) is true then
+         put curlyReplacement into char sNum to eNum of someText
+      end if
+   end repeat
+   return someText
+end curly_ReplaceAll
+
 command curly_ReplaceText @someText, curlyKey, curlyReplacement
    put "(?Uim)\{\{\s*" & curlyKey & "\s*\}\}" into someReg
    put replacetext (someText, someReg, curlyReplacement) into someText

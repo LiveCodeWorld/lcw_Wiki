@@ -22,7 +22,7 @@ command wiki_TrashEmpty pEmptyLocalDomains, pDisplayView
       display_Spin wikiDomain, pDisplayView, "red"
       put the result into lineNum
       --
-      put wiki_GetFolder (wikiDomain) into wikiFolder
+      put wikiFolder_Get (wikiDomain) into wikiFolder
       if there is a folder wikiFolder then
          if wiki_NumberOfpages (wikiFolder) < 1 then
             revDeleteFolder wikiFolder

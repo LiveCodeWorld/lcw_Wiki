@@ -29,6 +29,10 @@ local DefaultPort = 80
 
 --> Working on
 -
+on socketTimeout pSocketID
+   put the params
+end socketTimeout
+
 getprop socket_Data
    -- get cleared regularly so not really useful
    return SocketData
@@ -318,13 +322,18 @@ end daemon_SetPort
 
 --> Daemon | Start and Stop
 -
-command daemon_Start pPortToListenOn, pDaemonServer
+command daemon_Start pPortToListenOn
    _NormalizeDaemonPort pPortToListenOn
+   set the socketTimeoutInterval to 15000
    --
    accept connections on port pPortToListenOn with message "newConnection"
+   --
+   return pPortToListenOn
 end daemon_Start
 
 command daemon_Stop pCloseAll
+   set the socketTimeoutInterval to 10000
+   --
    if pCloseAll is true then
       socket_CloseOpen
       daemon_DeleteSocketData

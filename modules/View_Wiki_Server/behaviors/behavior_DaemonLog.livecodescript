@@ -44,7 +44,7 @@ set the log_Line [word 1 of the params] of me to wikiDomain
 get_SiteIndexJson
 
 before get_Image shortImageFile, wikiDomain, socketID, requestArray
-   put wiki_ConstructImageAssetFile (shortImageFile, wikiDomain) into imageFile
+   put wikiFile_ConstructImageAsset (shortImageFile, wikiDomain) into imageFile
    put daemon_ReceivedHeader ("Referer", requestArray) into sReferer -- can we use this to find the image better
    set the itemdelimiter to slash
    put item -2 to -1 of sReferer into lastBit
@@ -134,6 +134,9 @@ after daemon_Start
    set the log_Line ["Server started. Using port"] of me to the daemon_Port of me
    --
    set the log_Hilite of me to true
+   --
+   put the daemon_Port of me into portToListenOn
+   return portToListenOn
 end daemon_Start
 
 after daemon_Stop

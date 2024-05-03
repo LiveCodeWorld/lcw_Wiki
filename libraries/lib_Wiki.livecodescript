@@ -74,7 +74,7 @@ function wiki_StartCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
          put " --security_type" && pSecurityType after someShell
    end switch
    
-   -- put space & "--admin" && 1234567890 after someShell
+   put space & "--admin" && "david.bovill@gmail.com" after someShell
    --
    if pFarm is not false then put space & "--farm" after someShell
    if pPort is empty then

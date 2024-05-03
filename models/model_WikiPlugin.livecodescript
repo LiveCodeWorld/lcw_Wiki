@@ -68,16 +68,19 @@ function wikiPlugin_GetPageJson pluginName, pShortFile
    put wikiPlugin_ConstructPagesFile (pluginName, pShortFile) into pluginPageFile
    if there is a file pluginPageFile then
       put url ("binfile:" & pluginPageFile) into binaryJSON
-      --
-      put json_ToArray (binaryJSON) into pageArray
-      put pluginName into pageArray ["plugin"]
-      put json_FromArray (pageArray) into binaryJSON
-      --
+      -- put _CleanBinaryJson (binaryJSON) into binaryJSON
       return binaryJSON
    else
       return empty
    end if
 end wikiPlugin_GetPageJson
+
+private function _CleanBinaryJson binaryJSON
+   put json_ToArray (binaryJSON) into pageArray
+   put pluginName into pageArray ["plugin"]
+   put json_FromArray (pageArray) into binaryJSON
+   return binaryJSON
+end _CleanBinaryJson
 
 function wikiPlugin_ConstructPagesFile pluginName, pShortFile
    if pShortFile is empty then

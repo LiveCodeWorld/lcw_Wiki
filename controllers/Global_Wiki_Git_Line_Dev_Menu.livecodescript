@@ -31,7 +31,7 @@ end menu_CheckTarget
 
 getprop disabled_MakeSymLink [displayView]
    put the selected_Line of displayView into wDomain
-   put wiki_GetFolder (wDomain) into symWikiFolder
+   put wikiFolder_Get (wDomain) into symWikiFolder
    return there is a folder symWikiFolder
 end disabled_MakeSymLink
 
@@ -105,19 +105,19 @@ end menu_RemoveSymlinks
 
 private command _DeleteSymLinks wikiDomain
    # Delete symlink folder
-   put wiki_ConstructFolder (wikiDomain) into symLinkedFolder 
+   put wikiFolder_Construct (wikiDomain) into symLinkedFolder 
    symlink_Delete symLinkedFolder
    get the result
    
    # Delete localhost folder
    put wiki_ConstructLocalHostDomain (wikiDomain) into localhostDomain
-   put wiki_ConstructFolder (localhostDomain) into localhostFolder
+   put wikiFolder_Construct (localhostDomain) into localhostFolder
    symlink_Delete localhostFolder
    get the result
    
    # Delete old
    put old_LocalhostFolder (wikiDomain) into oldLocalhostDomain
-   put wiki_ConstructFolder (oldLocalhostDomain) into oldSymlinkFolder
+   put wikiFolder_Construct (oldLocalhostDomain) into oldSymlinkFolder
    symlink_Delete oldSymlinkFolder
    get the result
 end _DeleteSymLinks

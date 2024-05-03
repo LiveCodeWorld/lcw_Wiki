@@ -15,7 +15,6 @@ It is not for fetching them by http or url's, but reading and writing to the loc
 --> Working on
 -
 
-
 --> PageJson | Fetch
 -
 function pageJson_Fetch wikiDomain, pSlug, pPort, pDecode
@@ -53,19 +52,6 @@ function pageJson_ConstructUrl wikiDomain, pSlug, pPort, pProtocol
 end pageJson_ConstructUrl
 
 
---> Wiki | Pages
--
-function wiki_ListPageSlugs sDomain
-   put wiki_PagesFolder (sDomain) into wikiPagesFolder
-   if there is a folder wikiPagesFolder then
-      put folder_ShortFiles (wikiPagesFolder) into pageSlugs
-      return pageSlugs
-   else
-      return empty
-   end if
-end wiki_ListPageSlugs
-
-
 --> Wiki | SiteMap | Working on
 -
 function wikiSiteMap_ListPageTitles sitemapJSON
@@ -80,7 +66,7 @@ function wikiSiteMap_ListPageTitles sitemapJSON
 end wikiSiteMap_ListPageTitles
 
 function wikiSiteMap_Construct wikiDomain
-   put wiki_ListPageSlugs (wikiDomain) into pageSlugs
+   put wikiFile_ListPageSlugs (wikiDomain) into pageSlugs
    put 1 into indexNum
    repeat for each line pageSlug in pageSlugs
       put pageArray_Get (wikiDomain, pageSlug) into pageArray
@@ -128,7 +114,7 @@ command wikiSiteMap_Create wikiDomain
 end wikiSiteMap_Create
 
 function wikiSiteMap_GetArray wikiDomain
-   put wikiJson_ConstructSiteMapFile (wikiDomain) into siteMapFile
+   put wikiFile_ConstructSiteMap (wikiDomain) into siteMapFile
    put json_GetArray (siteMapFile) into sitemapArray
    --
    switch
@@ -147,13 +133,13 @@ function wikiSiteMap_GetArray wikiDomain
 end wikiSiteMap_GetArray
 
 command wikiSiteMap_SetArray siteMapArray, wikiDomain
-   put wikiJson_ConstructSiteMapFile (wikiDomain) into siteMapFile
+   put wikiFile_ConstructSiteMap (wikiDomain) into siteMapFile
    json_SetArray siteMapFile, siteMapArray
    return the result 
 end wikiSiteMap_SetArray
 
 function wikiSiteIndex_GetJson pWikiDomain
-   put wikiJson_ConstructSiteIndexFile (pWikiDomain) into siteIndexFile
+   put wikiFile_ConstructSiteIndex (pWikiDomain) into siteIndexFile
    if there is a file siteIndexFile then
       put url ("binfile:" & siteIndexFile) into binaryJSON
       return binaryJSON
@@ -163,7 +149,7 @@ function wikiSiteIndex_GetJson pWikiDomain
 end wikiSiteIndex_GetJson
 
 function wikiSiteMap_GetJson pWikiDomain
-   put wikiJson_ConstructSiteMapFile (pWikiDomain) into siteMapFile
+   put wikiFile_ConstructSiteMap (pWikiDomain) into siteMapFile
    if there is a file siteMapFile then
       -- put url ("file:" & siteMapFile) into binaryJSON
       put url ("binfile:" & siteMapFile) into binaryJSON
@@ -176,7 +162,7 @@ end wikiSiteMap_GetJson
 
 command wikiSiteMap_DeleteFile pWikiDomain
    -- see "atopia_DeleteWikiSitemap"
-   put wikiJson_ConstructSiteMapFile (pWikiDomain) into siteMapFile
+   put wikiFile_ConstructSiteMap (pWikiDomain) into siteMapFile
    revDeleteFile siteMapFile
    return the result
 end wikiSiteMap_DeleteFile
@@ -185,18 +171,19 @@ end wikiSiteMap_DeleteFile
 --> PageArray | File | Model
 -
 function pageArray_Get wikiDomain, pageSlug
-   put pageJson_ConstructFile (wikiDomain, pageSlug) into wikiFile
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
    put json_GetArray (wikiFile) into pageArray
    return pageArray
 end pageArray_Get
 
 command pageArray_Set wikiDomain, pageSlug, pageArray, pDeleteSiteMap
-   put pageJson_ConstructFile (wikiDomain, pageSlug) into wikiFile
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
    json_SetArray wikiFile, pageArray
    --
    if pDeleteSiteMap is not false then
       wikiSiteMap_DeleteFile wikiDomain
    end if
+   return wikiFile
 end pageArray_Set
 
 command pageArray_Delete wikiDomain, pageSlug
@@ -212,19 +199,19 @@ end pageArray_Delete
 --> PageJson | Get
 -
 function pageJson_GetRecycled wikiDomain, pageSlug
-   put pageJson_ConstructRecycledFile (wikiDomain, pageSlug) into recycledPagePath
+   put wikiFile_ConstructRecycled (wikiDomain, pageSlug) into recycledPagePath
    put json_Get (recycledPagePath) into pageJSON
    return pageJSON
 end pageJson_GetRecycled
 
 function pageJson_Get wikiDomain, pageSlug
-   put pageJson_ConstructFile (wikiDomain, pageSlug) into wikiPagePath
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
    put json_Get (wikiPagePath) into pageJSON
    return pageJSON
 end pageJson_Get
 
 command pageJson_Set wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
-   put pageJson_ConstructFile (wikiDomain, pageSlug) into wikiPagePath
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
    json_Set wikiPagePath, pageJSON
    --
    if pDeleteSiteMap is not false then
@@ -234,14 +221,14 @@ command pageJson_Set wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
 end pageJson_Set
 
 command pageJson_Delete wikiDomain, pageSlug
-   put pageJson_ConstructFile (wikiDomain, pageSlug) into wikiPagePath
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
    revDeleteFile wikiPagePath
    return the result
 end pageJson_Delete
 
 command pageJson_Trash wikiDomain, pageSlug
-   put pageJson_ConstructFile (wikiDomain, pageSlug) into wikiPagePath
-   put pageJson_ConstructRecycledFile (wikiDomain, pageSlug) into recycledPagePath
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
+   put wikiFile_ConstructRecycled (wikiDomain, pageSlug) into recycledPagePath
    if recycledPagePath is empty then
       return "Error, recycle folder for wiki domain does not exists:" && wikiDomain
    else

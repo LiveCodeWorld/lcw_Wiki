@@ -71,7 +71,7 @@ end _Refresh
 getprop disabled_TrashLocalFolder [dView]
    if the shiftKey is "down" then return false
    put the selected_Line of dView into shortWikiFolder
-   put wiki_GetFolder (shortWikiFolder) into wikiFolder
+   put wikiFolder_Get (shortWikiFolder) into wikiFolder
    --
    return wiki_FolderHasNoPages (wikiFolder) is false
 end disabled_TrashLocalFolder
@@ -119,8 +119,8 @@ on menu_RenameLocalWiki dView
    --
    put lcw_Ask ("Rename localhost...", fromDomain, "Rename", dView) into toDomain
    --
-   put wiki_GetFolder (fromDomain) into oFolder
-   put wiki_ConstructFolder (toDomain) into newFolder
+   put wikiFolder_Get (fromDomain) into oFolder
+   put wikiFolder_Construct (toDomain) into newFolder
    if there is a folder newFolder then
       return "Error, folder" && newFolder && "already exists."
    end if
@@ -137,15 +137,15 @@ on menu_RenameLocalWiki dView
 end menu_RenameLocalWiki
 
 -- on menu_AddTools dView
-   put the selected_Line of dView into wikiDomain
-   --
-   put wiki_GetFolder (wikiDomain) into wikiFolder
-   put wikiFolder & "tools" into toolFile
-   if there is not a file toolFile then
-      put pageArray_Get (wikiDomain, "tools")
-   else
-      breakpoint
-   end if
+put the selected_Line of dView into wikiDomain
+--
+put wikiFolder_Get (wikiDomain) into wikiFolder
+put wikiFolder & "tools" into toolFile
+if there is not a file toolFile then
+   put pageArray_Get (wikiDomain, "tools")
+else
+   breakpoint
+end if
 end menu_AddTools
 
 on menu_AddToHosts dView
@@ -167,6 +167,13 @@ end menu_RecreateSitemap
 private on __
 end __
 
+on menu_LaunchInBrowser dView
+   put the selected_Line of dView into wikiDomain
+   --
+   put "http://" & wikiDomain into wikiURL
+   launch url wikiURL
+end menu_LaunchInBrowser
+
 on menu_DisplayWikiApp dView
    put the selected_Line of dView into wikiDomain
    --
@@ -185,14 +192,14 @@ end _____
 
 on menu_RevealLocalFolder dView
    put the selected_Line of dView into shortWikiFolder
-   put wiki_GetFolder (shortWikiFolder) into gitWikiFolder
+   put wikiFolder_Get (shortWikiFolder) into gitWikiFolder
    --
    finder_Reveal gitWikiFolder
 end menu_RevealLocalFolder
 
 on menu_TrashLocalFolder dView
    put the selected_Line of dView into shortWikiFolder
-   put wiki_GetFolder (shortWikiFolder) into wikiFolder
+   put wikiFolder_Get (shortWikiFolder) into wikiFolder
    --
    revDeleteFolder wikiFolder
    --

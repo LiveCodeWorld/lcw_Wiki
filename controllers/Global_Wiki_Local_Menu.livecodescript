@@ -61,7 +61,7 @@ on menu_DeleteAllSymLinked dView
       display_Spin localWikiDomain, dView, "red"
       put the result into lineNum
       --
-      put wiki_ConstructFolder (localWikiDomain) into symLinkedFolder
+      put wikiFolder_Construct (localWikiDomain) into symLinkedFolder
       if folder_IsSymLink (symLinkedFolder) then
          symlink_Delete symLinkedFolder
          set the deleted_Line of dView to lineNum

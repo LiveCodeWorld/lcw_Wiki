@@ -75,8 +75,8 @@ on menu_FixTwo dView
       put localhostDomain into fixedName
       replace " 2." with "." in fixedName
       --
-      put wiki_GetFolder (localhostDomain) into twoFolder
-      put wiki_ConstructFolder (fixedName) into fixedFolder 
+      put wikiFolder_Get (localhostDomain) into twoFolder
+      put wikiFolder_Construct (fixedName) into fixedFolder 
       --
       
       --

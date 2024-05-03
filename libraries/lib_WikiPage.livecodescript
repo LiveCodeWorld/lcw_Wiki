@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: lib_WikiPage
 type: library
-version: 0.2
+version: 0.3
 
 /*
 This library is about handlers that constuct specific crafted wiki pages.
@@ -13,13 +13,349 @@ This library is about handlers that constuct specific crafted wiki pages.
 The functions all return pageArrays, which can then be used to create wiki-pages or ghost-pages.
 */
 
+--> Working on
+-
+function wikiPage_CreateMissingSites pageTitle, wikiDomains, pFirstPara
+   if pFirstPara is empty then
+      put "Here is a list of wikidomains:" into pFirstPara
+   end if
+   --
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   
+   # Missing Section
+   pageArray_AddMarkdown pageArray, "# Missing"
+   _AddMissingSites wikiDomains, pageArray
+   put the result into foundWikiFolders
+   
+   # Found Section
+   pageArray_AddMarkdown pageArray, "# Found"
+   put markdown_LinkedBullets (foundWikiFolders) into mdDomains
+   pageArray_AddMarkdown pageArray, mdDomains
+   --
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put pageTitle & CR&CR & foundWikiFolders into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   --
+   pageArray_AddMarkdown pageArray, "# Activity"
+   pageArray_AddActivity pageArray, pageTitle, "1 week", "CONVERSATION"
+   --
+   pageArray_AddMarkdown pageArray, "# Sites"
+   pageArray_AddReferenceIndex pageArray, foundWikiFolders
+   --
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_CreateMissingSites
+
+private command _AddMissingSites wikiDomains, @pageArray
+   put wiki_ListLocalShortAll() into existingDomains
+   set the wholematches to true
+   put "http://rest.livecode.world/fedwiki/create_Wiki" into postURL
+   repeat for each line wikiDomain in wikiDomains
+      if wikiDomain is among the lines of existingDomains then
+         put wikiDomain & CR after foundWikiFolders
+      else
+         put wikiDomain into valueArray ["wikiDomain"]
+         pageArray_AddButton pageArray, wikiDomain, postURL, valueArray
+      end if
+   end repeat
+   delete char -1 of foundWikiFolders
+   return foundWikiFolders
+end _AddMissingSites
+
+function wikiPage_FilteredSites pageTitle, wikiDomains, pFirstPara
+   if pFirstPara is empty then
+      put "Here is a list of wikidomains:" into pFirstPara
+   end if
+   --
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   put markdown_LinkedBullets (wikiDomains) into mdDomains
+   pageArray_AddMarkdown pageArray, mdDomains
+   --
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put pageTitle & CR&CR & wikiDomains into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   --
+   pageArray_AddMarkdown pageArray, "# Activity"
+   pageArray_AddActivity pageArray, pageTitle, "1 week", "CONVERSATION"
+   --
+   pageArray_AddReferenceIndex pageArray, wikiDomains
+   --
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_FilteredSites
+
+function wikiPage_FilteredDomainList tldDomain, pPageTitle
+   if pPageTitle is empty then
+      put wikiPage_SiteTitleFromDomain (tldDomain) into pPageTitle
+   end if
+   --
+   put "*" & tldDomain & "*" into sFilter
+   put wiki_ListLocalShortAll (sFilter) into wikiFolders
+   --
+   put "Here is a list of" && pageTitle & ":" into firstPara
+   put wikiPage_ConstructDomainList (pPageTitle, wikiFolders, firstPara) into pageArray
+   return pageArray
+end wikiPage_FilteredDomainList
+
+
+--> WikiPage | Edit
+-
+function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
+   # Get Curly Template
+   put wikiPage_Dialogue (pageSlug, wikiDomain, "edit-page-dialogue", pPageArrayTitle) into editPageArray
+   
+   # Add Create Section
+   wikiPage_AddCreateButtons editPageArray, wikiDomain, pageSlug
+   
+   # Add Transporter Section
+   wikiPage_AddTransporters editPageArray
+   
+   return editPageArray
+end wikiPage_EditPage
+
+command wikiPage_AddCreateButtons @editPageArray, wikiDomain, pageSlug
+   # ValueArray
+   put pageSlug into valueArray ["pageSlug"]
+   put wikiDomain into valueArray ["wikiDomain"]
+   
+   # Find Code Items
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxNum
+   put 1 into imageNum
+   put "http://rest.livecode.world/augmented/create_Image" into postURL
+   
+   set the itemdelimiter to ":"
+   repeat with indexNum = 1 to maxNum
+      put storyArray [indexNum]["type"] into itemType
+      if itemType is not "code" then next repeat
+      
+      put storyArray [indexNum]["text"] into itemText
+      switch item 1 of itemText
+         case "Image Prompt"
+            put item 2 to -1 of itemText into imagePrompt
+            put imagePrompt into valueArray ["imagePrompt"]
+            
+            # Add Image Prompt
+            pageArray_AddMarkdown editPageArray, imagePrompt
+            
+            # Add Button
+            put "Create Image" && imageNum into buttonName
+            pageArray_AddButton editPageArray, buttonName, postURL, valueArray, "", "right"
+            add 1 to imageNum
+            break
+         default
+            next repeat
+      end switch 
+   end repeat
+end wikiPage_AddCreateButtons
+
+command wikiPage_AddTransporters @pageArray
+   pageArray_AddMarkdown pageArray, "# Transporters"
+   
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/mediawiki/summary"
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/compact_Refs"
+   
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/addFedwiki"
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/fork_Cleaner"
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/echo"
+   
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/add_GreenBorder"
+   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/remove_GreenBorder"
+end wikiPage_AddTransporters
+
+
+--> WikiPage | Gallery
+-
+function wikiPage_Image imageURL, pPageTitle, pPageDescription, pImageCaption, pImageSourceUrl, iWidth, iHeight, iSize, pLat, pLong
+   put pageArray_ConstructImageCaption (pImageCaption, pImageSourceUrl, imageURL) into sCaption
+   --
+   put itemArray_ConstructImage (imageURL, pImageSourceUrl, iWidth, iHeight, iSize, sCaption, pLat, pLong) into itemArray
+   put _ConstructImagePageArray (pPageTitle, pPageDescription) into pageArray
+   itemArray_Add itemArray, pageArray
+   --
+   return pageArray
+end wikiPage_Image
+
+function wikiPage_GalleryPedia pageTitle, pFirstPara, pLang
+   if pFirstPara is empty then
+      put fedwiki_InternalLink (pageTitle) into linkedTitle
+      put "Images found on Wikipedia page:" && linkedTitle into pFirstPara
+   end if
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   
+   # Fetch page media
+   put restbase_FetchMediaArray (pageTitle, pLang) into mediaIndexArray
+   --
+   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
+      put mediaIndexArray [itemNum]["type"] into shortImageFile
+      put mediaIndexArray [itemNum]["title"] into shortImageFile
+      -- put textDecode (shortImageFile, "UTF-8") into shortImageFile
+      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
+      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
+      --
+      pageArray_AddImage pageArray, imageURL, shortImageFile
+   end repeat
+   delete char -1 of pinText
+   --
+   put "PAGE" & CR into mapText
+   put "Map of" && pPageTitle & CR after mapText
+   put pinText after mapText
+   --
+   pageArray_AddMap pageArray, mapText
+   --
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_GalleryPedia
+
+function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
+   if pPageTitle is empty then
+      put "Openverse Thumbnails" into pPageTitle
+   end if
+   if pFirstPara is empty then
+      put "Search results for:" && pSearchBit into pFirstPara
+   end if
+   --
+   put pageArray_Construct (pPageTitle, pFirstPara) into pageArray
+   
+   put sData ["results"] into indexArray
+   put item 2 of the extents of indexArray into maxNum
+   repeat with itemNum = 1 to maxNum
+      put indexArray [itemNum] into itemArray
+      --
+      put itemArray ["thumbnail"] into thumbURL
+      put itemArray ["url"] into imageURL
+      put itemArray ["related_url"] into relatedURL
+      put itemArray ["detail_url"] into detailURL
+      put itemArray ["foreign_landing_url"] into linkURL
+      
+      --
+      put itemArray ["title"] into imageTitle
+      put itemArray ["attribution"] into sAttribution
+      --
+      put imageTitle & "." && sAttribution into imageCaption
+      pageArray_AddThumbnail pageArray, thumbURL, imageCaption, linkURL
+   end repeat
+   return pageArray
+end wikiPage_OpenVerseThumbNails
+
+
+--> WikiPage | Tools
+-
 function wikiPage_Tools pageSlug, wikiDomain, pPageTitle
-   put wikiPage_Future (pageSlug, wikiDomain, pPageTitle) into pageArray
+   -- put wikiPage_Future (pageSlug, wikiDomain, pPageTitle) into pageArray
+   put wikiPage_Dialogue (pageSlug, wikiDomain, "future-dialogue-template", pPageTitle) into pageArray
    return pageArray
 end wikiPage_Tools
 
+function wikiPage_Future pageSlug, wikiDomain, pPageArrayTitle
+   put wikiPage_Dialogue (pageSlug, wikiDomain, "future-dialogue-template", pPageArrayTitle) into pageArray
+   return pageArray
+end wikiPage_Future
 
---> Working on
+
+--> WikiPage | Dialogue
+-
+function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain, 
+   if pDialogueDomain is empty then put "dialogue.fedwiki.org" into pDialogueDomain
+   if pPageTitle is empty then
+      put fedwiki_ConstructTitle (dialogueSlug) into pPageTitle
+   end if
+   
+   # Fetch Dialogue
+   put pageArray_FetchTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
+   put "html" into pageArray ["plugin"]
+   pageArray_CleanJournal pageArray
+   --
+   return pageArray
+end pageArray_GetDialogue
+
+function wikiPage_Dialogue pageSlug, wikiDomain, dialogueSlug, pPageArrayTitle, pTemplateDomain
+   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
+   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
+   put pageTitle into curlyData ["all"]["New Page Title"]
+   put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
+   put pageSlug into curlyData ["all"]["originalSlug"]
+   put wikiDomain into curlyData ["all"]["wikiDomain"]
+   --
+   put wikiPage_CurlyDialogue (curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
+   return pageArray
+end wikiPage_Dialogue
+
+function wikiPage_CurlyDialogue curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain
+   put pageArray_GetDialogue (dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
+   curly_MergePageArray pageArray, curlyData
+   return pageArray
+   
+   # Old
+   if pTemplateDomain is empty then put "dialogue.fedwiki.org" into pTemplateDomain
+   if pPageArrayTitle is empty then put "Edit Wiki Page" into pPageArrayTitle
+   --
+   put pageArray_FetchTemplate (pTemplateDomain, dialogueSlug, pPageArrayTitle) into pageArray
+   curly_MergePageArray pageArray, curlyData
+   --
+   put "html" into pageArray ["plugin"]
+   pageArray_CleanJournal pageArray
+   --
+   return pageArray
+end wikiPage_CurlyDialogue
+
+function wikiPage_CreatePage pageSlug, wikiDomain, pPageArrayTitle
+   put wikiPage_Dialogue (pageSlug, wikiDomain, "create-page-dialogue", pPageArrayTitle) into pageArray
+   return pageArray
+end wikiPage_CreatePage
+
+
+--> WikiPage | Get
+-
+function wikiPage_GetText wikiDomain, pageSlug
+   put wikiPage_Get (wikiDomain, pageSlug) into pageArray
+   put pageArray_Text (pageArray) into userText
+   -- put textEncode (userText, "UTF-8") into userText
+   return userText
+end wikiPage_GetText
+
+function wikiPage_Get wikiDomain, pageSlug
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   if pageArray is an array then
+      return pageArray
+   else -- if pageArray begins with "Error, json file does not exist." then
+      put pageArray_Get (wikiDomain, pageSlug) into pageArray
+      put wikiServer_GetPageArray (pageSlug) into pageArray
+      if pageArray is not an array then
+         return "Error, cannnot locate page '[[pageSlug]]' of wiki '[[wikiDomain]]'."
+      else
+         return pageArray
+      end if
+   end if
+end wikiPage_Get
+
+function wikiPage_FiveConcepts wikiDomain, pageSlug, pModel
+   return openAI_GetChatResponse ("five-concepts", wikiDomain, pageSlug, pModel)
+end wikiPage_FiveConcepts
+
+function wikiPage_ConceptGraph wikiDomain, pageSlug, pModel
+   return openAI_GetChatResponse ("extract-concept-graph", wikiDomain, pageSlug, pModel)
+end wikiPage_ConceptGraph
+
+function wikiPage_Keywords wikiDomain, pageSlug, pModel
+   put platform_GetPrompt ("extract-keywords") into sPrompt
+   put wikiPage_GetText (wikiDomain, pageSlug) into userText
+   
+   # Get ChatGPT reply
+   put openAI_FetchChatData (userText, sPrompt, pModel) into rData
+   if rData is not an array then
+      display_Data rData, "Received Data"
+      return empty
+   else
+      put rData ["choices"][1]["message"]["content"] into sText
+      return sText
+   end if
+end wikiPage_Keywords
+
+
+--> WikiPage | Elements
 -
 function wikiPage_TocButtons pageTitle, pFirstPara
    if pFirstPara is empty then
@@ -59,37 +395,6 @@ function wikiPage_TocButtons pageTitle, pFirstPara
    pageArray_StripJournal pageArray
    return pageArray
 end wikiPage_TocButtons
-
-function wikiPage_GalleryPedia pageTitle, pFirstPara, pLang
-   if pFirstPara is empty then
-      put fedwiki_InternalLink (pageTitle) into linkedTitle
-      put "Images found on Wikipedia page:" && linkedTitle into pFirstPara
-   end if
-   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
-   
-   # Fetch page media
-   put restbase_FetchMediaArray (pageTitle, pLang) into mediaIndexArray
-   --
-   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
-      put mediaIndexArray [itemNum]["type"] into shortImageFile
-      put mediaIndexArray [itemNum]["title"] into shortImageFile
-      -- put textDecode (shortImageFile, "UTF-8") into shortImageFile
-      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
-      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
-      --
-      pageArray_AddImage pageArray, imageURL, shortImageFile
-   end repeat
-   delete char -1 of pinText
-   --
-   put "PAGE" & CR into mapText
-   put "Map of" && pPageTitle & CR after mapText
-   put pinText after mapText
-   --
-   pageArray_AddMap pageArray, mapText
-   --
-   pageArray_StripJournal pageArray
-   return pageArray
-end wikiPage_GalleryPedia
 
 function wikiPage_RelatedWikipedia searchTitle, pPageTitle, pFirstPara, pLang
    if pFirstPara is empty then
@@ -169,290 +474,6 @@ function wikiPage_RelatedWikipedia searchTitle, pPageTitle, pFirstPara, pLang
    return pageArray
 end wikiPage_RelatedWikipedia
 
-command pageArray_AddImage @pageArray, imageURL, pCaptionText, pLinkURL, pLat, pLong, pSize, pWidth, pHeight, pID
-   -- put pageArray_ConstructImageCaption (pImageCaption, pImageSourceUrl, imageURL) into sCaption
-   if pageArray is not an array then return false
-   if imageURL is  empty then return false
-   if pCaptionText is empty then put "This is an image" into pCaptionText
-   --
-   put _ConstructImageItemArray (imageURL, pLinkURL, pWidth, pHeight, pSize, pCaptionText, pLat, pLong) into itemArray
-   itemArray_Add itemArray, pageArray
-   return itemArray
-end pageArray_AddImage
-
-private function _ConstructImageItemArray imageURL, iSource, pWidth, pHeight, pSize, pCaption, pLat, pLong, pID
-   if pSize is empty then
-      put "wide" into pSize
-   end if
-   itemArray_NormalizeID pID
-   put pID into itemArray ["id"]
-   
-   put "image" into itemArray ["type"]
-   --
-   put imageURL into itemArray ["url"]
-   put iSource into itemArray ["source"]
-   put pCaption into itemArray ["text"]
-   --
-   put pSize into itemArray ["size"]
-   if pWidth is not empty then
-      put pWidth into itemArray ["width"]
-   end if
-   if pHeight is not empty then
-      put pHeight into itemArray ["height"]
-   end if
-   
-   # Add Geo
-   if pLat is not empty then
-      put pLat into itemArray ["location"]["latitude"]
-      put pLong into itemArray ["location"]["longitude"]
-   end if
-   return itemArray
-end _ConstructImageItemArray
-
-command pageArray_AddHtmlImage @pageArray, imageURL, pCaptionText, pLinkURL
-   if pageArray is not an array then return false
-   if imageURL is  empty then return false
-   if pCaptionText is empty then put "This is an image" into pCaptionText
-   --
-   -- put fedwiki_ConstructImageCaption (pCaptionText, pLinkURL, imageURL) into pCaptionText
-   put _ConstructImageHtml (imageURL, pCaptionText, pLinkURL) into imageHTML
-   pageArray_AddHtml pageArray, imageHTML
-   return true
-end pageArray_AddHtmlImage
-
-function fedwiki_ConstructImageHtml encodedSrcURL, pCaption, pCaptionLinkURL, pEncodedImageLink
-   put fedwiki_ConstructImageCaption (pCaption, pCaptionLinkURL, encodedSrcURL) into pCaptionText
-   put _ConstructImageHtml (encodedSrcURL, pCaptionText, pEncodedImageLink) into imageHTML
-   return imageHTML
-end fedwiki_ConstructImageHtml
-
-function fedwiki_ConstructThumbHtml encodedSrcURL, pCaption, pCaptionLinkURL, pEncodedImageLink
-   put fedwiki_ConstructImageCaption (pCaption, pCaptionLinkURL, encodedSrcURL) into pCaptionText
-   --
-   put "class='item image ui-sortable-handle'" into divClassBit
-   put "class='thumbnail' data-imagestyle='thumbwiki'" into imgStyleBit
-   put _ConstructImageHtml (encodedSrcURL, pCaptionText, pEncodedImageLink, divClassBit, imgStyleBit) into someHTML
-   return someHTML
-end fedwiki_ConstructThumbHtml
-
-function fedwiki_ConstructImageCaption pCaption, pCaptionLinkURL
-   if pCaption is empty then
-      put "This is an image" into pCaption
-   else if the number of words of pCaption > 35 then
-      put word 1 to 35 of pCaption & "..." into pCaption
-   else
-      put word 1 to -1 of pCaption into pCaption
-   end if
-   html_TopAndTailParagraphTags pCaption
-   --
-   if pCaptionLinkURL is empty then return pCaption
-   if char -1 of pCaption = "." then delete char -1 of pCaption
-   --
-   put fedwiki_ExternalLink (pCaptionLinkURL) into externalLink
-   put pCaption && "-" && externalLink into imageCaption
-   --
-   return imageCaption
-end fedwiki_ConstructImageCaption
-
-function fedwiki_InternalLink pageTitle
-   return "[[" & word 1 to -1 of pageTitle & "]]"
-end fedwiki_InternalLink
-
-function fedwiki_ExternalLink linkURL, pLinkTag
-   if pLinkTag is empty then
-      put fedwiki_ConstructLinkTag (linkURL) into pLinkTag
-   end if
-   put "[" & linkURL && pLinkTag & "]" into externalLink
-   return externalLink
-end fedwiki_ExternalLink
-
-command fedwiki_AddExternalLink @someText, pExtLinkURL, pHackHtml
-   if char -1 of someText = "." then delete char -1 of someText
-   --
-   put md_ConstructExternalLinkLine (pExtLinkURL) into mdLinkLine
-   --
-   if pHackHtml is true then
-      -- ...<p>It's only preliminary, folks.</p><img src="http://feeds.feedburner.com/~r/sciencealert-latestnews/~4/Bj-Ay6aCDOg" height="1" width="1" alt=""/>
-      put "</p>" into ePara
-      set the itemdelimiter to ePara
-      if char -4 to -1 of someText = "</p>" then
-         delete char -4 to -1 of someText
-         _TrimFullStop someText, mdLinkLine
-         put ePara after someText
-      else if the number of items of someText > 1 then
-         put item -1 of someText into lastBit
-         delete item -1 of someText
-         _TrimFullStop someText, mdLinkLine
-         put ePara & lastBit after someText
-      else
-         _TrimFullStop someText, mdLinkLine
-      end if
-   else
-      _TrimFullStop someText, mdLinkLine
-   end if
-   return linkTag
-end fedwiki_AddExternalLink
-
-function fedwiki_ConstructLinkTag someURL
-   switch
-      case someURL contains "twitter.com"
-         return "twitter"
-      case someURL contains "facebook.com"
-         return "facebook"
-      case someURL contains "bbc.co.uk"
-         return "bbc"
-      case someURL contains "listennotes.com"
-         return "listen"
-      case someURL contains "wikipedia.org"
-         return "wikipedia"
-      case someURL contains "wikimedia.org"
-         return "wikimedia"
-      default
-         put html_ExtractTLD (someURL, true) into linkTag
-         return linkTag
-   end switch
-end fedwiki_ConstructLinkTag
-
-private command _SetImageDescription @pImageCaption, @pLinkURL, imageURL
-   if pImageCaption is empty then put "This is an image" into pImageCaption
-   if pLinkURL is empty then
-      if imageURL begins with "data:image/" then
-         put empty into pLinkURL
-      else
-         put imageURL into pLinkURL
-      end if
-   end if
-end _SetImageDescription
-
-function _ConstructImageHtml encodedSrcURL, pCaptionText, pEncodedImageLink, pImgStyleBit, pDivClassBit
-   if pDivClassBit is empty then put "style='padding: 12px; background:#eee; width:96%; align=centered;'" into pDivClassBit
-   if pImgStyleBit is empty then put "data-imagestyle='fullwiki'; style='display:block; margin:auto; width:100%;'" into pImgStyleBit
-   
-   # Div header
-   put "<div [[pDivClassBit]]>" & CR into htmlTemplate
-   
-   -- maybe add a link to the image
-   if pImageLink is not empty then put "<a href='[[pEncodedImageLink]]' target='_blank'>" after htmlTemplate
-   
-   # Add image source
-   put "<img [[pImgStyleBit]] src='[[encodedSrcURL]]'>" & CR after htmlTemplate
-   
-   # End imageLink
-   if pImageLink is not empty then put "</a>" & CR after htmlTemplate
-   
-   # Add caption
-   put "<p class=caption>" & CR&CR after htmlTemplate
-   put "[[pCaptionText]]" & CR&CR after htmlTemplate
-   
-   # Add ending
-   put "</p></div>" after htmlTemplate
-   
-   # Merge and return
-   put merge (htmlTemplate) into someHTML
-   return someHTML
-end _ConstructImageHtml
-
-private command _TrimFullStop @someText, linkBit
-   put word 1 to -1 of someText into someText
-   switch
-      case char -3 to -1 of someText is "..."
-      case char -2 to -1 of someText is ".."
-         break
-      case char -1 of someText is "."
-         delete char -1 of someText
-         break
-   end switch
-   put linkBit after someText
-end _TrimFullStop
-
-
---> WikiPage | Gallery
--
-function wikiPage_Image imageURL, pPageTitle, pPageDescription, pImageCaption, pImageSourceUrl, iWidth, iHeight, iSize, pLat, pLong
-   put pageArray_ConstructImageCaption (pImageCaption, pImageSourceUrl, imageURL) into sCaption
-   --
-   put _ConstructImageItemArray (imageURL, pImageSourceUrl, iWidth, iHeight, iSize, sCaption, pLat, pLong) into itemArray
-   put _ConstructImagePageArray (pPageTitle, pPageDescription) into pageArray
-   itemArray_Add itemArray, pageArray
-   --
-   return pageArray
-end wikiPage_Image
-
-function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
-   if pPageTitle is empty then
-      put "Openverse Thumbnails" into pPageTitle
-   end if
-   if pFirstPara is empty then
-      put "Search results for:" && pSearchBit into pFirstPara
-   end if
-   --
-   put pageArray_Construct (pPageTitle, pFirstPara) into pageArray
-   
-   put sData ["results"] into indexArray
-   put item 2 of the extents of indexArray into maxNum
-   repeat with itemNum = 1 to maxNum
-      put indexArray [itemNum] into itemArray
-      --
-      put itemArray ["thumbnail"] into thumbURL
-      put itemArray ["url"] into imageURL
-      put itemArray ["related_url"] into relatedURL
-      put itemArray ["detail_url"] into detailURL
-      put itemArray ["foreign_landing_url"] into linkURL
-      
-      --
-      put itemArray ["title"] into imageTitle
-      put itemArray ["attribution"] into sAttribution
-      --
-      put imageTitle & "." && sAttribution into imageCaption
-      pageArray_AddThumbnail pageArray, thumbURL, imageCaption, linkURL
-   end repeat
-   return pageArray
-end wikiPage_OpenVerseThumbNails
-
-
---> WikiPage | Dialogue
--
-function wikiPage_Dialogue pageSlug, wikiDomain, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
-   put fedwiki_ConstructTitle (pageSlug) into pageTitle
-   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
-   put pageTitle into curlyData ["all"]["New Page Title"]
-   put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
-   put pageSlug into curlyData ["all"]["originalSlug"]
-   put wikiDomain into curlyData ["all"]["wikiDomain"]
-   --
-   put wikiPage_CurlyDialogue (curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
-   return pageArray
-end wikiPage_Dialogue
-
-function wikiPage_CurlyDialogue curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   if pTemplateDomain is empty then put "dialogue.fedwiki.org" into pTemplateDomain
-   if pPageArrayTitle is empty then put "Edit Wiki Page" into pPageArrayTitle
-   --
-   put pageArray_FetchTemplate (pTemplateDomain, dialogueSlug, pPageArrayTitle) into pageArray
-   curly_MergePageArray pageArray, curlyData
-   --
-   put "html" into pageArray ["plugin"]
-   pageArray_CleanJournal pageArray
-   --
-   return pageArray
-end wikiPage_CurlyDialogue
-
-function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "edit-page-dialogue", pPageArrayTitle) into pageArray
-   return pageArray
-end wikiPage_EditPage
-
-function wikiPage_CreatePage pageSlug, wikiDomain, pPageArrayTitle
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "create-page-dialogue", pPageArrayTitle) into pageArray
-   return pageArray
-end wikiPage_CreatePage
-
-function wikiPage_Future pageSlug, wikiDomain, pPageArrayTitle
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "future-dialogue-template", pPageArrayTitle) into pageArray
-   return pageArray
-end wikiPage_Future
-
 
 --> PageArray | Image
 -
@@ -468,7 +489,7 @@ function wikiPage_ImageEditor imageURL, imageAttributeArray, pAddMetaData
    curly_ReplacePageArray pageArray, "ImageLink", imageLink
    --
    curly_ReplacePageArray pageArray, "ImageCaption", imageCaption
-    
+   
    if pAddMetaData is not false then
       -- this fetches the image a second time with curl
       pageArray_AddImageMetadata pageArray, imageURL
@@ -512,40 +533,18 @@ end wikiServer_GuessLastSlug
 
 --> WikiPage | Filter
 -
-function wikiPage_FilteredDomainList filterWord, pPageTitle
-   if pPageTitle is empty then
-      put text_InitialCaps (filterWord) && "Sites" into pPageTitle
-   end if
-   
-   put "*" & filterWord & "*" into sFilter
-   put wiki_ListLocalShortAll (sFilter) into wikiFolders
+function wikiPage_SiteTitleFromDomain wikidomain
+   set the itemdelimiter to "."
+   switch item -1 of wikidomain
+      case "org"
+         put item 1 to -2 of wikiDomain into tldWord
+      default
+   end switch
+   replace "." with space in wikiDomain
    --
-   put "Here is a list of" && pageTitle & ":" into firstPara
-   put wikiPage_ConstructDomainList (pPageTitle, wikiFolders, firstPara) into pageArray
-   return pageArray
-end wikiPage_FilteredDomainList
-
-function wikiPage_ConstructDomainList pageTitle, wikiDomains, pFirstPara
-   if pFirstPara is empty then
-      put "Here is a list of wikidomains:" into pFirstPara
-   end if
-   --
-   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
-   put markdown_LinkedBullets (wikiDomains) into mdDomains
-   pageArray_AddMarkdown pageArray, mdDomains
-   --
-   pageArray_AddMarkdown pageArray, "# Roster"
-   put pageTitle & CR&CR & wikiDomains into rosterText
-   pageArray_AddRoster pageArray, rosterText
-   --
-   pageArray_AddMarkdown pageArray, "# Activity"
-   pageArray_AddActivity pageArray, pageTitle, "1 week", "CONVERSATION"
-   --
-   pageArray_AddReferenceIndex pageArray, wikiDomains
-   --
-   pageArray_StripJournal pageArray
-   return pageArray
-end wikiPage_ConstructDomainList
+   put text_InitialCaps (wikiDomain) && "Sites" into pageTitle
+   return pageTitle
+end wikiPage_SiteTitleFromDomain
 
 function wikiPage_TwoWeeksActivity pFirstPara
    return wikiPage_FederationActivity ("", pFirstPara)

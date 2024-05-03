@@ -55,7 +55,7 @@ command display_LocalSiteMapArray wikiDomain, pSincePeriod, pDisplayView, pPalet
    display_SiteMapArray sitemapArray, wikiDomain, pSincePeriod
    put the result into displayView
    --
-   put wikiJson_ConstructSiteMapFile (pWikiDomain) into siteMapFile
+   put wikiFile_ConstructSiteMap (pWikiDomain) into siteMapFile
    set the sitemap_File of displayView to siteMapFile
    return displayView
 end display_LocalSiteMapArray
@@ -130,7 +130,7 @@ end _DisplayWiki
 
 function wiki_CheckFolderColour wikiDomain
    put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
-   put wiki_GetFolder (wikiDomain) into wikiFolder
+   put wikiFolder_Get (wikiDomain) into wikiFolder
    switch
       case there is not a folder gitWikiFolder
          return "red"
@@ -214,7 +214,7 @@ on mDoubleUp_WikiLocalIndex dView, wikiDomain
       if exists (browserView) then
          set the page_Title [wikiDomain] of browserView to "welcome-visitors"
       else
-         put wiki_GetFolder (wikiDomain) into wikiFolder
+         put wikiFolder_Get (wikiDomain) into wikiFolder
          finder_Reveal wikiFolder
          launch_LocalhostWiki wikiDomain
       end if
@@ -259,7 +259,7 @@ command launch_EtcHosts
 end launch_EtcHosts
 
 command launch_WikiConfig
-   put wiki_GetConfigFile() into wikiConfigFile
+   put wikiFile_Config() into wikiConfigFile
    put text_EditorApplicationPath() into applicationPath
    launch wikiConfigFile with applicationPath
 end launch_WikiConfig
@@ -293,7 +293,7 @@ end fedwiki_LaunchSlug
 --> Display | Wiki | Astral
 -
 command display_WikiCommonsPhotos
-   put wiki_CommonsFolder() into wikiCommonsFolder
+   put wikiFolder_ConstructCommons() into wikiCommonsFolder
    put file_ListShort (wikiCommonsFolder) into shortFiles
    --
    display_Data shortFiles, "Commons", "Photos", pDisplayView

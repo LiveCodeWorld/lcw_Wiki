@@ -25,29 +25,156 @@ local MiddlewareArray
 
 --> Working on
 -
-command post_ToController someRoute, socketID, requestArray
-   set the itemdelimiter to slash
-   put item 2 of someRoute & ".lc" into controllerStackName
+command display_ExistingPage pageArray
+   display_Wiki wikiDomain
+   put the result into browserView
+   set the ghost_PageArray of browserView to pageArray
+end display_ExistingPage
+
+command get_LcwBookmarklet someRoute, socketID, requestArray
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   put requestArray ["queryArray"]["url"] into someUrl
    --
-   if exists (stack controllerStackName) then
-      # Should set all 
-      put item 3 of someRoute into hName
-      if hName is empty then put "index" into hName
+   if someUrl begins with "https://www.one-tab.com/page/" then
+      put oneTab_FetchPageArray (someUrl, "markdown") into pageArray
       --
-      daemon_SetSocketID socketID
-      put the long id of me into serverView
-      daemon_SetServer serverView
-      --
-      put daemon_GetRequestText (requestArray) into postData
-      put postData into $_POST_RAW
-      --
-      dispatch hName to stack controllerStackName with requestArray
-      --
-      return "Forwarded POST to controller and returned page-json:" controllerStackName
+      put pageArray ["title"] into pageTitle
+      put fedwiki_ConstructSlug (pageTitle) into pSlug
+      put wikiFile_Construct (wikiDomain, pSlug) into pageJsonFile
+      -- 
+      if there is a file pageJsonFile then
+         lcw_Notify "Link page with this name already exists!", pageTitle
+         
+         # Display original page in new tab
+         -- get_WikiPageJson someRoute, socketID, requestArray, pSlug, wikiDomain -- this display new json
+         get_WikiDomain someRoute, socketID, requestArray, pageTitle
+         
+         # Cant's do second page this way
+         -- put "New Link Page" into pageArray ["title"]
+         -- daemon_SendArray socketID, pageArray
+      else
+         # Create Link Page
+         put json_FromArray (pageArray) into pageJSON
+         text_Set pageJsonFile, pageJson
+         
+         # Display Page & Update sitemap
+         get_WikiDomain someRoute, socketID, requestArray, pageTitle
+         wikiSiteMap_Create wikiDomain -- could "wikiSiteMap_AddPage"
+      end if
    else
-      return "Error, cannot locate controlle stack:" controllerStackName
+      undefined_Get socketID, someRoute, requestArray
    end if
-end post_ToController
+   return the result
+end get_LcwBookmarklet
+
+
+--> GET | pages
+-
+command get_EditPage someRoute, socketID, requestArray
+   put "edit-page" into editPageSlug
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   --
+   set the itemdelimiter to slash
+   put item -1 of someRoute into lastPageSlug
+   put "/view/" & editPageSlug after of someRoute
+   
+   # Domain Switch (should be based on domain page-json)
+   switch wikiDomain
+      case "transcript.thought.garden"
+         put transcribe_EditPage (lastPageSlug, wikiDomain) into editPageArray
+         break
+      default
+         put wikiPage_EditPage (lastPageSlug, wikiDomain, "Edit Page") into editPageArray
+   end switch
+   --
+   pageArray_Set wikiDomain, editPageSlug, editPageArray, true
+   wikiSiteMap_Create wikiDomain
+   --
+   get_WikiLineUp someRoute, socketID, requestArray
+   return the result
+end get_EditPage
+
+command get_WikiServerToolPage someRoute, requestArray, socketID
+   -- called when flag clicked
+   
+   # Assume wikiDomain is one of our local origin-servers as we are serving it
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   -- put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+   
+   # Get last page-slug
+   set the itemdelimiter to slash
+   put item -1 of someRoute into lastPageSlug
+   
+   # Does the wiki-page already exist
+   put wikiFile_Construct (wikiDomain, lastPageSlug) into pageJsonFile
+   if there is a file pageJsonFile then
+      get_EditPage someRoute, socketID, requestArray
+   else
+      get_CreatePage someRoute, socketID, requestArray
+   end if
+   return the result
+end get_WikiServerToolPage
+
+command get_FlagClick someRoute, socketID, requestArray, pPageTitle
+   -- overrides router
+   if someRoute = "/view/welcome-visitors" then
+      put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+      set the itemdelimiter to slash
+      put item 4 to -1 of sReferer into rPath
+      if rPath = "view/welcome-visitors" then
+         get_WikiLineUp "/view/welcome-visitors/view/site-tools", socketID, requestArray
+      else
+         get_WikiDomain someRoute, socketID, requestArray -- the default behavior
+      end if
+   else
+      put wikiServer_GuessLastSlug (someRoute) into lastPageSlug
+      put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+      --
+      --put wikiPage_Tools (lastPageSlug, wikiDomain) into pageArray
+      put wikiPage_Dialogue (lastPageSlug, wikiDomain, "future-dialogue-template") into pageArray
+      --
+      daemon_SendArray socketID, pageArray
+      return "Sent JSON. Socket still open."
+   end if
+end get_FlagClick
+
+command get_CreatePage someRoute, socketID, requestArray
+   set the itemdelimiter to slash
+   put item -1 of someRoute into pageSlugToCreate
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   --
+   put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into createPageArray
+   pageArray_Set wikiDomain, "create-page", createPageArray, true
+   wikiSiteMap_Create wikiDomain
+   --
+   put "view/create-page/" before item -2 of someRoute
+   get_WikiLineUp someRoute, socketID, requestArray
+   return the result
+end get_CreatePage
+
+
+--> GET
+-
+before route_GET someRoute, socketID, requestArray
+   switch
+      case someRoute = "/plugin/assets/upload"
+         break
+      case someRoute = "/lcw_BrowserUrl"
+         get_LcwBookmarklet someRoute, socketID, requestArray
+         return "Sent JSON. Socket still open."
+         exit to top
+      case someRoute = "/system/sitemap.json"
+      case someRoute = "/system/site-index.json"
+         -- pass on as it is called regularly
+         break
+      case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
+         # Flag Click (see get_FlagClick)
+         get_WikiServerToolPage someRoute, requestArray, socketID
+         break
+      default
+         return empty
+   end switch
+end route_Get
 
 command form_SetFirstMultipart rPostData, sBoundary, @someImage, @shortFileName, @mimeType
    -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
@@ -79,6 +206,33 @@ command form_SetFirstMultipart rPostData, sBoundary, @someImage, @shortFileName,
    return sData
 end form_SetFirstMultipart
 
+
+--> POST
+-
+command post_ToController someRoute, socketID, requestArray
+   set the itemdelimiter to slash
+   put item 2 of someRoute & ".lc" into controllerStackName
+   --
+   if exists (stack controllerStackName) then
+      # Should set all 
+      put item 3 of someRoute into hName
+      if hName is empty then put "index" into hName
+      --
+      daemon_SetSocketID socketID
+      put the long id of me into serverView
+      daemon_SetServer serverView
+      --
+      put daemon_GetRequestText (requestArray) into postData
+      put postData into $_POST_RAW
+      --
+      dispatch hName to stack controllerStackName with requestArray
+      --
+      return "Forwarded POST to controller and returned page-json:" controllerStackName
+   else
+      return "Error, cannot locate controlle stack:" controllerStackName
+   end if
+end post_ToController
+
 command post_AssetUpload someRoute, socketID, requestArray
    -- someRoute = "/plugin/assets/upload"
    /*
@@ -102,7 +256,7 @@ command post_AssetUpload someRoute, socketID, requestArray
    
    form_SetFirstMultipart rPostData, sBoundary, someData, shortAssetFile, mimeType
    
-   put wiki_ConstructAssetFile (shortAssetFile, wikiDomain) into sFile
+   put wikiFile_ConstructAsset (shortAssetFile, wikiDomain) into sFile
    
    if there is a file sFile then
       -- seems to be called twice?
@@ -130,85 +284,6 @@ command post_LCW someRoute, socketID, requestArray
    end switch
 end post_LCW
 
-
---> GET
-=
-command get_WikiServerToolPage someRoute, requestArray, socketID
-   -- "/view/welcome-visitors/view/(.+)"
-   
-   # Assume wikiDomain is one of our local origin-servers as we are serving it
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-   
-   # Get last page-slug
-   set the itemdelimiter to slash
-   put item -1 of someRoute into lastPageSlug
-   
-   # Does the wiki-page already exist
-   put pageJson_ConstructFile (wikiDomain, lastPageSlug) into pageJsonFile
-   if there is a file pageJsonFile then
-      get_EditPage someRoute, socketID, requestArray
-   else
-      get_CreatePage someRoute, socketID, requestArray
-   end if
-   return the result
-end get_WikiServerToolPage
-
-command get_EditPage someRoute, socketID, requestArray
-   put "edit-page" into editPageSlug
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   --
-   set the itemdelimiter to slash
-   put item -1 of someRoute into lastPageSlug
-   put "/view/" & editPageSlug after of someRoute
-   --
-   put wikiPage_EditPage (lastPageSlug, wikiDomain, "Edit Page") into editPageArray
-   pageArray_Set wikiDomain, editPageSlug, editPageArray, true
-   wikiSiteMap_Create wikiDomain
-   --
-   get_WikiLineUp someRoute, socketID, requestArray
-   return the result
-end get_EditPage
-
-command get_CreatePage someRoute, socketID, requestArray
-   set the itemdelimiter to slash
-   put item -1 of someRoute into pageSlugToCreate
-   put "view/create-page/" before item -2 of someRoute
-   --
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   create_PageCreator pageSlugToCreate, wikiDomain
-   --
-   get_WikiLineUp someRoute, socketID, requestArray
-   return the result
-end get_CreatePage
-
-command create_PageCreator pageSlugToCreate, wikiDomain
-   put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into createPageArray
-   pageArray_Set wikiDomain, "create-page", createPageArray, true
-   wikiSiteMap_Create wikiDomain
-   return createPageArray
-end create_PageCreator
-
-command get_FlagClick someRoute, socketID, requestArray, pPageTitle
-   -- overrides router
-   if someRoute = "/view/welcome-visitors" then
-      put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-      set the itemdelimiter to slash
-      put item 4 to -1 of sReferer into rPath
-      if rPath = "view/welcome-visitors" then
-         get_WikiLineUp "/view/welcome-visitors/view/site-tools", socketID, requestArray
-      else
-         get_WikiDomain someRoute, socketID, requestArray -- the default behavior
-      end if
-   else
-      put wikiServer_GuessLastSlug (someRoute) into lastPageSlug
-      put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-      put wikiPage_Tools (lastPageSlug, wikiDomain) into pageArray
-      daemon_SendArray socketID, pageArray
-      return "Sent JSON. Socket still open."
-   end if
-end get_FlagClick
-
 before route_POST someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    switch
@@ -232,34 +307,6 @@ before route_POST someRoute, socketID, requestArray
    end switch
 end route_POST
 
-before route_GET someRoute, socketID, requestArray
-   switch
-      case someRoute = "/plugin/assets/upload"
-         breakpoint
-         break
-      case someRoute = "/lcw_BrowserUrl"
-         get_LcwBookmarklet someRoute, socketID, requestArray
-         --
-         return "Sent JSON. Socket still open."
-         exit to top
-      case someRoute = "/system/sitemap.json"
-      case someRoute = "/system/site-index.json"
-         -- pass on as it is called regularly
-         break
-      case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
-         -- get_WikiLineUp someRoute, socketID, requestArray
-         get_WikiServerToolPage someRoute, requestArray, socketID
-         break
-      default
-         --
-         return empty
-   end switch
-end route_Get
-
-before get_WikiDomain someRoute, socketID, requestArray, pPageTitle, pOwnedBy
-   --
-end get_WikiDomain
-
 before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
    switch
       case pageSlug = "tools"
@@ -272,6 +319,7 @@ before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
          break
       case wikiDomain = "sites.fedwiki.org"
          put pageSlug into filterWord
+         -- put word -2 to -1 of wikidomain into tldDomain
          put wikiPage_FilteredDomainList (filterWord) into pageArray
          --
          _ReturnAndExit pageArray, socketID
@@ -295,38 +343,6 @@ end get_WikiPageJson
 
 --> Deps
 -
-command get_LcwBookmarklet someRoute, socketID, requestArray
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   put requestArray ["queryArray"]["url"] into someUrl
-   --
-   if someUrl begins with "https://www.one-tab.com/page/" then
-      put oneTab_FetchPageArray (someUrl, "markdown") into pageArray
-      --
-      put pageArray ["title"] into pageTitle
-      put fedwiki_ConstructSlug (pageTitle) into pSlug
-      put pageJson_ConstructFile (wikiDomain, pSlug) into pageJsonFile
-      -- 
-      if there is a file pageJsonFile then
-         display_Wiki wikiDomain
-         put the result into browserView
-         --
-         set the ghost_PageArray of browserView to pageArray
-      else
-         -- set the page_Array of browserView to pageArray
-         put json_FromArray (pageArray) into pageJSON
-         text_Set pageJsonFile, pageJson
-      end if
-      --
-      get_WikiDomain someRoute, socketID, requestArray, pageTitle
-      
-      # Update sitemap
-      wikiSiteMap_Create wikiDomain -- could "wikiSiteMap_AddPage"
-   else
-      undefined_Get socketID, someRoute, requestArray
-   end if
-   return the result
-end get_LcwBookmarklet
-
 function wikiPage_TodaysActivity pFirstPara
    return wikiPage_FederationActivity ("Today", "today", pFirstPara)
 end wikiPage_TodaysActivity

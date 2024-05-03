@@ -37,10 +37,16 @@ command transport_SetInfo @wikiDomain, @pageSlug, @pageTitle
    if wikiDomain is empty then
       put tArray ["url"] into droppedURL
       transport_DeconstructDroppedURL droppedURL, pageSlug, wikiDomain
-      put empty into pageTitle
+      put tArray ["pageTitle"] into pageTitle
    else
       put tArray ["pageSlug"] into pageSlug
       put tArray ["pageTitle"] into pageTitle
+   end if
+   
+   if pageSlug is empty then
+      put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   else if pageTitle is empty then
+      put fedwiki_ConstructTitle (pageSlug) into pageTitle
    end if
    --
    return tArray
@@ -72,6 +78,39 @@ command transport_SetRawJSON rawJSON
    put rawJSON into $_POST_RAW
 end transport_SetRawJSON
 
+
+
+--> Image
+-
+function image_ToDataImageUrl someImage, imageType
+   -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
+   
+   put "data:image/" & imageType & ";base64," into dataImageUrl
+   put base64encode (someImage) after dataImageUrl
+   return dataImageUrl
+end image_ToDataImageUrl
+
+function image_FromDataImageUrl dataImageUrl
+   -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
+   
+   set the itemdelimiter to slash
+   if item 1 of dataImageUrl is not "data:image" then return empty
+   
+   set the itemdelimiter to comma
+   get item 1 of dataImageUrl
+   
+   /* -- don't need this simply to return decoded image 
+   set the itemdelimiter to ";"
+   get item 1 of it 
+   set the itemdelimiter to slash
+   put item -1 of it into mimeType
+   set the itemdelimiter to comma
+   */
+   
+   delete item 1 of dataImageUrl
+   put base64decode (dataImageUrl) into someImage
+   return someImage
+end image_FromDataImageUrl
 
 
 --> Transport | requestArray
@@ -323,39 +362,6 @@ command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
    pageArray_Set wikiDomain, pageSlug, pageArray
    return pageArray
 end fedwiki_UpdatePageItem
-
-
---> Image
--
-function image_ToDataImageUrl someImage, imageType
-   -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
-   
-   put "data:image/" & imageType & ";base64," into dataImageUrl
-   put base64encode (someImage) after dataImageUrl
-   return dataImageUrl
-end image_ToDataImageUrl
-
-function image_FromDataImageUrl dataImageUrl
-   -- data:image/jpeg;base64,/9j/4AAQSkZJRgA
-   
-   set the itemdelimiter to slash
-   if item 1 of dataImageUrl is not "data:image" then return empty
-   
-   set the itemdelimiter to comma
-   get item 1 of dataImageUrl
-   
-   /* -- don't need this simply to return decoded image 
-   set the itemdelimiter to ";"
-   get item 1 of it 
-   set the itemdelimiter to slash
-   put item -1 of it into mimeType
-   set the itemdelimiter to comma
-   */
-   
-   delete item 1 of dataImageUrl
-   put base64decode (dataImageUrl) into someImage
-   return someImage
-end image_FromDataImageUrl
 
 
 --> Fedwiki | Links

@@ -12,6 +12,18 @@ version: 0.1
 
 --> Working on
 -
+function storyArray_GetLastPageFold storyArray
+   -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
+   put item 2 of the extents of storyArray into maxNum
+   repeat with itemNum = maxNum down to 1
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "pagefold" then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end storyArray_GetLastPageFold
+
 command pageArray_AddStory @pageArray, moreStoryItemArray
    if moreStoryItemArray is not an array then return false
    -- add multiple new storyItemArrays from moreStoryItemArray to end of pageArray story
@@ -63,6 +75,20 @@ end pageArray_InsertStoryAfter
 
 --> StoryArray
 -
+command storyArray_AddGraphviz @storyArray, graphText, pDot, pSVG, pItemID
+   put itemArray_ConstructGraphviz (graphText, pDot, pSVG, pItemID) into itemArray
+   itemArray_AddToEnd itemArray, storyArray
+end storyArray_AddGraphviz
+
+command storyArray_AddMarkdown @storyArray, mdText, pID
+   storyArray_AddItemArray storyArray, "markdown", mdText, pID
+end storyArray_AddMarkdown
+
+command storyArray_AddItemArray @storyArray, itemType, itemText, pID
+   put itemArray_Construct (itemType, pID, itemText) into itemArray
+   itemArray_AddToEnd itemArray, storyArray
+end storyArray_AddItemArray
+
 function storyArray_ExtractOrderedIDArray storyArray
    put item 2 of the extents of storyArray into maxItem
    repeat with itemNum = 1 to maxItem

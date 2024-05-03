@@ -10,7 +10,7 @@ version: 0.3
 --> Deps
 -
 getprop project_Deps
-   return "lcw_GIT,lcw_Revigniter,lcw_Google,lcw_Graph,lcw_HTML5,lcw_Controllers"
+   return "lcw_GIT,lcw_Revigniter,lcw_Google,lcw_Graph,lcw_HTML5,lcw_Controllers,lcw_Help,lcw_Camera"
 end project_Deps
 
 

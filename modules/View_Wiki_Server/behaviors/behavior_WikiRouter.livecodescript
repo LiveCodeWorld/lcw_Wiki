@@ -21,6 +21,184 @@ local PluginRouteData
 
 --> Working on
 -
+command get_FlagClick someRoute, socketID, requestArray, pPageTitle
+   get_WikiDomain someRoute, socketID, requestArray, pPageTitle
+end get_FlagClick
+
+command get_WikiDomain someRoute, socketID, requestArray, pPageTitle, pOwnedBy
+   /* Site reload
+   Takes the default welcome-visitors server template and merges the params
+   It takes the tags and pageDiv section using _ConstructSimplePageDiv() and replaces curly-tags
+   The wiki-client does all the dynamic heavy lifting, so no need for server to render anything.*/
+   
+   if pPageTitle is empty then put "Welcome Visitors" into pPageTitle
+   put fedwiki_ConstructSlug (pPageTitle) into pageSlug
+   
+   # Fetch default server page
+   put wikiClient_GetStaticHtml() into someHTML
+   
+   # Construct rendered page div
+   put _ConstructSimplePageDiv (pageSlug) into pageDiv
+   
+   # Set end script login and ownership params
+   _SetEndScript someHTML, pPageTitle, pOwnedBy
+   
+   # Set "pages" div
+   wiki_SetTagOffsets someHTML, "pages", startCharNum, endCharNum
+   put the result into innerHTML
+   if innerHTML is not empty then
+      put pageDiv into char startCharNum to endCharNum of someHTML
+   end if
+   
+   # Send HTML   
+   daemon_SendText socketID, someHTML
+   return merge ("Sent [[pageSlug]] for [[wikiDomain]]")
+end get_WikiDomain
+
+command get_WikiPageJsonNotFound someRoute, socketID, requestArray
+   -- /jacob-soll.json
+   set the itemdelimiter to slash
+   put item -1 of someRoute into pageSlugToCreate
+   if char -5 to -1 of pageSlugToCreate = ".json" then
+      delete char -5 to -1 of pageSlugToCreate
+   end if
+   
+   # If not found, wiki-client tries pages remote server and then present a ghost-create page]
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+   --
+   if the optionKey is "Down" then
+      switch wikiDomain
+         -- quick hack to provide custom tools per domain
+         -- could look for a charmed wiki page
+         case "transcript.thought.garden"
+            set the itemdelimiter to slash
+            put item -1 of sReferer into fromPageSlug
+            put wikiPage_Transcript (wikiDomain, pageSlugToCreate, fromPageSlug) into pageArray
+            --
+            put wikiFile_Construct (wikiDomain, pageSlugToCreate) into wikiFile
+            if there is not a file wikiFile then
+               pageArray_Set wikiDomain, pageSlugToCreate, pageArray, true
+               put fedwiki_ConstructTitle (pageSlugToCreate) into pageTitle
+               put "Created page [[" & pageTitle & "]]" into someMarkdown
+               put pageArray_Construct ("Success", someMarkdown, "markdown") into pageArray
+            end if
+            --
+            daemon_SendArray socketID, pageArray
+            return "Sent JSON. Socket still open."
+         default
+            if the shiftKey is "Down" then
+               mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
+               if pageID is a number then
+                  put mediawiki_FetchSummaryPageArray (pageTitle) into pageArray
+                  put "markdown" into pageArray ["plugin"]
+               else
+                  put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
+               end if
+            else
+               put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
+            end if
+            --
+            daemon_SendArray socketID, pageArray
+            return "Sent JSON. Socket still open."
+      end switch
+   else
+      put wikiServer_GetPageArray (pageSlugToCreate) into pageArray
+      if pageArray is an array then
+         put json_FromArray (pageArray) into someJSON
+         daemon_SendJSON socketID, someJSON
+         return "Sent default page JSON. Socket still open."
+      else
+         put word 1 of the params && someRoute into logComment
+         daemon_SendNotFound socketID, logComment
+         return "Returned 404 page not found."
+      end if
+   end if
+end get_WikiPageJsonNotFound
+
+command _SetFirstMultipart rPostData, @someImage, @shortFileName, @mimeType
+   -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
+   /*
+   -----------------------------57324694142348375092642508047
+   Content-Disposition: form-data; name="image"; filename="39e2e88aeea0aa7739a599333f5bb38d.jpg"
+   Content-Type: image/jpeg
+   */
+   
+   # Quick parsing hack assuming its an image in a single part
+   set the itemdelimiter to ":"
+   put line 1 of rPostData into boundaryLine
+   put token -1 of item 2 line 2 of rPostData into shortFileName
+   put word -1 of line 3 of rPostData into mimeType
+   --
+   delete line 1 to 3 of rPostData
+   put word 1 to -1 of rPostData into someImage
+   delete line -1 of someImage
+   --
+   return "Finished"
+end _SetFirstMultipart
+
+
+--> Not implemented
+-
+command get_SecurityJS socketID, someRoute, requestArray
+   daemon_SendNotFound socketID, word 1 of the params
+   return "Security.js not implemented for" && someRoute
+end get_SecurityJS
+
+
+--> Props
+-
+getprop plugin_RouteData
+   return PluginRouteData
+end plugin_RouteData
+
+
+--> Plugin
+-
+command route_Plugin someRoute, socketID, requestArray
+   -- now that we properly use PluginRouteData this should not be needed
+   put "route_Plugin undefined" && someRoute into logComment
+   daemon_SendNotFound socketID, logComment
+   return "Error, plugin not found"
+   
+   # Supports route_GET
+   -- case someRoute begins with "/plugins/"
+   set the itemdelimiter to slash
+   put item 3 of someRoute into pluginName
+   put item 4 to -1 of someRoute into shortFile
+   --
+   set the itemdelimiter to "."
+   switch item -1 of someRoute
+      case "js"
+         -- _LoadPluginRoutes pluginName -- preloading on server_Start
+         --
+         put wikiPlugin_GetJavascript (pluginName) into sJavascript
+         daemon_SendJS socketID, sJavascript
+         return "Sent client js" && someRoute
+      case "css"
+         -- /plugins/markdown/markdown.css
+         put "client/" before shortFile
+         put wikiPlugin_ConstructFile (pluginName, shortFile) into cssFile
+         put url ("binfile:" & cssFile) into sCSS
+         --
+         daemon_SendCSS socketID, sCSS
+         return "Sent client css" && someRoute
+      case "map"
+         get_PluginJavascriptMap pluginName, shortFile, socketID
+         return the result
+      case "png"
+         put wikiPlugin_ConstructFile (pluginName, shortFile) into pngFile
+         put url ("binfile:" & pngFile) into sPNG
+         daemon_SendPNG socketID, sPNG
+         return "Sent client png" && someRoute
+      default
+         undefined_Get socketID, someRoute, requestArray
+   end switch
+end route_Plugin
+
+
+--> GET | Assets
+-
 command action_ForkPage pageSlug, wikiDomain, actionArray
    -- put pageArray_Get (wikiDomain, pageSlug) into pageArray
    -- if pageArray is not an array then return "Error, page-json is faulty for" && wikiDomain,pageSlug
@@ -68,70 +246,8 @@ command get_WikiLineUp someRoute, socketID, requestArra, pOwnedBy
    return "Sent welcome-visitors for" && wikiDomain
 end get_WikiLineUp
 
-command _SetFirstMultipart rPostData, @someImage, @shortFileName, @mimeType
-   -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
-   /*
-   -----------------------------57324694142348375092642508047
-   Content-Disposition: form-data; name="image"; filename="39e2e88aeea0aa7739a599333f5bb38d.jpg"
-   Content-Type: image/jpeg
-   */
-   
-   # Quick parsing hack assuming its an image in a single part
-   set the itemdelimiter to ":"
-   put line 1 of rPostData into boundaryLine
-   put token -1 of item 2 line 2 of rPostData into shortFileName
-   put word -1 of line 3 of rPostData into mimeType
-   --
-   delete line 1 to 3 of rPostData
-   put word 1 to -1 of rPostData into someImage
-   delete line -1 of someImage
-   --
-   return "Finished"
-end _SetFirstMultipart
-
-command get_WikiPageJsonNotFound someRoute, socketID, requestArray
-   -- /jacob-soll.json
-   set the itemdelimiter to slash
-   put item -1 of someRoute into pageSlugToCreate
-   if char -5 to -1 of pageSlugToCreate = ".json" then
-      delete char -5 to -1 of pageSlugToCreate
-   end if
-   
-   # If not found, wiki-client tries pages remote server and then present a ghost-create page]
-   if the optionKey is "Down" then
-      put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-      if the shiftKey is "Down" then
-         put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-         
-         mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
-         if pageID is a number then
-            put mediawiki_FetchSummaryPageArray (pageTitle) into pageArray
-            put "markdown" into pageArray ["plugin"]
-         else
-            put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
-         end if
-      else
-         put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
-      end if
-      --
-      daemon_SendArray socketID, pageArray
-      return "Sent JSON. Socket still open."
-   else
-      put wikiServer_GetPageArray (pageSlugToCreate) into pageArray
-      if pageArray is an array then
-         put json_FromArray (pageArray) into someJSON
-         daemon_SendJSON socketID, someJSON
-         return "Sent default page JSON. Socket still open."
-      else
-         put word 1 of the params && someRoute into logComment
-         daemon_SendNotFound socketID, logComment
-         return "Returned 404 page not found."
-      end if
-   end if
-end get_WikiPageJsonNotFound
-
 command get_Asset assetPath, wikiDomain, socketID, requestArray, pSendCompressed
-   put wiki_ConstructAssetFile (assetPath, wikiDomain) into assetFile
+   put wikiFile_ConstructAsset (assetPath, wikiDomain) into assetFile
    if there is a file assetFile then
       daemon_SendAsset requestArray, assetFile, pSendCompressed
       return the result
@@ -143,7 +259,7 @@ command get_Asset assetPath, wikiDomain, socketID, requestArray, pSendCompressed
 end get_Asset
 
 command get_Image shortImageFile, wikiDomain, socketID, requestArray
-   put wiki_ConstructImageAssetFile (shortImageFile, wikiDomain) into imageFile
+   put wikiFile_ConstructImageAsset (shortImageFile, wikiDomain) into imageFile
    -- put daemon_ReceivedHeader ("Referer", requestArray) into sReferer -- can we use this to find the image better
    --
    if there is a file imageFile then
@@ -172,55 +288,6 @@ command get_Image shortImageFile, wikiDomain, socketID, requestArray
       return "Returned 404 image not found."
    end if
 end get_Image
-
-command get_FlagClick someRoute, socketID, requestArray, pPageTitle
-   get_WikiDomain someRoute, socketID, requestArray, pPageTitle
-end get_FlagClick
-
-command get_WikiDomain someRoute, socketID, requestArray, pPageTitle, pOwnedBy
-   /* Site reload
-   Takes the default welcome-visitors server template and merges the params
-   It takes the tags and pageDiv section using _ConstructSimplePageDiv() and replaces curly-tags
-   The wiki-client does all the dynamic heavy lifting, so no need for server to render anything.*/
-   
-   if pPageTitle is empty then put "Welcome Visitors" into pPageTitle
-   put fedwiki_ConstructSlug (pPageTitle) into pageSlug
-   
-   # Fetch default server page
-   put wikiClient_GetStaticHtml() into someHTML
-   
-   # Construct rendered page div
-   put _ConstructSimplePageDiv (pageSlug) into pageDiv
-   
-   # Set end script login and ownership params
-   _SetEndScript someHTML, pPageTitle, pOwnedBy
-   
-   # Set "pages" div
-   wiki_SetTagOffsets someHTML, "pages", startCharNum, endCharNum
-   put the result into innerHTML
-   if innerHTML is not empty then
-      put pageDiv into char startCharNum to endCharNum of someHTML
-   end if
-   
-   # Send HTML   
-   daemon_SendText socketID, someHTML
-   return merge ("Sent [[pageSlug]] for [[wikiDomain]]")
-end get_WikiDomain
-
-
---> Props
--
-getprop plugin_RouteData
-   return PluginRouteData
-end plugin_RouteData
-
-
---> Not implemented
--
-command get_SecurityJS socketID, someRoute, requestArray
-   daemon_SendNotFound socketID, word 1 of the params
-   return "Security.js not implemented for" && someRoute
-end get_SecurityJS
 
 
 --> Undefined
@@ -342,7 +409,7 @@ command delete_PageJson pageSLug, wikiDomain, socketID
 end delete_PageJson
 
 command delete_RecycledPage pageSLug, wikiDomain, socketID
-   put wiki_ConstructRecycleFolder (wikiDomain) into recycleFolder
+   put wikiFolder_ConstructRecycled (wikiDomain) into recycleFolder
    --
    put recycleFolder & pageSLug into recyclePath
    revDeleteFile recyclePath
@@ -367,7 +434,7 @@ command post_Favicon requestArray, socketID
    put item 2 of mimeType into fileExt
    --
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   put wiki_ConstructFaviconFile (wikiDomain) into faviconFile
+   put wikiFile_ConstructFavicon (wikiDomain) into faviconFile
    put someImage into url ("binfile:" & faviconFile)
    --
    daemon_SendOK socketID, "OK"
@@ -376,10 +443,9 @@ end post_Favicon
 
 command post_Image shortImageFile, requestArray, socketID
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   put wiki_ConstructImageAssetFile (shortImageFile, wikiDomain) into imageFile
+   put wikiFile_ConstructImageAsset (shortImageFile, wikiDomain) into imageFile
    if there is a file imageFile then
       -- seems to be called twice?
-      breakpoint
       return "Error, image file exists:" && imageFile
    end if
    
@@ -421,7 +487,7 @@ command get_ListAssets wikiDomain, requestArray, socketID
    # Construct json from files on server
    -- put "{'error':null,'files':['living-room.scad','living-room.stl','seating.scad','seating.stl']}" into sJSON
    -- replace "'" with quote in sJSON
-   put wiki_ListAssets (wikiDomain, relAssetPath, true) into shortFiles
+   put wikiFile_ListAssets (wikiDomain, relAssetPath, true) into shortFiles
    put "null" into jsonArray ["error"]
    put 1 into itemNum
    repeat for each line shortFile in shortFiles
@@ -523,6 +589,21 @@ command get_PluginJavascriptMap pluginName, shortFile, socketID
    end if
 end get_PluginJavascriptMap
 
+command get_PluginCss pluginName, shortCssFile, socketID
+   put wikiPlugin_ConstructClientFolder (pluginName) into pluginClientFolder
+   put pluginClientFolder & shortCssFile into pluginCssFile
+   --
+   if there is a file pluginCssFile then
+      put url ("binfile:" & pluginCssFile) into sCSS
+      daemon_SendCSS socketID, sCSS
+      return "Sent plugin css" && pluginName
+   else
+      put word 1 of the params && shortCssFile,pluginName into logComment
+      daemon_SendNotFound socketID, logComment
+      return "Error, cannot find plugin css file" && shortCssFile
+   end if
+end get_PluginCss
+
 command get_PluginJavascript pluginName, shortJavascriptFile, socketID
    -- someRoute = "/recycler/recycler.js"
    put wikiPlugin_ConstructClientFolder (pluginName) into pluginClientFolder
@@ -591,13 +672,97 @@ end get_ClientPNG
 
 --> Route
 -
+command get_FromPlugineRouteData routeArray, socketID, wikiDomain, requestArray
+   put routeArray ["type"] into routeType
+   put routeArray ["pluginName"] into pluginName
+   put routeArray ["relPath"] into relPath
+   --
+   put routeArray ["fileExt"] into fileExt
+   
+   switch
+      case routeType = "pluginPageSlug"
+         put routeArray ["pageSlug"] into pageSlug
+         get_PluginPageJson pluginName, pageSlug, socketID
+         break
+      case routeType = "pluginCss"
+         get_PluginCss pluginName, relPath, socketID
+         break
+      case routeType = "pluginMap"
+         get_PluginJavascriptMap pluginName, relPath, socketID
+         break
+      case routeType = "pluginJavascript"
+         get_PluginJavascript pluginName, relPath, socketID
+         break
+      case routeType = "pluginMedia"
+      case fileExt is among the items of "jpg,jpeg,png,gif,svg"
+         get_Image relPath, wikiDomain, socketID, requestArray
+         break
+      case routeType = "pluginHtml"
+         put routeArray ["relPath"] into relPath
+         get_PluginHtml pluginName, relPath, socketID
+         break
+      default
+         -- video or audio?
+         breakpoint
+   end switch
+   return the result
+end get_FromPlugineRouteData
+
+command get_PluginHtml pluginName, relPath, socketID
+   -- ie for Frame Plugin
+   put wikiPlugin_ConstructClientFolder (pluginName) into clientFolder
+   put clientFolder & relPath into frameHtmlFile
+   --
+   if there is a file frameHtmlFile then
+      put url ("binfile:" & frameHtmlFile) into binaryHtml
+      daemon_SendJSON socketID, binaryHtml
+      return "Sent plugin html. Socket still open."
+   else
+      daemon_SendNotFound socketID, word 1 of the params
+      return the result
+   end if
+end get_PluginHtml
+
 command route_GET someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    --
    put PluginRouteData [someRoute] into routeArray
-   put routeArray ["type"] into routeType
    --
    switch
+      case routeArray is an array
+         get_FromPlugineRouteData routeArray, socketID, wikiDomain, requestArray
+         return the result
+      case someRoute = "/plugins/activity.js"
+         -- investigate why this route is popping up
+         put PluginRouteData ["/plugins/activity/activity.js"] into routeArray
+         put routeArray ["pluginName"] into pluginName
+         put routeArray ["relPath"] into shortJavascriptFile
+         get_PluginJavascript pluginName, shortJavascriptFile, socketID
+         return the result
+         
+      case someRoute = "/plugins/search.js"
+         -- why is this different?
+         breakpoint
+         put PluginRouteData ["/plugins/search/search.js"] into routeArray
+         
+         put routeArray ["pluginName"] into pluginName
+         put routeArray ["relPath"] into shortJavascriptFile
+         get_PluginJavascript pluginName, shortJavascriptFile, socketID
+         return the result
+      case someRoute = "/plugins/search.js.map"
+         -- why is this different?
+         breakpoint
+         return the result
+         
+      case someRoute = "/plugins/image/import.svg"
+         breakpoint
+         return the result
+         
+      case someRoute begins with "/plugins/"
+         -- breakpoint -- should have been trapped by PluginRouteData
+         route_Plugin someRoute, socketID, requestArray
+         return the result
+         
       case matchText (someRoute, "/assets/plugins/image/(.+)" , shortImageFile)
          get_Image shortImageFile, wikiDomain, socketID, requestArray         
          break
@@ -614,31 +779,6 @@ command route_GET someRoute, socketID, requestArray
          return the result
       case someRoute = "/system/site-index.json"
          get_SiteIndexJson wikiDomain, socketID
-         return the result
-         
-      case routeType = "pluginMap"
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["mapFile"] into shortMapFile
-         --
-         get_PluginJavascriptMap pluginName, shortMapFile, socketID
-         return the result
-         break
-      case routeType = "pluginJavascript"
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["jsFile"] into shortJavascriptFile
-         --
-         get_PluginJavascript pluginName, shortJavascriptFile, socketID
-         return the result
-      case routeType = "pluginPageSlug"
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["pageSlug"] into pageSlug
-         --
-         get_PluginPageJson pluginName, pageSlug, socketID
-         return the result
-         
-      case someRoute begins with "/plugins/"
-         breakpoint -- should have been trapped by PluginRouteData
-         route_Plugin someRoute, socketID, requestArray
          return the result
          
       case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
@@ -749,46 +889,9 @@ command route_PUT someRoute, socketID, requestArray
    end switch
 end route_PUT
 
-command route_Plugin someRoute, socketID, requestArray
-   # Supports route_GET
-   -- case someRoute begins with "/plugins/"
-   set the itemdelimiter to slash
-   put item 3 of someRoute into pluginName
-   put item 4 to -1 of someRoute into shortFile
-   --
-   set the itemdelimiter to "."
-   switch item -1 of someRoute
-      case "js"
-         -- _LoadPluginRoutes pluginName -- preloading on server_Start
-         --
-         put wikiPlugin_GetJavascript (pluginName) into sJavascript
-         daemon_SendJS socketID, sJavascript
-         return "Sent client js" && someRoute
-      case "css"
-         -- /plugins/markdown/markdown.css
-         put "client/" before shortFile
-         put wikiPlugin_ConstructFile (pluginName, shortFile) into cssFile
-         put url ("binfile:" & cssFile) into sCSS
-         --
-         daemon_SendCSS socketID, sCSS
-         return "Sent client css" && someRoute
-      case "map"
-         get_PluginJavascriptMap pluginName, shortFile, socketID
-         return the result
-      case "png"
-         put wikiPlugin_ConstructFile (pluginName, shortFile) into pngFile
-         put url ("binfile:" & pngFile) into sPNG
-         daemon_SendPNG socketID, sPNG
-         return "Sent client png" && someRoute
-      default
-         undefined_Get socketID, someRoute, requestArray
-   end switch
-end route_Plugin
-
 
 --> Action
 -
-
 command action_Move pageSlug, wikiDomain, actionArray
    put pageArray_Get (wikiDomain, pageSlug) into pageArray
    
@@ -1039,25 +1142,36 @@ command _LoadPluginRoutes pluginName
    put wikiPlugin_ListClientRelativePaths (pluginName) into relPaths
    set the itemdelimiter to "."
    repeat for each line relPath in relPaths
-      put "/" & pluginName & "/" & relPath into someRoute
+      put "/plugins/" & pluginName & "/" & relPath into someRoute
       --
       put item -1 of relPath into sFileExtension
       switch sFileExtension
          case "js"
-            put "pluginJavascript" into PluginRouteData [someRoute]["type"]
-            put pluginName into PluginRouteData [someRoute]["pluginName"]
-            put relPath into PluginRouteData [someRoute]["jsFile"]
+            _SetRoutes "pluginJavascript", pluginName, relPath, someRoute
             break
          case "map"
-            put "pluginMap" into PluginRouteData [someRoute]["type"]
-            put pluginName into PluginRouteData [someRoute]["pluginName"]
-            put relPath into PluginRouteData [someRoute]["mapFile"]
+            _SetRoutes "pluginMap", pluginName, relPath, someRoute
+            break
+         case "css"
+            _SetRoutes "pluginCss", pluginName, relPath, someRoute
+            break
+         case "html"
+         case "htm"
+            _SetRoutes "pluginHtml", pluginName, relPath, someRoute
             break
          default
-            next repeat
+            -- some sort of media
+            _SetRoutes "pluginMedia", pluginName, relPath, someRoute
+            put sFileExtension into PluginRouteData [someRoute]["fileExt"]
       end switch
    end repeat
 end _LoadPluginRoutes
+
+private command _SetRoutes pType, pluginName, relPath, someRoute
+   put pType into PluginRouteData [someRoute]["type"]
+   put pluginName into PluginRouteData [someRoute]["pluginName"]
+   put relPath into PluginRouteData [someRoute]["relPath"]
+end _SetRoutes
 
 command _SimpleLoadPluginRoutes pluginName
    -- put "recycler" into pluginName
@@ -1081,12 +1195,12 @@ command _SimpleLoadPluginRoutes pluginName
          case "js"
             put "pluginJavascript" into PluginRouteData [someRoute]["type"]
             put pluginName into PluginRouteData [someRoute]["pluginName"]
-            put shortFile into PluginRouteData [someRoute]["jsFile"]
+            put shortFile into PluginRouteData [someRoute]["relPath"]
             break
          case "map"
             put "pluginMap" into PluginRouteData [someRoute]["type"]
             put pluginName into PluginRouteData [someRoute]["pluginName"]
-            put shortFile into PluginRouteData [someRoute]["mapFile"]
+            put shortFile into PluginRouteData [someRoute]["relPath"]
             break
          default
             next repeat
@@ -1102,7 +1216,7 @@ private function _RecycledSlugsJson wikiDomain
 end _RecycledSlugsJson
 
 private function _RecycledSlugsData wikiDomain
-   put wiki_ListRecyclePageSlugs (wikiDomain) into rSlugs
+   put wikiFile_ListRecycled (wikiDomain) into rSlugs
    put 1 into itemNum
    repeat for each line pageSlug in rSlugs
       put pageSlug into slugData [itemNum]["slug"]

@@ -101,7 +101,7 @@ command hardlink_Create fromFile, toFile
 end hardlink_Create
 
 command wiki_CreateHardLink fromDomain, fromSlug, toDomain, toSlug
-   put pageJson_ConstructFile (fromDomain, fromSlug) into fromFile
+   put wikiFile_Construct (fromDomain, fromSlug) into fromFile
    if there is not a file fromFile then return "Error, file" && fromFile && "does not exist."
    put wiki_ConstructPageJsonFile (toDomain, toSlug) into toFile
    if there is not a file toFile then return "Error, domain" && toDomain && "does not exist."
@@ -114,8 +114,8 @@ end wiki_CreateHardLink
 command wiki_CreateSymLink wikiDomain, pSymLinkDomain
    if pSymLinkDomain is empty then put wikiDomain into pSymLinkDomain
    --
-   put wiki_GetFolder (wikiDomain) into wikiFolder
-   put wiki_ConstructFolder (pSymLinkDomain) into symWikiFolder
+   put wikiFolder_Get (wikiDomain) into wikiFolder
+   put wikiFolder_Construct (pSymLinkDomain) into symWikiFolder
    --
    symlink_CreateFolder wikiFolder, symWikiFolder
    return the result

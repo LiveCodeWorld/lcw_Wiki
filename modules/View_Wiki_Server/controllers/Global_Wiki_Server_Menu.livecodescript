@@ -88,14 +88,14 @@ on menu_DisplayStaticTemplate
    display_SetMenu wsView, "Global | Wiki | Default | Static | Menu", "title_Menu", "lcw_Wiki"
 end menu_DisplayStaticTemplate
 
-on menu_DisplayPluginRouteData wsView
+on menu_ReloadPluginRouteData wsView
    dispatch "daemon_ClearPluginRouteData" to wsView
    dispatch "daemon_LoadPluginRouteData" to wsView
    --
    put the plugin_RouteData of wsView into PluginRouteData
    --
    display_Data PluginRouteData, "PluginRouteData", "Wiki Routing"
-end menu_DisplayPluginRouteData
+end menu_ReloadPluginRouteData
 
 on menu_DisplaySocketData wsView
    put the socket_Data of wsView into sData

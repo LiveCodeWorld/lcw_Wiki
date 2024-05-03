@@ -80,7 +80,7 @@ on menu_AddTools dView
       display_Spin wikiDomain, dView, "red"
       put the result into lineNum
       --
-      put wiki_GetFolder (wikiDomain) into wikiFolder
+      put wikiFolder_Get (wikiDomain) into wikiFolder
       if there is a folder wikiFolder then
          
       else

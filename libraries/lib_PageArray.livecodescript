@@ -50,6 +50,113 @@ function wiki_FetchRefDomains wikiDomain, pageSlug
    return refDomains
 end wiki_FetchRefDomains
 
+command pageArray_SetFork @pageArray, wikiDomain, pForkDate
+   put pageArray ["journal"] into journalArray
+   put item 2 of the extents of journalArray into indexNum
+   add 1 to indexNum
+   put itemArray_ConstructFork (wikiDomain, pForkDate) into itemArray
+   put itemArray into journalArray [indexNum]
+   put journalArray into pageArray ["journal"]
+end pageArray_SetFork
+
+
+--> PageArray | First
+-
+function pageArray_GetFirstRoster pageArray
+   put pageArray_FindItemType ("roster", pageArray) into firstRosterItemNum
+   if firstRosterItemNum = 0 then return empty
+   
+   put pageArray ["story"][firstRosterItemNum]["text"] into rosterText
+   return rosterText
+end pageArray_GetFirstRoster
+
+function pageArray_GetFirstHtml pageArray
+   return pageArray_GetFirstItemValue (pageArray, "html", "text")
+end pageArray_GetFirstHtml
+
+function pageArray_GetFirstItem pageArray, itemType
+   put pageArray_FindItemType (itemType, pageArray) into itemNum
+   put pageArray ["story"][itemNum]["text"] into itemText
+   return itemText
+end pageArray_GetFirstItem
+
+command pageArray_SetFirstItem @pageArray, itemType, itemText
+   put pageArray_FindItemType (itemType, pageArray) into itemNum
+   if itemNum = 0 then return 0
+   put itemText into pageArray ["story"][itemNum]["text"]
+   return itemNum
+end pageArray_SetFirstItem
+
+function pageArray_GetFirstItemValue pageArray, itemType, pItemProp
+   if pItemProp is empty then put "text" into pItemProp
+   put pageArray_FindItemType (itemType, pageArray) into firstItemNum
+   if firstItemNum = 0 then return empty
+   
+   put pageArray ["story"][firstItemNum][pItemProp] into itemText
+   return itemText
+end pageArray_GetFirstItemValue
+
+
+--> Fedwiki | Item | Find
+-
+/*
+These "find" handlers all return an itemNum, from which it is easy to derive any other attribute.
+*/
+
+function pageArray_FindItemOfType sText, itemType, pageArray, pAfterIndexNum
+   if pAfterIndexNum is a number then
+      put pAfterIndexNum + 1 into startIndexNum
+   else
+      put 1 into startIndexNum
+   end if
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxItem
+   repeat with itemNum = startIndexNum to maxItem
+      put storyArray [itemNum]["type"] into testType
+      if itemType is not testType then next repeat
+      
+      if storyArray [itemNum]["text"] contains sText then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end pageArray_FindItemOfType
+
+function pageArray_FindItemText itemType, pageArray, pAfterIndexNum
+   put pageArray_FindItemType (itemType, pageArray, pAfterIndexNum) into itemNum
+   put pageArray ["story"][itemNum]["text"] into itemText
+   return itemText
+end pageArray_FindItemText
+
+function pageArray_FindItemType itemType, pageArray, pAfterIndexNum
+   if pAfterIndexNum is a number then
+      put pAfterIndexNum + 1 into startIndexNum
+   else
+      put 1 into startIndexNum
+   end if
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxItem
+   repeat with itemNum = startIndexNum to maxItem
+      put storyArray [itemNum]["type"] into testType
+      if itemType = testType then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end pageArray_FindItemType
+
+function pageArray_FindItemID itemID, pageArray
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxItem
+   repeat with itemNum = 1 to maxItem
+      put storyArray [itemNum]["id"] into testID
+      if testID = itemID then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end pageArray_FindItemID
+
 
 --> PageArray | Links
 -
@@ -179,22 +286,6 @@ function pageArray_GetFormValue inputKey, pageArray
    end repeat
    return empty
 end pageArray_GetFormValue
-
-
---> PageArray | First
--
-function pageArray_GetFirstItem pageArray, itemType
-   put pageArray_FindItemType (itemType, pageArray) into itemNum
-   put pageArray ["story"][itemNum]["text"] into itemText
-   return itemText
-end pageArray_GetFirstItem
-
-command pageArray_SetFirstItem @pageArray, itemType, itemText
-   put pageArray_FindItemType (itemType, pageArray) into itemNum
-   if itemNum = 0 then return 0
-   put itemText into pageArray ["story"][itemNum]["text"]
-   return itemNum
-end pageArray_SetFirstItem
 
 
 --> PageArray | Dates
@@ -414,42 +505,6 @@ command pageArray_SetItemArray @pageArray, itemID, itemArray
 end pageArray_SetItemArray
 
 
---> Fedwiki | Item | Find
--
-/*
-These "find" handlers all return an itemNum, from which it is easy to derive any other attribute.
-*/
-
-function pageArray_FindItemType itemType, pageArray, pAfterIndexNum
-   if pAfterIndexNum is a number then
-      put pAfterIndexNum + 1 into startIndexNum
-   else
-      put 1 into startIndexNum
-   end if
-   put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into maxItem
-   repeat with itemNum = startIndexNum to maxItem
-      put storyArray [itemNum]["type"] into testType
-      if itemType = testType then
-         return itemNum
-      end if
-   end repeat
-   return 0
-end pageArray_FindItemType
-
-function pageArray_FindItemID itemID, pageArray
-   put pageArray ["story"] into storyArray
-   put item 2 of the extents of storyArray into maxItem
-   repeat with itemNum = 1 to maxItem
-      put storyArray [itemNum]["id"] into testID
-      if testID = itemID then
-         return itemNum
-      end if
-   end repeat
-   return 0
-end pageArray_FindItemID
-
-
 --> PageArray | Extract
 -
 function pageArray_ExtractLinkArray pageArray
@@ -509,15 +564,3 @@ function pageArray_FindTitle pageArray, someTitle, pAfterItemNum
    end repeat
    return 0
 end pageArray_FindTitle
-
-function pageArray_GetFirstCode pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "code" then
-         put storyArray [itemNum]["text"] into itemText
-         return itemText
-      end if
-   end repeat
-   return empty
-end pageArray_GetFirstCode

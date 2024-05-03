@@ -20,36 +20,35 @@ function pageArray_FetchText wikiDomain, pSlug, pPort
    return pageText
 end pageArray_FetchText
 
-function pageArray_Text pageArray
+function pageArray_Text pageArray, pIncludeNotes, pBreak
+   if pBreak is empty then put CR&CR into pBreak
+   --
    put pageArray ["story"] into storyArray
    repeat with itemNum = 1 to item 2 of the extents of storyArray
       put storyArray [itemNum] into itemArray
       put itemArray ["text"] into itemText
       switch itemArray ["type"]
+         case "pageFold"
+            if pIncludeNotes is not false then
+               exit repeat
+            end if
          case "paragraph"
          case "markdown"
+            if itemText = "# See also" and pIncludeNotes is not false then
+               exit repeat
+            end if
+            
             -- pageArray_CleanText itemText
             put markdown_ToText (itemText) into sText
-            put sText & CR after pageText
+            put sText & pBreak after pageText
          case "html"
             break
          default
             next repeat
       end switch
    end repeat
-   delete char -1 of pageText
-   return pageText
+   return word 1 to -1 of pageText
 end pageArray_Text
-
-function markdown_ToText itemText
-   get _StripInternal (itemText)
-   put _StripExternal (it) into sText
-   --
-   replace "__" with empty in sText
-   replace "**" with empty in sText
-   --
-   return sText
-end markdown_ToText
 
 function _StripInternal sText
    put "(?i)(\[\[[^\]]+\]\])" into sRegex

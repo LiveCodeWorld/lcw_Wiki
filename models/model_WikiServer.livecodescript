@@ -15,9 +15,42 @@ This model lets you read, write and list these pages.
 
 --> Working on
 -
+function wikiServer_View
+   put view_GetTemplateObject ("View|Wiki|Server") into wsView
+   return wsView
+end wikiServer_View
+
+command wikiServer_Reset pWikiServer, pCloseAll
+   wikiServer_Stop pWikiServer, pCloseAll
+   put the result into pWikiServer
+   --
+   resetAll
+   --
+   wikiServer_Start pWikiServer
+   --
+   return pWikiServer
+end wikiServer_Reset
+
+command wikiServer_Start pWikiServer, pPortToListenOn
+   if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
+   --
+   dispatch "daemon_Start" to pWikiServer with pPortToListenOn
+   put the result into pPortToListenOn
+   --
+   return pWikiServer
+end wikiServer_Start
+
+command wikiServer_Stop pWikiServer, pCloseAll
+   if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
+   put pCloseAll is not false into sBoolean
+   --
+   dispatch "daemon_Stop" to pWikiServer with sBoolean
+   return pWikiServer
+end wikiServer_Stop
+
 command wikiServer_Create wikiDomain
    # Create folders
-   put wiki_ConstructFolder (wikiDomain) into wikiFolder
+   put wikiFolder_Construct (wikiDomain) into wikiFolder
    repeat for each item shortFolder in "pages,recycle,status"
       put wikiFolder & shortFolder & slash into sFolder
       folder_CreateNested sFolder

@@ -34,10 +34,44 @@ function graph_Extract sText
    end if
 end graph_Extract
 
+
+--> PageArray | Cred
+-
+function accreditation_ChatGpt
+   put snippet_Get ("chatgpt-accreditation") into mdCred
+   return mdCred
+end accreditation_ChatGpt
+
+function accreditation_WikiPedia mwTitle, mwSlug
+   put snippet_Get ("wikipedia-accreditation") into mdCred
+   -- put scaffold_Get ("Wikipedia Accreditation") into mdCred
+   curly_ReplaceText mdCred, "mwSlug", mwSlug
+   curly_ReplaceText mdCred, "mwTitle", mwTitle
+   return mdCred
+end accreditation_WikiPedia
+
+command pageArray_AddChatGptCred @pageArray
+   put accreditation_ChatGpt() into mdCred
+   put mdCred into pageArray ["journal"][1]["provenance"]
+   delete variable pageArray ["plugin"]
+end pageArray_AddChatGptCred
+
+command pageArray_AddWikipediaCred @pageArray, mwTitle, mwSlug
+   put accreditation_WikiPedia (mwTitle, mwSlug) into mdCred
+   put mdCred into pageArray ["journal"][1]["provenance"]
+   delete variable pageArray ["plugin"]
+end pageArray_AddWikipediaCred
+
+command pageArray_AddAssets @pageArray, sText, pID
+   put itemArray_ConstructAssets (sText, pID) into itemArray
+   itemArray_Add itemArray, pageArray
+   return the result
+end pageArray_AddAssets
+
 command pageArray_AddGraphviz @pageArray, sText, pDot, pSVG, pID
    put itemArray_ConstructGraphviz (sText, pDot, pSVG, pID) into itemArray
    itemArray_Add itemArray, pageArray
-   return  the result
+   return the result
 end pageArray_AddGraphviz
 
 command pageArray_StripJournal @pageArray, pSourceArray, pMilliseconds
@@ -48,27 +82,36 @@ command pageArray_StripJournal @pageArray, pSourceArray, pMilliseconds
    put journalArray into pageArray ["journal"]
 end pageArray_StripJournal
 
-function journalArray_Construct pageTitle, pSourceArray, pMilliseconds, pStoryArray
-   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
-   --
-   put "create" into createArray ["type"]
-   put pMilliseconds into createArray ["date"]
-   put pageTitle into createArray ["item"]["title"]
-   if pStoryArray is an array then put pStoryArray into createArray ["item"]["story"]
-   if pSourceArray is an array then put pSourceArray into createArray ["source"]
-   --
-   put createArray into journalArray [1]
-   return journalArray
-end journalArray_Construct
 
+--> PageArray | Image
+- 
+command pageArray_AddImage @pageArray, imageURL, pCaptionText, pLinkURL, pLat, pLong, pSize, pWidth, pHeight, pID
+   -- put pageArray_ConstructImageCaption (pImageCaption, pImageSourceUrl, imageURL) into sCaption
+   if pageArray is not an array then return false
+   if imageURL is  empty then return false
+   if pCaptionText is empty then put "This is an image" into pCaptionText
+   --
+   put itemArray_ConstructImage (imageURL, pLinkURL, pWidth, pHeight, pSize, pCaptionText, pLat, pLong) into itemArray
+   itemArray_Add itemArray, pageArray
+   return itemArray
+end pageArray_AddImage
 
---> PageArray | Cred
--
-command pageArray_AddWikipediaCred @pageArray, mwTitle, mwSlug
-   put wikpedia_Accreditation (mwTitle, mwSlug) into mdCred
-   put mdCred into pageArray ["journal"][1]["provenance"]
-   delete variable pageArray ["plugin"]
-end pageArray_AddWikipediaCred
+command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
+   if pageArray is not an array then return false
+   if imageURL is empty then return false
+   _SetImageDescription pImageCaption, pLinkURL, imageURL
+   --
+   put fedwiki_ConstructThumbHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
+   pageArray_AddHtml pageArray, imageHTML
+   return true
+end pageArray_AddThumbnail
+
+command pageArray_AddEmbeddedImage @pageArray, someImage, pImageCaption, pImageType
+   if pImageType is empty then put image_DetectType (someImage) into pImageType
+   --
+   put fedwiki_ConstructEncodedImageArray (someImage, pImageType, pImageCaption) into imageArray
+   itemArray_Add imageArray, pageArray
+end pageArray_AddEmbeddedImage
 
 
 --> PageArray | Add | Form
@@ -91,104 +134,6 @@ command pageArray_AddButton @pageArray, buttonName, postURL, pHiddenKeyValueArra
    pageArray_AddHTML pageArray, formHTML, pID
    return formHTML
 end pageArray_AddButton
-
-function fedwiki_ConstructSearchForm buttonName, postURL, inputVarName, pInputSize, pInputDefault, pAlign, pHiddenKeyValueArray, pBgColor
-   put inputVarName into pInputArray ["inputVarName"]
-   put pInputSize into pInputArray ["inputSize"]
-   put pInputDefault into pInputArray ["inputDefault"]
-   --
-   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInputArray, empty, pAlign, pBgColor) into formHTML
-   return formHTML
-end fedwiki_ConstructSearchForm
-
-function fedwiki_ConstructButtonForm buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pInline
-   put empty into pInput -- a button is a form without an input field
-   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline) into formHTML
-   return formHTML
-end fedwiki_ConstructButtonForm
-
-function fedwiki_ConstructForm buttonName, postURL, inputKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline
-   if pAlign is empty then put "right" into pAlign
-   if pBgColor is empty then
-      put "<div align=[[pAlign]]>" & CR into htmlTemplate
-   else
-      put "<div align=[[pAlign]] style='background-color:[[pBgColor]];color:black;padding:12px'>" & CR after htmlTemplate
-   end if
-   put _GetHiddenInput (inputKeyValueArray) into hiddenTemplateBit
-   --
-   if pInline then
-      put "<form action='[[postURL]]' style='display:inline'>" & CR after htmlTemplate
-   else
-      put "<form action='[[postURL]]'>" & CR after htmlTemplate
-   end if
-   --
-   if pLabel is not empty then
-      put "[[pLabel]]: &nbsp;&nbsp;" & CR after htmlTemplate
-   end if
-   --
-   if pInput is not empty then
-      if pInput is an array then
-         put pInput ["inputVarName"] into inputVarName
-         put pInput ["inputSize"] into inputSize
-         put pInput ["inputDefault"] into inputDefault
-      else
-         put pInput into inputVarName
-         put empty into inputDefault
-      end if
-      if inputSize is empty then put 32 into inputSize
-      --
-      put "<input name=[[inputVarName]] value='[[inputDefault]]' size=[[inputSize]]>" & CR after htmlTemplate
-   end if
-   --
-   if hiddenTemplateBit is not empty then
-      put "[[hiddenTemplateBit]]"  & CR after htmlTemplate
-   end if
-   put "<button type='submit'>[[buttonName]]</button>" & CR after htmlTemplate
-   put "</form></div>" after htmlTemplate
-   --
-   replace "'" with quote in htmlTemplate
-   put merge (htmlTemplate) into someHTML
-   return someHTML
-end fedwiki_ConstructForm
-
-private function _GetHiddenInput inputKeyValueArray
-   repeat for each key inputKey in inputKeyValueArray
-      put inputKeyValueArray [inputKey] into inputValue
-      if inputValue is not empty then
-         put _ConstructHiddenBit (inputKey, inputValue) & CR after hiddenTemplateBit
-      end if
-   end repeat
-   delete char -1 of hiddenTemplateBit
-   return hiddenTemplateBit
-end _GetHiddenInput
-
-private function _ConstructHiddenBit inputKey, inputValue
-   put "<input name='[[inputKey]]'" & space into hiddenBit
-   put "value='[[inputValue]]'" & space after hiddenBit
-   put "type='hidden'>" after hiddenBit
-   replace "'" with quote in hiddenBit
-   return merge (hiddenBit)
-end _ConstructHiddenBit
-
-
---> PageArray | Image
-- 
-command pageArray_AddThumbnail @pageArray, imageURL, pImageCaption, pLinkURL
-   if pageArray is not an array then return false
-   if imageURL is empty then return false
-   _SetImageDescription pImageCaption, pLinkURL, imageURL
-   --
-   put fedwiki_ConstructThumbHtml (imageURL, pImageCaption, pLinkURL) into imageHTML
-   pageArray_AddHtml pageArray, imageHTML
-   return true
-end pageArray_AddThumbnail
-
-command pageArray_AddEmbeddedImage @pageArray, someImage, pImageCaption, pImageType
-   if pImageType is empty then put image_DetectType (someImage) into pImageType
-   --
-   put fedwiki_ConstructEncodedImageArray (someImage, pImageType, pImageCaption) into imageArray
-   itemArray_Add imageArray, pageArray
-end pageArray_AddEmbeddedImage
 
 
 --> PageArray
@@ -340,14 +285,6 @@ command pageArray_AddToRoster @pageArray, newDomain
    put rosterText into pageArray ["story"][itemNum]["text"]
    return itemNum
 end pageArray_AddToRoster
-
-function pageArray_GetFirstRoster pageArray
-   put pageArray_FindItemType ("roster", pageArray) into firstRosterItemNum
-   if firstRosterItemNum = 0 then return empty
-   
-   put pageArray ["story"][firstRosterItemNum]["text"] into rosterText
-   return rosterText
-end pageArray_GetFirstRoster
 
 command pageArray_SetRoster @pageArray, rosterDomains, rosterTitle
    put pageArray_FindItemType ("roster", pageArray) into firstRosterItemNum
@@ -510,8 +447,102 @@ command pageArray_AddTransport @pageArray, pTransportLine, pID
 end pageArray_AddTransport
 
 
+--> JournalArray
+-
+function journalArray_Construct pageTitle, pSourceArray, pMilliseconds, pStoryArray
+   if pMilliseconds is not a number then put the milliseconds into pMilliseconds
+   --
+   put "create" into createArray ["type"]
+   put pMilliseconds into createArray ["date"]
+   put pageTitle into createArray ["item"]["title"]
+   if pStoryArray is an array then put pStoryArray into createArray ["item"]["story"]
+   if pSourceArray is an array then put pSourceArray into createArray ["source"]
+   --
+   put createArray into journalArray [1]
+   return journalArray
+end journalArray_Construct
+
+function fedwiki_ConstructSearchForm buttonName, postURL, inputVarName, pInputSize, pInputDefault, pAlign, pHiddenKeyValueArray, pBgColor
+   put inputVarName into pInputArray ["inputVarName"]
+   put pInputSize into pInputArray ["inputSize"]
+   put pInputDefault into pInputArray ["inputDefault"]
+   --
+   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInputArray, empty, pAlign, pBgColor) into formHTML
+   return formHTML
+end fedwiki_ConstructSearchForm
+
+function fedwiki_ConstructButtonForm buttonName, postURL, pHiddenKeyValueArray, pLabel, pAlign, pBgColor, pInline
+   put empty into pInput -- a button is a form without an input field
+   put fedwiki_ConstructForm (buttonName, postURL, pHiddenKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline) into formHTML
+   return formHTML
+end fedwiki_ConstructButtonForm
+
+function fedwiki_ConstructForm buttonName, postURL, inputKeyValueArray, pInput, pLabel, pAlign, pBgColor, pInline
+   if pAlign is empty then put "center" into pAlign
+   if pBgColor is empty then
+      put "<div align=[[pAlign]]>" & CR into htmlTemplate
+   else
+      put "<div align=[[pAlign]] style='background-color:[[pBgColor]];color:black;padding:12px'>" & CR after htmlTemplate
+   end if
+   put _GetHiddenInput (inputKeyValueArray) into hiddenTemplateBit
+   --
+   if pInline then
+      put "<form action='[[postURL]]' style='display:inline'>" & CR after htmlTemplate
+   else
+      put "<form action='[[postURL]]'>" & CR after htmlTemplate
+   end if
+   --
+   if pLabel is not empty then
+      put "[[pLabel]]: &nbsp;&nbsp;" & CR after htmlTemplate
+   end if
+   --
+   if pInput is not empty then
+      if pInput is an array then
+         put pInput ["inputVarName"] into inputVarName
+         put pInput ["inputSize"] into inputSize
+         put pInput ["inputDefault"] into inputDefault
+      else
+         put pInput into inputVarName
+         put empty into inputDefault
+      end if
+      if inputSize is empty then put 32 into inputSize
+      --
+      put "<input name=[[inputVarName]] value='[[inputDefault]]' size=[[inputSize]]>" & CR after htmlTemplate
+   end if
+   --
+   if hiddenTemplateBit is not empty then
+      put "[[hiddenTemplateBit]]"  & CR after htmlTemplate
+   end if
+   put "<button type='submit'>[[buttonName]]</button>" & CR after htmlTemplate
+   put "</form></div>" after htmlTemplate
+   --
+   replace "'" with quote in htmlTemplate
+   put merge (htmlTemplate) into someHTML
+   return someHTML
+end fedwiki_ConstructForm
+
+
 --> Private
 -
+private function _GetHiddenInput inputKeyValueArray
+   repeat for each key inputKey in inputKeyValueArray
+      put inputKeyValueArray [inputKey] into inputValue
+      if inputValue is not empty then
+         put _ConstructHiddenBit (inputKey, inputValue) & CR after hiddenTemplateBit
+      end if
+   end repeat
+   delete char -1 of hiddenTemplateBit
+   return hiddenTemplateBit
+end _GetHiddenInput
+
+private function _ConstructHiddenBit inputKey, inputValue
+   put "<input name='[[inputKey]]'" & space into hiddenBit
+   put "value='[[inputValue]]'" & space after hiddenBit
+   put "type='hidden'>" after hiddenBit
+   replace "'" with quote in hiddenBit
+   return merge (hiddenBit)
+end _ConstructHiddenBit
+
 private command _SetImageDescription @pImageCaption, @pLinkURL, imageURL
    if pImageCaption is empty then put "This is an image" into pImageCaption
    if pLinkURL is empty then
