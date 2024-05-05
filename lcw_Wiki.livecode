@@ -17,6 +17,7 @@ end project_Deps
 --> Custom
 -
 command project_CustomInit
+   -- wiki_Start
 end project_CustomInit
 
 

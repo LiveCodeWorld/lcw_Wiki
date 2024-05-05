@@ -26,10 +26,133 @@ getprop menu_Target [tObject]
          return empty
       end if
    end if
-   --
-   put the page_Titles of browserView into LocalArray ["pageTitles"]
+   
+   # Lineup URLs are faster than LineUp Data
+   put the lineup_Urls of browserView into lineUpURLs
+   put lineUpURLs into LocalArray ["lineUpURLs"]
+   
+   # PageTitles
+   put _SlugsFromLineUpURLs (lineUpURLs) into LocalArray ["pageTitles"]
+   
    return browserView
 end menu_Target
+
+private function _SlugsFromLineUpURLs lineUpURLs
+   -- put the page_Titles of browserView into LocalArray ["pageTitles"]
+   put 1 into indexNum
+   repeat for each line sURL in lineUpURLs
+      set the itemdelimiter to slash
+      put item -1 of sURL into pageSlug
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      
+      if pageSlug is among the lines of pageSlugs then
+         /*
+         set the itemdelimiter to slash
+         get item 1 of sURL 
+         set the itemdelimiter to ":"
+         put item -1 of it into wikiDomain
+         put wikiDomain && pageSlug & CR after pageSlugs
+         */
+         put indexNum  & CR after pageSlugs 
+      else
+         put pageSlug & CR after pageSlugs
+      end if
+      add 1 to indexNum
+   end repeat
+   delete char -1 of pageSlugs
+   return pageSlugs
+end _SlugsFromLineUpURLs
+
+private function _TranslatePageJson browserView, pageTitle, sLang, pModel, pIncludeOriginal
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put the wiki_Domain of browserView into wikiDomain
+   --
+   put _GetPageText (browserView, pageSlug) into pageText
+   
+   # Fetch ChatGPT translation
+   set the cursor to watch
+   put pageTitle & CR before pageText
+   put wikiPage_FetchTranslation (pageText, sLang, pModel) into sTranslation
+   put line 1 of sTranslation into utf8Title
+   put textDecode (utf8Title, "UTF-8") into translatedTitle
+   delete line 1 of pageText
+   delete line 1 of sTranslation
+   
+   # Construct PageArray
+   put _ConstructPageJson (sLang, sTranslation, wikiDomain, pageSlug, pageTitle, pageText, translatedTitle, pIncludeOriginal) into pageJSON
+   return pageJSON
+end _TranslatePageJson
+   
+function _ConstructPageJson sLang, sTranslation, wikiDomain, pageSlug, pageTitle, pageText, translatedTitle, pIncludeOriginal
+   -- we use replaceText on JSON to avoid utf8 chat issues with json_FromArray
+   put urlEncode (sTranslation) into encodedTranslation
+   put "{{sTranslation}}" into curlyStub
+   
+   # Construct pageArray
+   -- put sLang && "Translation" into translatedTitle
+   
+   put "The following is a first draft [[ChatGPT]] mediated translation of the [[{{pageTitle}}]] wiki-page into [[{{sLang}}]]:" into someMD
+   curly_ReplaceText someMD, "pageTitle", pageTitle
+   curly_ReplaceText someMD, "sLang", sLang
+   put pageArray_Construct ("{{pageTitle}}", someMD, "markdown") into pageArray
+   
+   # Add Translation
+   put "# Translation" into sTitle
+   -- put "#" && translatedTitle into sTitle
+   pageArray_AddMarkdown pageArray, sTitle
+   pageArray_AddMarkdown pageArray, curlyStub
+   
+   # Add Text-to-Speech button
+   put transport_ConstructHiddenArray (wikiDomain, pageSlug, pageTitle) into hiddenArray
+   put sLang into hiddenArray ["sLang"]
+   put encodedTranslation into hiddenArray ["eTranslation"]
+   
+   put "{{translatedTitle}}" into hiddenArray ["translatedTitle"]
+   put "http://rest.livecode.world/augmented/add_Audio" into hiddenArray ["postURL"]
+   
+   pageArray_AddMarkdown pageArray, "# Speak"
+   put wikiSnippet_CurlyGet ("text-to-speech-form", hiddenArray) into formHTML
+   pageArray_AddHTML pageArray, formHTML
+   
+   pageArray_AddMarkdown pageArray, "To record audio for an edited version of this text, first save this page, then edit the translation and use the button below:"
+   
+   put empty into hiddenArray ["eTranslation"]
+   put "http://rest.livecode.world/augmented/add_PageAudio" into hiddenArray ["postURL"]
+   put wikiSnippet_CurlyGet ("text-to-speech-form", hiddenArray) into formHTML
+   pageArray_AddHTML pageArray, formHTML
+   
+   if pIncludeOriginal is true then
+      # Add pageText
+      pageArray_AddMarkdown pageArray, "# Original"
+      pageArray_AddMarkdown pageArray, pageText
+   end if
+   
+   # Strip and Return
+   pageArray_StripJournal pageArray
+   pageArray_AddChatGptCred pageArray
+   
+   # Replace translated PageTitle and sTranslation
+   put json_FromArray (pageArray) into pageJSON
+   
+   curly_ReplaceText pageJSON, "PageTitle", translatedTitle
+   
+   put textDecode (translatedTitle, "UTF-8") into utf8TranslatedTitle
+   curly_ReplaceText pageJSON, "translatedTitle", utf8TranslatedTitle
+   
+   put textDecode (sTranslation, "UTF-8") into sTranslation
+   replace CR with "\n" in sTranslation
+   put replaceText (pageJSON, curlyStub, sTranslation) into pageJSON
+   
+   return pageJSON
+end _ConstructPageJson
+
+private function _GetPageText browserView, pageSlug
+   -- put the lineUp_Data [pageSlug] of browserView into pageArray
+   put the lineUp_PageArray [pageSlug] of browserView into pageArray
+   put pageArray_Text (pageArray) into pageText
+   return pageText
+end _GetPageText
 
 private function _BrowserView tObject
    if exists (tObject) then
@@ -40,6 +163,12 @@ private function _BrowserView tObject
    end if
 end _BrowserView
 
+private function _ListToplevelDomains
+   put wiki_ListTopLevelDomains() into wikiDomains
+   url_SortDomainIndex wikiDomains
+   return wikiDomains
+end _ListToplevelDomains
+
 getprop disabled_DisplayWiki [browserView]
    return exists (browserView) is false
 end disabled_DisplayWiki
@@ -48,12 +177,6 @@ getprop displayDomain_Param [browserView]
    put the browser_Domain of browserView into wikiDomain
    return wikiDomain
 end displayDomain_Param
-
-private function _ListToplevelDomains
-   put wiki_ListTopLevelDomains() into wikiDomains
-   url_SortDomainIndex wikiDomains
-   return wikiDomains
-end _ListToplevelDomains
 
 getprop displayDomain_Params
    put _ListToplevelDomains() into wikiDomains
@@ -103,18 +226,20 @@ end menu_DisplayDomain
 
 on menu_CreateDomainList browserView, tldDomain
    -- put word -2 to -1 of wikidomain into tldDomain
-   put wikiPage_FilteredDomainList (tldDomain) into pageArray
+   put wikiPage_SitesIndex (tldDomain) into pageArray
    set the ghost_PageArray of browserView to pageArray
 end menu_CreateDomainList
 
 private on _
 end _
 
-on menu_Speak browserView, pageTitle
-   put _GetPageText (browserView, pageTitle) into pageText
+on menu_Speak browserView, pageSlug
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
    --
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put the wiki_Domain of browserView into wikiDomain
+   put _GetPageText (browserView, pageSlug) into pageText
+   --
+   -- put the wiki_Domain of browserView into wikiDomain
+   put the lineUP_Domain [pageSlug] of browserView into wikiDomain
    --
    put pageSlug & ".mp3" into shortFile
    put wiki_ConstructAssetFile (shortFile, wikiDomain) into audioFile
@@ -124,40 +249,25 @@ on menu_Speak browserView, pageTitle
    finder_Reveal audioFile
 end menu_Speak
 
-private function _GetTranslation browserView, pageTitle, sLang, pModel
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put the wiki_Domain of browserView into wikiDomain
+on menu_TranslateToGerman browserView, pageSlug
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
    --
-   put _GetPageText (browserView, pageTitle) into pageText
-   put wikiPage_FetchTranslation (pageText, sLang, pModel) into sTranslation
-   put wikiPage_ConstructTranslation (sLang, sTranslation, wikiDomain, pageSlug, pageTitle, pageText) into tPageArray
-   --
-   return tPageArray
-end _GetTranslation
-
-private function _GetPageText browserView, pageTitle
-   put the lineUp_Data  of browserView into lineUpData
-   --
-   put indexArray_Find (lineUpData, "title", pageTitle) into itemNum
-   put lineUpData [itemNum] into pageArray
-   --
-   put pageArray_Text (pageArray) into pageText
-   return pageText
-end _GetPageText
-
-on menu_TranslateToGerman browserView, pageTitle
-   put _GetTranslation (browserView, pageTitle, "German") into pageArray
-   set the ghost_PageArray of browserView to pageArray
+   put _TranslatePageJson (browserView, pageTitle, "German") into pageJSON
+   set the ghost_JSON of browserView to pageJSON
 end menu_TranslateToGerman
 
-on menu_TranslateToIcelandic browserView, pageTitle
-   put _GetTranslation (browserView, pageTitle, "Icelandic") into pageArray
-   set the ghost_PageArray of browserView to pageArray
+on menu_TranslateToIcelandic browserView, pageSlug
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
+   --
+   put _TranslatePageJson (browserView, pageTitle, "Icelandic") into pageJSON
+   set the ghost_JSON of browserView to pageJSON
 end menu_TranslateToIcelandic
 
-on menu_TranslateToWelsh browserView, pageTitle
-   put _GetTranslation (browserView, pageTitle, "Welsh") into pageArray
-   set the ghost_PageArray of browserView to pageArray
+on menu_TranslateToWelsh browserView, pageSlug
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
+   --
+   put _TranslatePageJson (browserView, pageTitle, "Welsh") into pageJSON
+   set the ghost_JSON of browserView to pageJSON
 end menu_TranslateToWelsh
 
 private on __
@@ -185,29 +295,14 @@ end menu_ShowAsana
 private on ___
 end ___
 
-on submenu_Dev
+on menu_SaveBrowser browserView
+   put the stack_Name of browserView into stackName
+   save stack stackName
+   --
+   put "Saved stack" && kwote (stackName) into sComment
+   lcw_Notify sComment
+end menu_SaveBrowser
+
+-- on submenu_Dev
    return menu_DevTitle("Global | Obeya | Studio | Wiki | Menu")
 end submenu_Dev
-
-on menu_ListLocalWikis
-   display_LocalWikis
-end menu_ListLocalWikis
-
-on menu_ListDynadotDomains
-   display_Dynadot
-end menu_ListDynadotDomains
-
-on menu_ListDynadotWikis displayView
-   put lcw_Ask ("Which domain...", "outlandish.academy", "Dynadot Domain", displayView) into domainName
-   display_DynadotWikis domainName, displayView, ""
-end menu_ListDynadotWikis
-
-on menu_Today browserView
-   put wikiPage_TodaysActivity() into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_Today
-
-on menu_EmptyFolders browserView
-   put wikiPage_EmptyLocalFolders() into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_EmptyFolders

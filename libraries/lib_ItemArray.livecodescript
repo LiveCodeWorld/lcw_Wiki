@@ -165,17 +165,16 @@ function itemArray_ConstructReference pageSlug, wikiDomain, refText, pageTitle, 
 end itemArray_ConstructReference
 
 function itemArray_ConstructActivity rosterTitle, pSinceWhen, pConversationItem, pID
-   if pSinceWhen is empty then
-      put "1 week" into pSinceWhen
-   end if
-   if pConversationItems is empty then
-      put "CONVERSATION" into pConversationItem
-   end if
-   --
+   -- put "CONVERSATION" into pConversationItem
+   -- put "1 week" into pSinceWhen
+   
    put "ROSTER" && rosterTitle & CR into activityText
-   put CR & pConversationItem after activityText
-   put CR & "SINCE" && pSinceWhen after activityText
-   --
+   if pConversationItems is not empty then
+      put CR & pConversationItem after activityText
+   end if
+   if pSinceWhen is not empty then
+      put CR & "SINCE" && pSinceWhen after activityText
+   end if
    put itemArray_Construct ("activity", pID, activityText) into itemArray
    return itemArray
 end itemArray_ConstructActivity

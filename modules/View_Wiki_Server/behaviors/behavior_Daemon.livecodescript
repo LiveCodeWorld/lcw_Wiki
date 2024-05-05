@@ -25,13 +25,162 @@ local SocketData   -- Array used to gather socket data from potentially multiple
 local DropDelay = 60
 local SessionArray
 local DefaultPort = 80
+local LocalArray
 
 
 --> Working on
 -
 on socketTimeout pSocketID
-   put the params
+   wikiServer_Restart true, the params
 end socketTimeout
+
+
+--> Props
+- /*
+The Referer header is intended to let you know where the client is coming from - where it was just before that request. 
+Used in its legitimate form, it generally means there was a link to your site from the URL in the Referer header. 
+Since it's a request header though, it's trivial for someone to put a link on their site to your site. 
+Can be useful for reporting in some cases but it shouldn't be trusted too much. 
+
+The Host header is the client requesting a specific hostname from your server
+That's what the web server is going to key off of when searching for the content to return to the client.
+*/
+
+getprop daemon_Server
+   return _DaemonServer()
+end daemon_Server
+
+getprop daemon_IsRunning
+   return _DaemonIsRunning()
+end daemon_IsRunning
+
+setprop daemon_IsRunning [closeAll] someBoolean
+   put _DaemonIsRunning() into daemonIsRunning
+   --
+   if someBoolean is true then
+      if daemonIsRunning is false then
+         daemon_Start
+      else
+         set the log_Hilite of me to someBoolean
+      end if
+   else
+      if closeAll is true then
+         socket_CloseOpen
+      else
+         if daemonIsRunning is true then
+            daemon_Stop
+         else
+            set the log_Hilite of me to someBoolean
+         end if
+      end if
+   end if
+   --
+   return _DaemonIsRunning()
+end daemon_IsRunning
+
+getprop daemon_Port
+   return daemon_GetPort()
+end daemon_Port
+
+setprop daemon_Port newPort
+   daemon_SetPort newPort
+end daemon_Port
+
+getprop request_Referer
+   put $HTTP_REFERER into sReferer
+   set the itemDelimiter to slash
+   put item 2 of sReferer into clickedDomain
+   return clickedDomain
+end request_Referer
+
+getprop request_Host
+   put daemon_ReceivedHeader ("Host", requestArray) into originDomain
+   return originDomain
+end request_Host
+
+getprop request_Array
+   put LocalArray ["requestArray"] into requestArray
+   return requestArray
+end request_Array
+
+
+--> Daemon | Connection
+-
+on newConnection pSocketID
+   /*
+   This handler is the first step of a new connection. It will start processing the connections and pipeing the control to the handler called "proccessRequest"
+   
+   pDropDelay is the number of seconds that a connection that never completed is kept around in SocketData before it is purged. 
+   In this case, I assume that if we don't get a fully formed set of data within 10 minutes of the initial connection, it's not going to happen.
+   */
+   put the long id of target into SocketData [pSocketId]["theTarget"]
+   put the seconds + DropDelay into SocketData [pSocketId]["theSeconds"]
+   read from socket pSocketID until CRLF with message "readRequest"
+end newConnection
+
+on readRequest pSocketId, pSocketData
+   /*
+   This handler gets the next set of data that comes in a connection. 
+   It is possible for this data to come in a separate packet from the initial connection. 
+   Under certain conditions Revolution may assume that the first packet was all the data there was and think it is ready to let the code process the data. 
+   This causes it to wait for more of the request when the request spans multiple packets.
+   */
+   
+   put pSocketData into SocketData [pSocketId]["request"]
+   read from socket pSocketID until CRLF & CRLF with message "readheaders"
+end readRequest
+
+on readHeaders pSocketId, pSocketData
+   /*
+   And this handler gets the final set of data that is coming in the request, 
+   again just in case the request is split into multiple packets for some reason by the sender.
+   This chain of handlers makes the processing more reliable.
+   */
+   put pSocketData into SocketData [pSocketId]["headers"]
+   read from socket pSocketID until empty with message "processRequest"
+end readHeaders
+
+on processRequest pSocketID, theData
+   -- This handler is called when we process a new request.
+   put theData into SocketData [pSocketId]["theData"]
+   put _CacheRequestArray (pSocketID) into requestArray
+   
+   # Store
+   daemon_StoreServerInfo requestArray
+   
+   put _DaemonRouter() into routerObject
+   dispatch "daemon_RouteRequest" to routerObject with requestArray
+   switch it
+      -- could do stuff here
+      case "handled"
+         break
+      case "unhandled" -- no matching handlers were found
+         break
+      case "passed" -- the message was handled but passed by all handlers
+         break
+   end switch
+   
+   -- let's automatically close the socket (so that routers don't need to do that)
+   -- 127.0.0.1:51606 -- bug with socket
+   put requestArray ["socketID"] into socketID
+   if socketID is among the lines of the opensockets then
+      close socket socketID
+   end if
+   _CleanSocketData socketID
+end processRequest
+
+
+--> Daemon | Utils
+-
+command daemon_StoreServerInfo requestArray
+   put requestArray into LocalArray ["requestArray"]
+   
+   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+   
+   put sReferer into $HTTP_REFERER
+   --put adfs into $_POST_RAW
+   -- put fsda into $_SERVER
+end daemon_StoreServerInfo
 
 getprop socket_Data
    -- get cleared regularly so not really useful
@@ -259,52 +408,6 @@ command daemon_SetSession socketID, someReply, pContentType
    return the result
 end daemon_SetSession
 
-
---> Objects
--
-getprop daemon_Server
-   return _DaemonServer()
-end daemon_Server
-
-
---> Daemon | Objects
--
-getprop daemon_IsRunning
-   return _DaemonIsRunning()
-end daemon_IsRunning
-
-setprop daemon_IsRunning [closeAll] someBoolean
-   put _DaemonIsRunning() into daemonIsRunning
-   --
-   if someBoolean is true then
-      if daemonIsRunning is false then
-         daemon_Start
-      else
-         set the log_Hilite of me to someBoolean
-      end if
-   else
-      if closeAll is true then
-         socket_CloseOpen
-      else
-         if daemonIsRunning is true then
-            daemon_Stop
-         else
-            set the log_Hilite of me to someBoolean
-         end if
-      end if
-   end if
-   --
-   return _DaemonIsRunning()
-end daemon_IsRunning
-
-getprop daemon_Port
-   return daemon_GetPort()
-end daemon_Port
-
-setprop daemon_Port newPort
-   daemon_SetPort newPort
-end daemon_Port
-
 function daemon_GetPort
    return DefaultPort
 end daemon_GetPort
@@ -342,69 +445,6 @@ command daemon_Stop pCloseAll
       close socket portToListenOn
    end if
 end daemon_Stop
-
-
---> Daemon | Connection
--
-on newConnection pSocketID
-   /*
-   This handler is the first step of a new connection. It will start processing the connections and pipeing the control to the handler called "proccessRequest"
-   
-   pDropDelay is the number of seconds that a connection that never completed is kept around in SocketData before it is purged. 
-   In this case, I assume that if we don't get a fully formed set of data within 10 minutes of the initial connection, it's not going to happen.
-   */
-   put the long id of target into SocketData [pSocketId]["theTarget"]
-   put the seconds + DropDelay into SocketData [pSocketId]["theSeconds"]
-   read from socket pSocketID until CRLF with message "readRequest"
-end newConnection
-
-on readRequest pSocketId, pSocketData
-   /*
-   This handler gets the next set of data that comes in a connection. 
-   It is possible for this data to come in a separate packet from the initial connection. 
-   Under certain conditions Revolution may assume that the first packet was all the data there was and think it is ready to let the code process the data. 
-   This causes it to wait for more of the request when the request spans multiple packets.
-   */
-   
-   put pSocketData into SocketData [pSocketId]["request"]
-   read from socket pSocketID until CRLF & CRLF with message "readheaders"
-end readRequest
-
-on readHeaders pSocketId, pSocketData
-   /*
-   And this handler gets the final set of data that is coming in the request, 
-   again just in case the request is split into multiple packets for some reason by the sender.
-   This chain of handlers makes the processing more reliable.
-   */
-   put pSocketData into SocketData [pSocketId]["headers"]
-   read from socket pSocketID until empty with message "processRequest"
-end readHeaders
-
-on processRequest pSocketID, theData
-   -- This handler is called when we process a new request.
-   put theData into SocketData [pSocketId]["theData"]
-   put _CacheRequestArray (pSocketID) into requestArray
-   
-   put _DaemonRouter() into routerObject
-   dispatch "daemon_RouteRequest" to routerObject with requestArray
-   switch it
-      -- could do stuff here
-      case "handled"
-         break
-      case "unhandled" -- no matching handlers were found
-         break
-      case "passed" -- the message was handled but passed by all handlers
-         break
-   end switch
-   
-   -- let's automatically close the socket (so that routers don't need to do that)
-   -- 127.0.0.1:51606 -- bug with socket
-   put requestArray ["socketID"] into socketID
-   if socketID is among the lines of the opensockets then
-      close socket socketID
-   end if
-   _CleanSocketData socketID
-end processRequest
 
 
 --> Dameon | Send

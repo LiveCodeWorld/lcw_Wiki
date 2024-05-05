@@ -31,6 +31,14 @@ function atopia_FetchRoster
    return word 1 to -1 of rosterText
 end atopia_FetchRoster
 
+function roster_ConstructReferenceText tldDomain, pTitle
+   local rosterText
+   put pTitle & CR&CR into rosterText
+   put fedwiki_ConstructSlug (pTitle) into sitesSlug
+   put merge ("REFERENCES [[tldDomain]]/[[sitesSlug]]") after rosterText
+   return rosterText
+end roster_ConstructReferenceText
+
 
 --> Roster | Construct
 -
@@ -347,27 +355,6 @@ function roster_Subtract wikiDomain, pageSlug, plusID, minusID
    end repeat
    return rosterText
 end roster_Subtract
-
-
---> Roster | Create
--
-function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
-   set the itemdelimiter to "."
-   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle   
-   put fedwiki_MarkdownIndex (rosterDomains) into curlyArray ["rosterIndex"]
-   
-   put rosterTitle into curlyArray ["rosterTitle"]
-   put wikiDomain into curlyArray ["wikiDomain"]
-   put rosterDomains into curlyArray ["rosterText"]
-   --
-   put curlyArray into curlyData ["all"]
-   curly_MergeAll pageArray, curlyData
-   --
-   put rosterTitle && "Activity" into pageTitle
-   put pageTitle into pageArray ["title"]
-   --
-   return pageArray
-end roster_ConstructActivityPage
 
 
 --> Roster | Categorised

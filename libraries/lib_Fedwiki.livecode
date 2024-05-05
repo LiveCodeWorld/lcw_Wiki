@@ -22,6 +22,44 @@ See also:
 
 --> Working on
 -
+function daemon_WikiDomain
+   put $HTTP_REFERER into clickedFromURL
+   set the itemdelimiter to slash
+   return item 3 of clickedFromURL
+end daemon_WikiDomain
+
+command transport_Echo
+   /*
+   put $_SERVER into tServerArray
+   put tServerArray ["PATH_TRANSLATED"] into pathTranslated
+   -- PATH_TRANSLATED /var/www/rest.livecode.world/index.lc
+   put "# PATH_TRANSLATED" & CR after someMarkdown
+   put pathTranslated & CR after someMarkdown
+   */
+   
+   put "# HTTP_REFERER" & CR after someMarkdown
+   put $HTTP_REFERER & CR after someMarkdown
+   
+   put pageArray_Construct ("Echo", someMarkdown) into pageArray
+   
+   put daemon_WikiDomain() into wikiDomain
+   pageArray_AddMarkdown pageArray, "# WikiDomain"
+   pageArray_AddMarkdown pageArray, wikiDomain
+   
+   transport_ReturnPageArray pageArray
+end transport_Echo
+
+command transport_ReturnPageArray pageArray
+   if pageArray is not an array then
+      put "PageArray is not an array." into someInfo
+      put CR & CR & pageArray after someInfo
+      put pageArray_Construct ("Error with page array!", someInfo) into pageArray
+   end if
+   
+   put json_FromArray (pageArray) into someJSON
+   transport_ReturnJSON someJSON
+end transport_ReturnPageArray
+
 function transport_ConstrutHiddenArray wikiDomain, pageSlug, pageTitle
    put wikiDomain into tArray ["wikiDomain"]
    put pageSlug into tArray ["pageSlug"]
@@ -236,17 +274,6 @@ command transport_ReturnJSON someJSON
          dispatch "daemon_SendJSON" to serverView with socketID,someJSON
    end switch
 end transport_ReturnJSON
-
-command transport_ReturnPageArray pageArray
-   if pageArray is not an array then
-      put "PageArray is not an array." into someInfo
-      put CR & CR & pageArray after someInfo
-      put pageArray_Construct ("Error with page array!", someInfo) into pageArray
-   end if
-   
-   put json_FromArray (pageArray) into someJSON
-   transport_ReturnJSON someJSON
-end transport_ReturnPageArray
 
 command transport_SetDropped dropJSON, @droppedURL, @droppedHTML, @droppedText
    put json_ToArray (dropJSON) into dropArray

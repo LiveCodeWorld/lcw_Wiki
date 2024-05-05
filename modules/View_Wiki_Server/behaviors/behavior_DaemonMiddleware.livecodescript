@@ -136,6 +136,7 @@ command get_FlagClick someRoute, socketID, requestArray, pPageTitle
       daemon_SendArray socketID, pageArray
       return "Sent JSON. Socket still open."
    end if
+   send "wikiServer_Restart" to the target in 60 ticks
 end get_FlagClick
 
 command get_CreatePage someRoute, socketID, requestArray

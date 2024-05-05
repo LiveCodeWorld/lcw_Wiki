@@ -35,9 +35,37 @@ getprop menu_Target [tObject]
    end if
 end menu_Target
 
+getprop displayPageArray_Params [wikiView]
+   put the lineup_Titles of wikiView into pageTitles
+   return pageTitles
+end displayPageArray_Params
+
 
 --> Global | Obeya | Studio | Dev | Menu
 -
+on menu_ListLocalWikis
+   display_LocalWikis
+end menu_ListLocalWikis
+
+on menu_ListDynadotDomains
+   display_Dynadot
+end menu_ListDynadotDomains
+
+on menu_ListDynadotWikis displayView
+   put lcw_Ask ("Which domain...", "outlandish.academy", "Dynadot Domain", displayView) into domainName
+   display_DynadotWikis domainName, displayView, ""
+end menu_ListDynadotWikis
+
+on menu_Today browserView
+   put wikiPage_TodaysActivity() into pageArray
+   set the ghost_PageArray of browserView to pageArray
+end menu_Today
+
+on menu_EmptyFolders browserView
+   put wikiPage_EmptyLocalFolders() into pageArray
+   set the ghost_PageArray of browserView to pageArray
+end menu_EmptyFolders
+
 on menu_WikiBrowserBehavior wikiView
    put the behavior of wikiView into bObject
    edit the script of bObject
@@ -75,26 +103,18 @@ end menu_SetFooterHeight
 private on __
 end __
 
-on submenu_MenuGroup
+-- on submenu_MenuGroup
    return "Global | Menu | Group | Menu"
 end submenu_MenuGroup
 
-on submenu_Canvas
-   return menu_CreateTitle ("Global | Canvas | Menu")
+-- on submenu_Canvas
+   return "Global | Canvas | Menu"
 end submenu_Canvas
-
-private on ____
-end ____
 
 on menu_DisplayLineupData wikiView
    put the lineup_Data of wikiView into lineupData
    display_Data lineupData, "Lineup Data", "Wiki"
 end menu_DisplayLineupData
-
-getprop displayPageArray_Params [wikiView]
-   put the lineup_Titles of wikiView into pageTitles
-   return pageTitles
-end displayPageArray_Params
 
 on menu_DisplayPageArray wikiView, pTitle
    put the page_Array [2] of wikiView into pageArray
@@ -102,10 +122,10 @@ on menu_DisplayPageArray wikiView, pTitle
    display_Data pageArray, pTitle, "page_Array"
 end menu_DisplayPageArray
 
-on submenu_Browser
+-- on submenu_Browser
    return "Global | Browser | Menu"
 end submenu_Browser
 
-on submenu_Javascript
+-- on submenu_Javascript
    return "Global | Wiki | Story | Javascript | Menu"
 end submenu_Javascript

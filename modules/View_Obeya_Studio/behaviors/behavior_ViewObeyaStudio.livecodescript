@@ -15,10 +15,88 @@ version: 0.3
 local LocalArray
 
 
+--> Working on
+-
+getprop lineUp_PageArray [slugOrNum]
+   put the lineUp_URL [slugOrNum] of me into lineupUrl
+   put _PageArray (lineupUrl) into pageArray
+   return pageArray
+end lineUp_PageArray
+
+getprop lineUp_Domain [slugOrNum]
+   put the lineUp_URL [slugOrNum] of me into lineupURL
+   --
+   put url_GetDomain (lineupURL) into lineUpDomain
+   return lineUpDomain
+end lineUp_Domain
+
+getprop lineUp_URL [slugOrNum]
+   put the browser_URL of me into browserURL
+   put _LineUpUrls (browserURL) into lineUpURLs
+   
+   # If slugOrNum is a number
+   if slugOrNum is a number then
+      put line slugOrNum of lineUpURLs into lineUpURL
+      return lineUpURL
+   end if
+   
+   # Find Slug
+   repeat for each line lineUpURL in lineupUrls      
+      # Extract Test Slug
+      set the itemdelimiter to slash
+      get item -1 of lineupUrl
+      set the itemdelimiter to "."
+      put item 1 of it into testSlug
+      
+      if testSlug = slugOrNum then
+         return lineupUrl
+      end if
+   end repeat
+   return empty
+end lineUp_URL
+
+getprop lineup_Data
+   put the browser_URL of me into browserURL
+   --
+   put _LineUpUrls (browserURL) into lineUpURLs
+   repeat with indexNum = 1 to the number of lines of lineupUrls
+      set the cursor to busy
+      put line indexNum of lineupUrls into lineupUrl
+      --
+      put _PageArray (lineupUrl) into pageArray
+      put pageArray into lineupData [indexNum]
+   end repeat
+   return lineupData
+end lineup_Data
+
+private function _PageArray lineupUrl
+   -- should I use binary and textEncode
+   put url lineupUrl into pageJson
+   put json_ToArray (pageJson) into pageArray
+   return pageArray
+end _PageArray
+
+getprop flag_Event [pageSlug]
+   put wikijs_ConstructSelector(".header h1", pageSlug, "outerHTML") into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end flag_Event
+
+setprop flag_Handler flagHandler
+   if flagHandler is "default" then put "flag_Event" into flagHandler
+   set the browser_AddJavascriptHandlers of me to flagHandler
+   
+   # Set javascript
+   put wikijs_SetFlagHandler (flagHandler) into sJavascript
+   -- set the browser_Javascript of me to sJavascript -- causes error
+   return sJavascript
+end flag_Handler
+
+
 --> Events
 -
 -- on resizeControl
-   LayoutControl
+LayoutControl
 end resizeControl
 
 command LayoutControl pRect
@@ -129,24 +207,6 @@ private command _CheckPageArray pageArray, pageSlug, wikiDomain
       put wikiPage_CreatePage (pageSlug, wikiDomain) into pageArray
    end if
 end _CheckPageArray
-
-
---> Props | Flag
--
-getprop flag_Event [pageSlug]
-   put wikijs_ConstructSelector(".header h1", pageSlug, "outerHTML") into sJavascript
-   put _GetJavascriptResult (sJavascript) into sResult
-   return sResult
-end flag_Event
-
-setprop flag_Handler flagHandler
-   if flagHandler is "default" then put "flag_Event" into flagHandler
-   --
-   set the browser_AddJavascriptHandlers of me to flagHandler
-   put wikijs_SetFlagHandler (flagHandler) into sJavascript
-   set the browser_Javascript of me to sJavascript
-   return sJavascript
-end flag_Handler
 
 
 --> Custom | Events
@@ -335,21 +395,6 @@ getprop lineup_Slugs
    return the page_Slugs of me
 end lineup_Slugs
 
-getprop lineup_Data
-   put the browser_URL of me into browserURL
-   --
-   put _LineUpUrls (browserURL) into lineUpURLs
-   repeat with indexNum = 1 to the number of lines of lineupUrls
-      set the cursor to busy
-      put line indexNum of lineupUrls into lineupUrl
-      --
-      put url lineupUrl into pageJson
-      put json_ToArray (pageJson) into pageArray
-      put pageArray into lineupData [indexNum]
-   end repeat
-   return lineupData
-end lineup_Data
-
 getprop lineup_Urls
    put the browser_URL of me into browserURL
    put _LineUpUrls (browserURL) into lineUpURLs
@@ -526,10 +571,38 @@ end wiki_Domain
 --> Ghost
 -
 setprop ghost_PageArray pageArray
-   put json_FromArray (pageArray) into pageJSON
-   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
+   put _JsonFromArray (pageArray) into pageJSON
+   put _ConstructJavascript (pageJSON) into sJavascript
+   set the browser_Javascript of me to sJavascript
    return the result
 end ghost_PageArray
+
+setprop ghost_JSON pageJSON
+   put _ConstructJavascript (pageJSON) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return the result
+end ghost_JSON
+
+private function _JsonFromArray pArray
+   try
+      put _JsonFromPageArray (pArray) into someJSON
+   catch sError
+      breakpoint
+      put jsonExport (pArray) into someJSON
+   end try
+   return someJSON
+end _JsonFromArray
+   
+private function _JsonFromPageArray pArray
+   -- issues with international chars
+   repeat for each key tKey in pArray
+      get pArray [tKey]
+      if it is an array then
+         put "}" & _JsonFromPageArray (it) into pArray [tKey]
+      end if
+   end repeat
+   return mergJSONEncode ("pArray")
+end _JsonFromPageArray
 
 setprop ghost_PageJson pageJSON
    set the browser_Javascript of me to _ConstructJavascript (pageJSON)
@@ -841,3 +914,44 @@ private function _ConstructJavascript pageJSON
    put merge ("wiki.showResult(wiki.newPage([[pageJSON]]))") into sJavascript
    return sJavascript
 end _ConstructJavascript
+
+
+--> Deps
+-
+function url_GetDomain someURL
+   -- url_Deconstruct wikiURL, someProtocol, wikiDomain, urlPath, shortName, fileExtension, uName, pWord
+   set the itemdelimiter to slash
+   get item 3 of someURL
+      
+   # Might be no slash and ?
+   set the itemdelimiter to "?"
+   put item 1 of it into urlDomain
+   
+   return urlDomain
+end url_GetDomain
+
+function json_FromArray pArray, pForceRootType, pPretty
+   repeat for each key tKey in pArray
+      if pArray[tKey] is an array then
+         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
+      end if
+   end repeat
+   return (mergJSONEncode("pArray",pForceRootType,pPretty))
+end json_FromArray
+
+function json_ToArray pJSON
+   local tArray,tKeys
+   if pJSON is empty then return false
+   -- put jsonImport (pJSON) into tArray -- not the same
+   
+   try -- as otherwise an error with non-json causes script to exit
+      if pJSON is empty then return empty
+      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+         put json_ToArray(tArray[tKey]) into tArray[tKey]
+      end repeat
+      return tArray
+   catch e
+      return empty
+   end try
+end json_ToArray
+

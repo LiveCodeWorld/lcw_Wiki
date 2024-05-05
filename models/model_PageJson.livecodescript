@@ -172,8 +172,12 @@ end wikiSiteMap_DeleteFile
 -
 function pageArray_Get wikiDomain, pageSlug
    put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
-   put json_GetArray (wikiFile) into pageArray
-   return pageArray
+   if there is a file wikiFile then
+      put json_GetArray (wikiFile) into pageArray
+      return pageArray
+   else
+      return empty
+   end if
 end pageArray_Get
 
 command pageArray_Set wikiDomain, pageSlug, pageArray, pDeleteSiteMap

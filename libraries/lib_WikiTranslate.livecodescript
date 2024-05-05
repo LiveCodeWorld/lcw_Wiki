@@ -12,6 +12,62 @@ version: 0.2
 
 --> Working on
 -
+function wikiPage_ConstructTranslation sLang, sTranslation, wikiDomain, pageSlug, pageTitle, userText
+   # Construct pageArray
+   put sLang && "Translation" into tranTitle
+   put "[[ChatGPT]]" into sLink
+   put merge ("The following is a first draft [[sLink]] mediated translation of the '[[pageTitle]]' wiki-page into [[sLang]]:") into someMD
+   put pageArray_Construct (tranTitle, someMD, "markdown") into pageArray
+   
+   # Add Translation
+   -- put "# Translation" into sTitle
+   put "#" && tranTitle into sTitle
+   pageArray_AddMarkdown pageArray, sTitle
+   pageArray_AddMarkdown pageArray, sTranslation
+   
+   # Add Text-to-Speech button
+   put transport_ConstructHiddenArray (wikiDomain, pageSlug, pageTitle) into hiddenArray
+   put sLang into hiddenArray ["sLang"]
+   put urlEncode (sTranslation) into hiddenArray ["eTranslation"]
+   put "http://rest.livecode.world/augmented/add_Audio" into hiddenArray ["postURL"]
+   --
+   put wikiSnippet_CurlyGet ("text-to-speech-form", hiddenArray) into formHTML
+   pageArray_AddHTML pageArray, formHTML
+   -- pageArray_AddButton pageArray, "Add Audio", postURL, hiddenArray, "", "right", "lightgreen"
+   
+   # Add userText
+   pageArray_AddMarkdown pageArray, "# Original"
+   pageArray_AddMarkdown pageArray, userText
+   
+   # Strip and Return
+   pageArray_StripJournal pageArray
+   pageArray_AddChatGptCred pageArray
+   return pageArray
+end wikiPage_ConstructTranslation
+
+function wikiPage_FetchTranslation userText, sLang, pModel
+   if sLang is empty then put "Welsh" into sLang
+   put platform_GetPrompt ("translate") into sPrompt
+   
+   # Set language
+   put text_InitialCaps (sLang) into sLang
+   curly_ReplaceText sPrompt, "language", sLang
+   
+   # Translate using ChatGPT
+   put openAI_FetchChatData (userText, sPrompt, pModel) into rData
+   if rData is not an array then
+      return empty
+   else
+      put rData ["choices"][1]["message"]["content"] into sTranslation
+      -- put textDecode (sTranslation, "UTF-8") into sTranslation
+      
+      if sTranslation is empty then
+         breakpoint
+      end if
+      return sTranslation
+   end if
+end wikiPage_FetchTranslation
+
 function transcribe_TitleFromShortFile shortAudioFile
    set the itemdelimiter to "."
    put item 1 of shortAudioFile into testTitle
@@ -276,56 +332,6 @@ function wikiPage_Translation wikiDomain, pageSlug, sLang, pModel
       return tPageArray
    end if
 end wikiPage_Translation
-
-function wikiPage_FetchTranslation userText, sLang, pModel
-   if sLang is empty then put "Welsh" into sLang
-   put platform_GetPrompt ("translate") into sPrompt
-   
-   # Set language
-   put text_InitialCaps (sLang) into sLang
-   curly_ReplaceText sPrompt, "language", sLang
-   
-   # Translate using ChatGPT
-   put openAI_FetchChatData (userText, sPrompt, pModel) into rData
-   if rData is not an array then
-      return empty
-   else
-      put rData ["choices"][1]["message"]["content"] into binaryData
-      put textDecode (binaryData, "UTF-8") into sTranslation
-      return sTranslation
-   end if
-end wikiPage_FetchTranslation
-
-function wikiPage_ConstructTranslation sLang, sTranslation, wikiDomain, pageSlug, pageTitle, userText
-   # Construct pageArray
-   put sLang && "Translation" into tranTitle
-   put "[[ChatGPT]]" into sLink
-   put merge ("The following is a first draft [[sLink]] mediated translation of the '[[pageTitle]]' wiki-page into [[sLang]]:") into someMD
-   put pageArray_Construct (tranTitle, someMD, "markdown") into pageArray
-   
-   # Add Translation
-   -- put "# Translation" into sTitle
-   put "#" && tranTitle into sTitle
-   pageArray_AddMarkdown pageArray, sTitle
-   pageArray_AddMarkdown pageArray, sTranslation
-   
-   # Add Text-to-Speech button
-   put transport_ConstructHiddenArray (wikiDomain, pageSlug, pageTitle) into hiddenArray
-   put sLang into hiddenArray ["sLang"]
-   put urlEncode (sTranslation) into hiddenArray ["eTranslation"]
-   put "http://rest.livecode.world/augmented/add_Audio" into postURL
-   put postURL into hiddenArray ["postURL"]
-   --
-   put wikiSnippet_CurlyGet ("text-to-speech-form", hiddenArray) into formHTML
-   pageArray_AddHTML pageArray, formHTML
-   -- pageArray_AddButton pageArray, "Add Audio", postURL, hiddenArray, "", "right", "lightgreen"
-   
-   # Add userText
-   pageArray_AddMarkdown pageArray, "# Original"
-   pageArray_AddMarkdown pageArray, userText
-   
-   return pageArray
-end wikiPage_ConstructTranslation
 
 
 --> Private

@@ -29,6 +29,16 @@ getprop menu_Target [tObject]
    end if
 end menu_Target
 
+private function canvas_Rectangle
+   put "const myCanvas = document.createElement('canvas'); document.body.appendChild(myCanvas); const ctx = myCanvas.getContext('2d')" into someJS
+   -- put "const myCanvas = document.createElement('canvas'); const ctx = myCanvas.getContext('2d')" into someJS
+   
+   put "; ctx.fillStyle = 'red';" after someJS
+   put "; ctx.fillRect(20, 20, 150, 100);" after someJS
+   --
+   return someJS
+end canvas_Rectangle
+
 private function _BrowserView tObject
    put display_MenuTarget(tObject) into testView
    if exists (testView) then
@@ -48,6 +58,20 @@ private function _BrowserView tObject
       end if
    end if
 end _BrowserView
+
+private function internet_IsDisabled
+   return LocalArray ["disabled_Register"] is true
+end internet_IsDisabled
+
+private command internet_ToggleStatus
+   put internet_IsDisabled() into sBoolean
+   internet_SetDisabled (sBoolean is false)
+end internet_ToggleStatus
+
+private command internet_SetDisabled sBoolean
+   -- default is false
+   put sBoolean is true into LocalArray ["disabled_Register"]
+end internet_SetDisabled
 
 getprop menu_CheckTarget [browserView]
    if exists (browserView) then
@@ -95,16 +119,6 @@ getprop checked_BrowserVisible [wikiView]
    return isVisible
 end checked_BrowserVisible
 
-function canvas_Rectangle
-   put "const myCanvas = document.createElement('canvas'); document.body.appendChild(myCanvas); const ctx = myCanvas.getContext('2d')" into someJS
-   -- put "const myCanvas = document.createElement('canvas'); const ctx = myCanvas.getContext('2d')" into someJS
-   
-   put "; ctx.fillStyle = 'red';" after someJS
-   put "; ctx.fillRect(20, 20, 150, 100);" after someJS
-   --
-   return someJS
-end canvas_Rectangle
-
 getprop disabled_ExternalLinks [wikiView]
    return exists (wikiView) is false
 end disabled_ExternalLinks
@@ -134,19 +148,10 @@ getprop checked_Internet
    return internet_IsDisabled() is false
 end checked_Internet
 
-function internet_IsDisabled
-   return LocalArray ["disabled_Register"] is true
-end internet_IsDisabled
-
-command internet_ToggleStatus
-   put internet_IsDisabled() into sBoolean
-   internet_SetDisabled (sBoolean is false)
-end internet_ToggleStatus
-
-command internet_SetDisabled sBoolean
-   -- default is false
-   put sBoolean is true into LocalArray ["disabled_Register"]
-end internet_SetDisabled
+getprop checked_Background [wikiView]
+   put the wiki_IsTransparent of wikiView into sBoolean
+   return sBoolean
+end checked_Background
 
 
 --> Global | Obeya | Studio | Menu
@@ -194,11 +199,6 @@ on menu_BrowserVisible wikiView
    put the visible of wikiView into isVisible
    set the visible of wikiView to (isVisible is false)
 end menu_BrowserVisible
-
-getprop checked_Background [wikiView]
-   put the wiki_IsTransparent of wikiView into sBoolean
-   return sBoolean
-end checked_Background
 
 on menu_Background wikiView
    put the wiki_IsTransparent of wikiView into sBoolean
@@ -264,7 +264,7 @@ on submenu_Tunnel
 end submenu_Tunnel
 
 on submenu_Openverse
-   return menu_CreateTitle ("Global | Openverse | Menu")
+   return "Global | Openverse | Menu"
 end submenu_Openverse
 
 on submenu_Dev
