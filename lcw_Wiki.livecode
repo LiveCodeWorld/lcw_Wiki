@@ -16,9 +16,9 @@ end project_Deps
 
 --> Custom
 -
-command project_CustomInit
-   -- wiki_Start
-end project_CustomInit
+command project_PostInit
+   -- load wiki folders
+end project_PostInit
 
 
 --> Events

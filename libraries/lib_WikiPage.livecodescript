@@ -126,7 +126,7 @@ private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinc
    # Clean and Return
    pageArray_StripJournal pageArray
    return pageArray
-end _ActivityPageArray 
+end _ActivityPageArray
 
 function wikiPage_SitesIndex tldDomain, pPageTitle, pFirstPara
    if pPageTitle is empty then

@@ -12,11 +12,34 @@ version: 0.2
 -
 local Node_ModulesFolder
 local Wiki_ModulesFolder
-local Wiki_RootFolder
 
 
 --> Working on
 -
+function wikiFile_ConstructConfig pWikiDomain
+   put wiki_RootFolder (pWikiDomain) into wikiRootFolder
+   put wikiRootFolder & "config.json" into wikiConfigFile
+   return wikiConfigFile
+end wikiFile_ConstructConfig
+
+function wikiFolder_ConstructCommons pWikiDomain
+   put wiki_RootFolder (pWikiDomain) into wikiRoot
+   put wikiRoot & "commons/" into wikiCommonsFolder
+   return wikiCommonsFolder
+end wikiFolder_ConstructCommons
+
+function wikiFolder_Construct pWikiDomain
+   put wiki_RootFolder (pWikiDomain) into folderPath
+   if pWikiDomain is not empty then
+      put pWikiDomain & slash after folderPath
+   end if
+   return folderPath
+end wikiFolder_Construct
+
+function wiki_ModulesFolder
+   if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
+   return Wiki_ModulesFolder
+end wiki_ModulesFolder
 
 
 --> Wiki | Favicon
@@ -36,24 +59,6 @@ command wiki_SetFavicon wikiDomain, pngData
    put pngData into url ("binfile:" & faviconFile)
    return faviconFile
 end wiki_SetFavicon
-
-
---> Wiki | Folders | Base
--
-function wiki_RootFolder
-   if Wiki_RootFolder is empty then _InitWikiRootFolder
-   return Wiki_RootFolder
-end wiki_RootFolder
-
-function wiki_DefaultRootFolder
-   put $HOME & "/.wiki/" into wikiRootFolder
-   return wikiRootFolder
-end wiki_DefaultRootFolder
-
-function wiki_ModulesFolder
-   if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
-   return Wiki_ModulesFolder
-end wiki_ModulesFolder
 
 
 --> WikiUrl
@@ -207,12 +212,6 @@ function wikiFile_ConstructSiteMap pWikiDomain
    return siteMapFile
 end wikiFile_ConstructSiteMap
 
-function wikiFile_ConstructConfig
-   put wiki_RootFolder() into wikiRootFolder
-   put wikiRootFolder & "config.json" into wikiConfigFile
-   return wikiConfigFile
-end wikiFile_ConstructConfig
-
 function wikiFile_ConstructFavicon wikiDomain
    put wikiFolder_ConstructStatus (wikiDomain) into statusFolder
    put statusFolder & "favicon.png" into faviconFile
@@ -286,23 +285,11 @@ function wikiFolder_ConstructStatus wikiDomain
    return statusFolder
 end wikiFolder_ConstructStatus
 
-function wikiFolder_ConstructCommons
-   put wiki_RootFolder() into wikiRoot
-   put wikiRoot & "commons/" into wikiCommonsFolder
-   return wikiCommonsFolder
-end wikiFolder_ConstructCommons
-
 function wikiFolder_ConstructRecycled wikiDomain
    put wikiFolder_Construct (wikiDomain) into wikiFolder
    put wikiFolder & "recycle/" into recycleFolder
    return recycleFolder
 end wikiFolder_ConstructRecycled
-
-function wikiFolder_Construct sDomain
-   put wiki_RootFolder() into wikiRoot
-   put wikiRoot & sDomain & slash into folderPath 
-   return folderPath
-end wikiFolder_Construct
 
 
 --> Nvm & Node | Paths
@@ -367,17 +354,3 @@ private command _InitWikiModulesFolder
       return "Error, folder" && wikiModulesFolder && "does not exist"
    end if
 end _InitWikiModulesFolder
-
-private command _InitWikiRootFolder
-   set the itemdelimiter to slash
-   put env_GetRepoFolder() into sFolder
-   put "Earth" into item -1 of sFolder
-   --
-   put sFolder into Wiki_RootFolder
-   
-   if there is a folder sFolder then
-      return empty
-   else
-      return "Error, folder" && Wiki_RootFolder && "does not exist"
-   end if
-end _InitWikiRootFolder

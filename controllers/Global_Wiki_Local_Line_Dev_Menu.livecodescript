@@ -69,6 +69,8 @@ end disabled_AddSubdomainToDynadot
 --> Global | Wiki | Local | Line | Dev | Menu
 -
 on menu_FixTwo dView
+   breakpoint
+   
    put the selected_Line of dView into localhostDomain
    --
    if localhostDomain contains " 2." then
@@ -77,8 +79,6 @@ on menu_FixTwo dView
       --
       put wikiFolder_Get (localhostDomain) into twoFolder
       put wikiFolder_Construct (fixedName) into fixedFolder 
-      --
-      
       --
       put there is a folder fixedFolder into fixedExists
       if fixedExists then

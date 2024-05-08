@@ -14,29 +14,6 @@ local LocalArray
 
 --> Working on
 -
-function wiki_ListTopLevelDomains pRootFolder, pNotTheseShortFolders
-   if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
-   --
-   put folder_ListShort (pRootFolder) into wikiDomains
-   set the itemdelimiter to "."
-   repeat for each line wikiDomain in wikiDomains
-      if the number of items of wikiDomain is not 2 then next repeat
-      --
-      put wikiDomain & CR after toplevelDomains
-   end repeat
-   return toplevelDomains
-end wiki_ListTopLevelDomains
-
-function wiki_ListShortFolders pRootFolder, pNotTheseShortFolders
-   if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
-   --
-   put folder_ListShort (pRootFolder) into shortWikiFolders
-   put wiki_StripNotThese (shortWikiFolders, pNotTheseShortFolders) into goodShortFolders
-   --
-   url_SortDomainIndex goodShortFolders
-   return goodShortFolders
-end wiki_ListShortFolders
-
 
 --> Wiki | Folders | List
 -
@@ -115,6 +92,7 @@ end wiki_SetPort
 --> Wiki | Url
 -
 function wiki_ConstructUrl wikiDomain, pPort, pProtocol
+   if wikiDomain is empty then return empty
    if pPort is empty then put wiki_GetPort() into pPort
    return url_Construct (wikiDomain, pPort, pProtocol)
 end wiki_ConstructUrl

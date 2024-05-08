@@ -15,6 +15,7 @@ Full help text should be provided on the linked wiki.*/
 -
 local LocalArray
 
+
 --> Menu | Props
 -
 getprop menu_Target [tObject]
@@ -83,7 +84,7 @@ private function _TranslatePageJson browserView, pageTitle, sLang, pModel, pIncl
    put _ConstructPageJson (sLang, sTranslation, wikiDomain, pageSlug, pageTitle, pageText, translatedTitle, pIncludeOriginal) into pageJSON
    return pageJSON
 end _TranslatePageJson
-   
+
 function _ConstructPageJson sLang, sTranslation, wikiDomain, pageSlug, pageTitle, pageText, translatedTitle, pIncludeOriginal
    -- we use replaceText on JSON to avoid utf8 chat issues with json_FromArray
    put urlEncode (sTranslation) into encodedTranslation
@@ -188,10 +189,14 @@ getprop displayDomain_Params
    end if
 end displayDomain_Params
 
-getprop createDomainList_Params
-   put _ListToplevelDomains() into wikiDomains
-   return wikiDomains
-end createDomainList_Params
+getprop createGardenPage_Params
+   return wikiGarden_ListNames()
+end createGardenPage_Params
+
+-- getprop createSitesPage_Params
+put _ListToplevelDomains() into wikiDomains
+return wikiDomains
+end createSitesPage_Params
 
 getprop speak_Params [browserView]
    return LocalArray ["pageTitles"]
@@ -224,14 +229,56 @@ on menu_DisplayDomain browserView, wikiDomain
    end switch
 end menu_DisplayDomain
 
-on menu_CreateDomainList browserView, tldDomain
-   -- put word -2 to -1 of wikidomain into tldDomain
-   put wikiPage_SitesIndex (tldDomain) into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_CreateDomainList
+getprop checked_FlagEvent [wikiView]
+   get the flag_Handler of wikiView
+   if it = "default" then
+      return true
+   else
+      return true
+   end if
+end checked_FlagEvent
+
+on menu_FlagEvent wikiView
+   set the flag_Handler of wikiView to "default"
+end menu_FlagEvent
 
 private on _
 end _
+
+on menu_CreateSitesPage browserView
+   put the wiki_Domain of browserView into wikiDomain
+   put wikiPage_SitesIndex (wikiDomain) into pageArray
+   set the ghost_PageArray of browserView to pageArray
+end menu_CreateSitesPage
+
+on menu_CreateActivityPage
+   put the wiki_Domain of browserView into wikiDomain
+   put wikiPage_SitesActivity (wikiDomain) into pageArray
+   set the ghost_PageArray of browserView to pageArray
+end menu_CreateActivityPage
+
+on menu_CreateActivityIndex
+   put the wiki_Domain of browserView into wikiDomain
+   put wikiPage_ActivityIndex (wikiDomain) into pageArray
+   set the ghost_PageArray of browserView to pageArray
+end menu_CreateActivityIndex
+
+on menu_CreateGardenPage browserView, gardenName
+   put the wiki_Domain of browserView into wikiDomain
+   --
+   put gardenName && "Garden" into pageTitle
+   put "This [[garden]] contains the following domains:" into someMarkdown
+   put pageArray_Construct (pageTitle, someMarkdown) into pageArray
+   
+   put wikiGarden_ListDomains (gardenName) into wikiDomains
+   put markdown_LinkedBullets (wikiDomains) into domainBullets
+   pageArray_AddMarkdown pageArray, domainBullets
+   --
+   set the ghost_PageArray of browserView to pageArray
+end menu_CreateGardenPage
+
+private on __
+end __
 
 on menu_Speak browserView, pageSlug
    put fedwiki_ConstructTitle (pageSlug) into pageTitle
@@ -270,30 +317,28 @@ on menu_TranslateToWelsh browserView, pageSlug
    set the ghost_JSON of browserView to pageJSON
 end menu_TranslateToWelsh
 
-private on __
-end __
-
-on menu_ShowTerminal browserView
-   put "radar" into shortPluginName
-   --
-   put the other_Browser of browserView into oBrowser
-   put "cd $(npm prefix -g); npm i wiki-plugin-" & shortPluginName into sShellCommand
-   --
-   display_Xterm oBrowser, sShellCommand
-end menu_ShowTerminal
-
-on menu_ShowChatGpt browserView
-   put the other_Browser of browserView into oBrowser
-   set the browser_URL of oBrowser to "https://auth0.openai.com/authorize?client_id=TdJIcbe16WoTHtN95nyywh5E4yOo6ItG&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchat.openai.com%2Fapi%2Fauth%2Fcallback%2Fauth0&audience=https%3A%2F%2Fapi.openai.com%2Fv1&state=TCb84sVofxommgO0nGSP6XeL_hIdIIvaeXtgt26fiD4&code_challenge=N28l-klMH55P8456l89bQgkMxADesMuYms3VYIyCECQ&code_challenge_method=S256"
-end menu_ShowChatGpt
-
-on menu_ShowAsana browserView
-   put the other_Browser of browserView into oBrowser
-   set the browser_URL of oBrowser to "https://app.asana.com/0/1206580415766932/1206580454304519"
-end menu_ShowAsana
-
 private on ___
 end ___
+
+on menu_CreateFarm browserView
+   put the wiki_Domain of browserView into wikiDomain
+   lcw_Answer "Move the current wiki '[[wikiDomain]]' to a new repo?", browserView, wikiDomain
+   
+   put env_GetRepoFolder() into sFolder
+   answer folder "Select a folder for the new farm..." with sFolder as sheet
+   if it is empty then exit to top
+   
+   put it into newRepoFolder
+   text_AddTrailing newRepoFolder, slash
+   put newRepoFolder & wikiDomain & slash into newWikiFolder
+   put wikiFolder_Get (wikiDomain) into oldWikiFolder
+   
+   # Move
+   revMoveFolder oldWikiFolder, newWikiFolder
+   
+   # Add to Redirect Model
+   wikiGarden_SetFolder wikiDomain, newRepoFolder
+end menu_CreateFarm
 
 on menu_SaveBrowser browserView
    put the stack_Name of browserView into stackName
@@ -303,6 +348,34 @@ on menu_SaveBrowser browserView
    lcw_Notify sComment
 end menu_SaveBrowser
 
--- on submenu_Dev
+private on ____
+end ____
+
+on menu_DisplayWikiGardenModel
+   display_WikiGardenModel
+end menu_DisplayWikiGardenModel
+
+on menu_SetGardenEcoFolder
+   put wikiFarm_EarthRoot() into rootFolder
+   answer folder "Choose a Garden eco-folder for wiki..." with rootFolder as sheet
+   if it is empty then exit to top
+   put it into ecoFolder
+   
+   -- wikiGarden_SetEcoFolder ecoFolder
+   wikiGarden_UpdateEcoFolder ecoFolder
+   finder_Reveal ecoFolder
+end menu_SetGardenEcoFolder
+
+on menu_SetDefaultRootFolder
+   put wikiFarm_EarthRoot() into rootFolder
+   answer folder "Choose a default folder for wiki..." with rootFolder as sheet
+   if it is empty then exit to top
+   put it into newRootFolder
+   
+   wikiFarm_SetRoot newRootFolder
+   finder_Reveal newRootFolder
+end menu_SetDefaultRootFolder
+
+on submenu_Dev
    return menu_DevTitle("Global | Obeya | Studio | Wiki | Menu")
 end submenu_Dev

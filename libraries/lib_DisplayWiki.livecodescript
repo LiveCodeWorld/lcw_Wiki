@@ -11,6 +11,64 @@ version: 0.2
 -
 
 
+--> Display | Wiki
+-
+command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
+   -- display_LocalWiki
+   -- _NormalizeWikiBrowser pBrowserView
+   
+   if pStackLabel is empty then put wikiDomain into pStackLabel
+   put wiki_ConstructUrl (wikiDomain) into wikiURL
+   
+   # Start server
+   wiki_Start -- wiki_StartNodeServer
+   if the result is not empty then wait 20 ticks
+   
+   # Display Browser
+   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
+   return the result
+end display_Wiki
+
+command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pWikiViewName
+   if pWikiURL is empty then put "http://livecode.world" into pWikiURL
+   -- if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
+   --
+   if pStackLabel is empty then put "Browser" into pStackLabel
+   if pWikiViewName is empty then
+      put "View|Browser" into pWikiViewName
+      -- put "View|Obeya|Studio" into pWikiViewName
+   end if
+   
+   if pStackLabel is empty then put "Wiki" into pStackLabel
+   if pStackStyle is empty then put "toplevel" into pStackStyle
+   --
+   # Display
+   display_ModuleInstance pWikiViewName, pWikiURL, pStackLabel, pBrowserView, "browser_URL", pStackStyle
+   put the result into browserView
+   
+   # Set Menus
+   -- display_SetMenu browserView, "Browser"
+   display_SetMenu browserView, "Obeya | Studio"
+   --
+   return browserView
+end display_WikiBrowser
+
+private command _NormalizeWikiBrowser @browserView
+   switch
+      case browserView = "New"
+         put empty into browserView
+         break
+      case exists (browserView) is false
+         put wiki_Browser() into browserView
+         break
+      default
+         # But is is a browser
+         put the browser_View of browserView into browserView
+   end switch
+   return exists (browserView)
+end _NormalizeWikiBrowser
+
+
 --> Display | Wiki | Page
 -
 command display_WikiPage wikiDomain, pSlug
@@ -22,7 +80,7 @@ command display_WikiPage wikiDomain, pSlug
    set the wiki_Domain of displayView to wikiDomain
    set the page_Slug of displayView to pSlug
    --
-   set the tool_Menus of displayView to "Wiki | Page"
+   set the data_MenuBit of displayView to "Wiki | Page"
    return displayView
 end display_WikiPage
 
@@ -82,51 +140,6 @@ command display_SiteMapArray sitemapArray, pTitle, pSincePeriod
    --
    return displayView
 end display_SiteMapArray
-
-command display_LocalWiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
-   if pStackLabel is empty then put wikiDomain into pStackLabel
-   put wiki_ConstructLocalHostDomain (wikidomain) into localhostDomain
-   put wiki_ConstructUrl (localhostDomain) into wikiURL
-   --
-   _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
-   return the result
-end display_LocalWiki
-
-command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
-   if pStackLabel is empty then put wikiDomain into pStackLabel
-   put wiki_ConstructUrl (wikiDomain) into wikiURL
-   --
-   _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
-   return the result
-end display_Wiki
-
-private command _NormalizeWikiBrowser @browserView
-   switch
-      case browserView = "New"
-         put empty into browserView
-         break
-      case exists (browserView) is false
-         put wiki_Browser() into browserView
-         break
-      default
-         # But is is a browser
-         put the browser_View of browserView into browserView
-   end switch
-   return exists (browserView)
-end _NormalizeWikiBrowser
-
-private command _DisplayWiki wikiURL, pBrowserView, pStackLabel, pStackStyle
-   _NormalizeWikiBrowser pBrowserView
-   --
-   wiki_Start
-   -- wiki_StartNodeServer
-   --
-   if the result is not empty then wait 20 ticks
-   --
-   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
-   put the result into browserView
-   return browserView
-end _DisplayWiki
 
 function wiki_CheckFolderColour wikiDomain
    put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
@@ -315,21 +328,6 @@ command display_AstralMediaPhotos pDisplayView
    display_SetMouseAndMenu displayView, "Wiki | Photos"
    return displayView
 end display_AstralMediaPhotos
-
-
---> Display | Wiki
--
-command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle
-   if pStackLabel is empty then put "Wiki" into pStackLabel
-   if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
-   if pStackStyle is empty then put "toplevel" into pStackStyle
-   --
-   display_Browser pWikiURL, pBrowserView, pStackLabel, pStackStyle, "View|Obeya|Studio"
-   put the result into browserView
-   display_SetMenu browserView, "Obeya | Studio"
-   --
-   return browserView
-end display_WikiBrowser
 
 
 --> Display | Wiki | List

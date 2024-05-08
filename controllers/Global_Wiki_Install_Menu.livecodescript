@@ -45,11 +45,6 @@ on menu_NvmNodeVersion xtermView
    shell_Do "nvm current", "execute", xtermView
 end menu_NvmNodeVersion
 
-on menu_RevealWikiSiteFolder
-   put wiki_RootFolder() into wikiSiteFolder
-   finder_Reveal wikiSiteFolder
-end menu_RevealWikiSiteFolder
-
 on menu_ShowHiddenFiles mTarget, someBoolean
    finder_SetShowInvisibleFiles someBoolean
    finder_Restart

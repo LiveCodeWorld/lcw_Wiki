@@ -9,12 +9,6 @@ version: 0.4
 /*
 This is a library for working with Fedwiki inside of a Livecode desktop or obile application.
 There is also a lot of code in the group "Wiki" of the stack "Fedwiki Editor" of project "lcw_Wiki"
-
-open process "wiki" for update
-put the openProcessIDs into wikiProcessID
-get the openProcesses
-source ~/.zshrc; 
-set the defaultfolder to wiki_RootFolder()
 */
 
 --> Variables
@@ -23,6 +17,44 @@ local WikiSecurityType
 
 
 --> Working on
+-
+command wiki_StartNodeServer pSecurityType, pFarm, pPort
+   -- was in lib_Wiki
+   if pSecurityType is empty then put wiki_GetSecurityType() into pSecurityType
+   --
+   put wiki_ProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then return empty -- so we know already started
+   --
+   wiki_NormailzePort pPort
+   if pPort is empty then put 80 into pPort
+   --
+   -- set the defaultfolder to wiki_RootFolder()
+   put wiki_ShellCommand (pSecurityType, pFarm, pPort) into someShell
+   put shell (someShell) into shellResult
+   put word 2 of shellResult into wikiProcessID
+   
+   # Indicate wiki starting up
+   return wikiProcessID
+end wiki_StartNodeServer
+
+command wiki_StopNodeServer pIDs
+   if the platform = "MacOS" then
+      if pIDs is not a number then
+         put wiki_ProcessIds() into pIDs
+      end if
+      --
+      repeat for each item pID in pIDs
+         kill process pID
+      end repeat
+   else
+      close process wiki
+   end if
+   --
+   -- wiki_EmptyBrowsers
+end wiki_StopNodeServer
+
+
+--> Wiki
 -
 function wiki_GetSecurityType
    if WikiSecurityType is empty then put "legacy" into WikiSecurityType
@@ -126,40 +158,6 @@ command wiki_Stop
    set the daemon_IsRunning of wikiServerView to false
 end wiki_Stop
 
-command wiki_StartNodeServer pSecurityType, pFarm, pPort
-   if pSecurityType is empty then put wiki_GetSecurityType() into pSecurityType
-   --
-   put wiki_ProcessIds() into wikiProcessIDs
-   if wikiProcessIDs is not empty then return empty -- so we know already started
-   --
-   wiki_NormailzePort pPort
-   if pPort is empty then put 80 into pPort
-   --
-   set the defaultfolder to wiki_RootFolder()
-   put wiki_ShellCommand (pSecurityType, pFarm, pPort) into someShell
-   put shell (someShell) into shellResult
-   put word 2 of shellResult into wikiProcessID
-   
-   # Indicate wiki starting up
-   return wikiProcessID
-end wiki_StartNodeServer
-
-command wiki_StopNodeServer pIDs
-   if the platform = "MacOS" then
-      if pIDs is not a number then
-         put wiki_ProcessIds() into pIDs
-      end if
-      --
-      repeat for each item pID in pIDs
-         kill process pID
-      end repeat
-   else
-      close process wiki
-   end if
-   --
-   -- wiki_EmptyBrowsers
-end wiki_StopNodeServer
-
 function wiki_NodeServerIsRunning
    return wiki_ProcessIds() is not empty
    -- return "wiki" is among the lines of the openprocesses
@@ -195,29 +193,7 @@ function wiki_TerminalCommand
 end wiki_TerminalCommand
 
 
---> Wiki | Start | Alternative
--
-command wiki_OpenProcess pBrowserView
-   breakpoint -- old. We now use nohup
-   --
-   set the cursor to watch
-   set the defaultfolder to wiki_RootFolder()
-   open process wiki for update
-   
-   ## Federated Wiki server listening on 3000 in mode: development
-   read from process wiki until "Federated Wiki server listening on 3000 in mode: development"
-   put it into wikiInfoToParse
-   
-   ## Display
-   if exists (pBrowserView) then
-      put "http://localhost:3000" into wikiURL
-      set the browser_Url of pBrowserView to wikiURL
-   end if
-   return wikiURL
-end wiki_OpenProcess
-
-
---> Wiki
+--> Wiki | CSS
 -
 command wiki_ConvertCSS @someCSS
    put lineOffset ("width: 430px;", someCSS) into lineNum

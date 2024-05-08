@@ -57,10 +57,10 @@ private function _GitWikiFolder dView
 end _GitWikiFolder
 
 private function _LocalWikiFolder dView
-   put the selected_Line of dView into shortWikiFolder
+   put the selected_Line of dView into wikiDomain
    --
-   put wiki_RootFolder() into rootFolder
-   put rootFolder & shortWikiFolder into symLinkedFolder 
+   put wiki_RootFolder (wikiDomain) into rootFolder
+   put rootFolder & wikiDomain into symLinkedFolder 
    return symLinkedFolder
 end _LocalWikiFolder
 

@@ -32,6 +32,7 @@ end menu_CheckTarget
 --> Global | Wiki | Astral | Menu
 -
 on menu_NewAstralWiki dView
+   breakpoint
    put lcw_Ask ("Choose a name for your new astral subdomain...", "new", "Create Astral Subdomain", dView) into newSubDomain
    --
    put wiki_RootFolder() into wikiRootFolder

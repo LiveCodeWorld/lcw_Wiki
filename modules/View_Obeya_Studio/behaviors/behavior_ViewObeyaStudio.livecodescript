@@ -15,6 +15,76 @@ version: 0.3
 local LocalArray
 
 
+--> Custom | Events
+-
+on flag_Event flagYaml
+   -- called by wiki-client Livecode javascript
+   split flagYaml using comma and ":"
+   --
+   set the clicked_FlagArray of me to flagYaml
+   --
+   put flagYaml ["target"] into wikiDomain
+   put flagYaml ["href"] into urlPath
+   put flagYaml ["pageTitle"] into pageTitle
+   --
+   if char 1 to 2 of urlPath = "//" then
+      # Open nwiki in new tab
+      display_Wiki wikiDomain, "New"
+   else
+      _DisplayToolsPage pageTitle, wikiDomain, urlPath
+   end if
+end flag_Event
+
+on wikiClick_HamburgerMenu
+   set the page_Title of me to "tools"
+end wikiClick_HamburgerMenu
+
+on toggle_Editable
+   -- put "$('footer span.editEnable').click();" into sJavascript
+   put wikijs_ToggleEdit() into sJavascript
+   set the browser_Javascript of me to sJavascript
+end toggle_Editable
+
+setprop wikipedia_Page pageTitle
+   put mediawiki_GetPageArrayFromSlug (pageTitle) into pageArray
+   set the ghost_PageArray of me to pageArray
+   return pageArray
+end wikipedia_Page
+
+
+--> Override
+-
+getprop wiki_Override
+   get the browser_JavascriptHandlers of me
+   switch it
+      case "bevent_ExternalLink"
+         return "external"
+      default
+         return empty
+   end switch 
+end wiki_Override
+
+setprop wiki_Override sWay
+   switch sWay
+      case "flag"
+         set the flag_Handler of me to "default"
+         break
+      case "Hamburger"
+         break
+      case "external"
+         break
+      default
+         set the browser_AddJavascriptHandlers of me to "wikiClick_HamburgerMenu,bevent_ExternalLink,flag_Event"
+         --
+         put wikijs_Override() into overrideJS
+         set the browser_Javascript of me to overrideJS
+         --
+         set the wiki_EditMode of me to true
+         set the flag_Handler of me to "default"
+   end switch
+end wiki_Override
+
+
 --> Working on
 -
 getprop lineUp_PageArray [slugOrNum]
@@ -88,7 +158,7 @@ setprop flag_Handler flagHandler
    
    # Set javascript
    put wikijs_SetFlagHandler (flagHandler) into sJavascript
-   -- set the browser_Javascript of me to sJavascript -- causes error
+   set the browser_Javascript of me to sJavascript -- causes error
    return sJavascript
 end flag_Handler
 
@@ -209,43 +279,6 @@ private command _CheckPageArray pageArray, pageSlug, wikiDomain
 end _CheckPageArray
 
 
---> Custom | Events
--
-on flag_Event flagYaml
-   -- called by wiki-client Livecode javascript
-   split flagYaml using comma and ":"
-   --
-   set the clicked_FlagArray of me to flagYaml
-   --
-   put flagYaml ["target"] into wikiDomain
-   put flagYaml ["href"] into urlPath
-   put flagYaml ["pageTitle"] into pageTitle
-   --
-   if char 1 to 2 of urlPath = "//" then
-      # Open nwiki in new tab
-      display_Wiki wikiDomain, "New"
-   else
-      _DisplayToolsPage pageTitle, wikiDomain, urlPath
-   end if
-end flag_Event
-
-on wikiClick_HamburgerMenu
-   set the page_Title of me to "tools"
-end wikiClick_HamburgerMenu
-
-on toggle_Editable
-   -- put "$('footer span.editEnable').click();" into sJavascript
-   put wikijs_ToggleEdit() into sJavascript
-   set the browser_Javascript of me to sJavascript
-end toggle_Editable
-
-setprop wikipedia_Page pageTitle
-   put mediawiki_GetPageArrayFromSlug (pageTitle) into pageArray
-   set the ghost_PageArray of me to pageArray
-   return pageArray
-end wikipedia_Page
-
-
 --> Javascript | Events
 -
 on javascript_Result sResult
@@ -343,39 +376,6 @@ getprop browser_Snapshot
    put the object_Snapshot of _BrowserWidget() into somePNG
    return somePNG
 end browser_Snapshot
-
-
---> Override
--
-getprop wiki_Override
-   get the browser_JavascriptHandlers of me
-   switch it
-      case "bevent_ExternalLink"
-         return "external"
-      default
-         return empty
-   end switch 
-end wiki_Override
-
-setprop wiki_Override sWay
-   switch sWay
-      case "flag"
-         set the flag_Handler of me to "default"
-         break
-      case "Hamburger"
-         break
-      case "external"
-         break
-      default
-         set the browser_AddJavascriptHandlers of me to "wikiClick_HamburgerMenu,bevent_ExternalLink,flag_Event"
-         --
-         put wikijs_Override() into overrideJS
-         set the browser_Javascript of me to overrideJS
-         --
-         set the wiki_EditMode of me to true
-         set the flag_Handler of me to "default"
-   end switch
-end wiki_Override
 
 function wikijs_GetLinupUrls
    put "var links = document.querySelectorAll('a.show-page-source');" into sJavascript
