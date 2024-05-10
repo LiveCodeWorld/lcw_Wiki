@@ -60,13 +60,13 @@ end _DaemonIsRunning
 
 --> Global | Wiki | Server | Menu
 -
-on menu_StartWiki wikiView   
-   if _DaemonIsRunning (wikiView) is true then
-      set the daemon_IsRunning of wikiView to false
+on menu_StartWiki wsView   
+   if _DaemonIsRunning (wsView) is true then
+      set the daemon_IsRunning of wsView to false
       wiki_StartNodeServer
    else
       wiki_StopNodeServer
-      set the daemon_IsRunning of wikiView to true
+      set the daemon_IsRunning of wsView to true
    end if
 end menu_StartWiki
 

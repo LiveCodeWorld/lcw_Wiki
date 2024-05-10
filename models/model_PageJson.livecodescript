@@ -14,6 +14,24 @@ It is not for fetching them by http or url's, but reading and writing to the loc
 
 --> Working on
 -
+command pageJson_Trash wikiDomain, pageSlug
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
+   if there is not a file wikiPagePath then
+      return "Error, no such file to trash:" && wikiPagePath
+   end if
+   
+   # Create Recycled folder
+   put wikiFolder_ConstructRecycled (wikiDomain) into wikiRecycleFolder
+   folder_CreateNested wikiRecycleFolder -- if necessary
+   
+   -- put wikiFile_ConstructRecycled (wikiDomain, pageSlug) into recycledPagePath
+   put wikiRecycleFolder & pageSlug into recycledPagePath
+   
+   # Move
+   rename wikiPagePath to recycledPagePath
+   return the result
+end pageJson_Trash
+
 
 --> PageJson | Fetch
 -
@@ -229,17 +247,6 @@ command pageJson_Delete wikiDomain, pageSlug
    revDeleteFile wikiPagePath
    return the result
 end pageJson_Delete
-
-command pageJson_Trash wikiDomain, pageSlug
-   put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
-   put wikiFile_ConstructRecycled (wikiDomain, pageSlug) into recycledPagePath
-   if recycledPagePath is empty then
-      return "Error, recycle folder for wiki domain does not exists:" && wikiDomain
-   else
-      rename wikiPagePath to recycledPagePath
-      return the result
-   end if
-end pageJson_Trash
 
 function json_Get sFile
    if there is not a file sFile then return empty

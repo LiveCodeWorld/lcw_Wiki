@@ -25,11 +25,35 @@ local MiddlewareArray
 
 --> Working on
 -
-command display_ExistingPage pageArray
-   display_Wiki wikiDomain
-   put the result into browserView
-   set the ghost_PageArray of browserView to pageArray
-end display_ExistingPage
+before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+   switch
+      case wikiDomain = "create.sites.fedwiki.org"
+         put wikiPage_FilteredDomainList (pageSlug) into pageArray
+         _ReturnAndExit pageArray, socketID
+      case pageSlug = "tools"
+         put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+         put wikiServer_GuessLastSlug (sReferer) into lastPageSlug
+         --
+         put wikiPage_Tools (lastPageSlug, wikiDomain) into pageArray
+         --
+         _ReturnAndExit pageArray, socketID
+         break
+      case pageSlug = "federation-activity"
+         put wikiPage_FederationActivity ("Federation Activity") into pageArray
+         --
+         _ReturnAndExit pageArray, socketID
+      case pageSlug = "since-monday"
+         put wikiPage_FederationActivity ("Since Monday", "Monday") into pageArray
+         --
+         _ReturnAndExit pageArray, socketID
+      case pageSlug = "today"
+         put wikiPage_TodaysActivity() into pageArray
+         --
+         _ReturnAndExit pageArray, socketID
+      default
+         -- pass on to behavior
+   end switch
+end get_WikiPageJson
 
 command get_LcwBookmarklet someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
@@ -307,39 +331,6 @@ before route_POST someRoute, socketID, requestArray
          -- pass on to behavior
    end switch
 end route_POST
-
-before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
-   switch
-      case pageSlug = "tools"
-         put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-         put wikiServer_GuessLastSlug (sReferer) into lastPageSlug
-         --
-         put wikiPage_Tools (lastPageSlug, wikiDomain) into pageArray
-         --
-         _ReturnAndExit pageArray, socketID
-         break
-      case wikiDomain = "sites.fedwiki.org"
-         put pageSlug into filterWord
-         -- put word -2 to -1 of wikidomain into tldDomain
-         put wikiPage_FilteredDomainList (filterWord) into pageArray
-         --
-         _ReturnAndExit pageArray, socketID
-      case pageSlug = "federation-activity"
-         put wikiPage_FederationActivity ("Federation Activity") into pageArray
-         --
-         _ReturnAndExit pageArray, socketID
-      case pageSlug = "since-monday"
-         put wikiPage_FederationActivity ("Since Monday", "Monday") into pageArray
-         --
-         _ReturnAndExit pageArray, socketID
-      case pageSlug = "today"
-         put wikiPage_TodaysActivity() into pageArray
-         --
-         _ReturnAndExit pageArray, socketID
-      default
-         -- pass on to behavior
-   end switch
-end get_WikiPageJson
 
 
 --> Deps

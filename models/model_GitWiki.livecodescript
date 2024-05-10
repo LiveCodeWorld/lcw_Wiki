@@ -207,7 +207,7 @@ function gitwiki_ListAllLocalFolders pFilter
    --
    put folder_ListShortAll (rootFolder) into shortWikiFolders
    put _NotTheseWikiFolders() into notThese
-   put wiki_StripNotThese (shortWikiFolders, notThese) into goodShortFolders
+   put wikiFolder_StripNotThese (shortWikiFolders, notThese) into goodShortFolders
    --
    if pFilter is not empty then filter wikiFolders with pFilter
    url_SortDomainIndex goodShortFolders

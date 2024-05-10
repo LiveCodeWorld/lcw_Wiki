@@ -179,17 +179,6 @@ end submenu_Menu
 private on _
 end _
 
-on menu_DisplayThought wikiView
-   display_LocalWikis empty, "Local Thought Domains", "*thought*"
-end menu_DisplayThought
-
-on menu_DisplayGitWikis wikiView
-   display_GitWikiFolders empty, "*fedwiki.org"
-end menu_DisplayGitWikis
-
-private on __
-end __
-
 on menu_Footer wikiView
    put the footer_IsVisible of wikiView into sBoolean
    set the footer_IsVisible of wikiView to (sBoolean is false)
@@ -205,8 +194,8 @@ on menu_Background wikiView
    set the wiki_IsTransparent of wikiView to (sBoolean is false)
 end menu_Background
 
-private on ___
-end ___
+private on __
+end __
 
 on menu_SaveStack wikiView
    put the stack_Name of wikiView into sName
@@ -218,19 +207,8 @@ on menu_EditMode wikiView
    set the wiki_EditMode of wikiView to (sBoolean is false)
 end menu_EditMode
 
-private on ____
-end ____
-
-on menu_Rects wikiView
-   put the page_Slugs of wikiView into pageSlugs
-   repeat with lineNum = 1 to the number of lines of pageSlugs
-      put line lineNum of pageSlugs into pageSlug
-      --
-      put the page_Rect [pageSlug] of wikiView into pRect
-      put pRect into line lineNum of pageRects
-   end repeat
-   put pageRects
-end menu_Rects
+private on ___
+end ___
 
 on menu_Shrink wikiView, pageSlug
    -- put the page_Rect ["welcome-visitors"] of wikiView into sRect
@@ -247,6 +225,28 @@ end menu_Shrink
 on menu_Scale wikiView, sScale
    set the page_Scale of wikiView to sScale
 end menu_Scale
+
+private on ____
+end ____
+
+on menu_DisplayThought wikiView
+   display_LocalWikis empty, "Local Thought Domains", "*thought*"
+end menu_DisplayThought
+
+on menu_DisplayGitWikis wikiView
+   display_GitWikiFolders empty, "*fedwiki.org"
+end menu_DisplayGitWikis
+
+on menu_Rects wikiView
+   put the page_Slugs of wikiView into pageSlugs
+   repeat with lineNum = 1 to the number of lines of pageSlugs
+      put line lineNum of pageSlugs into pageSlug
+      --
+      put the page_Rect [pageSlug] of wikiView into pRect
+      put pRect into line lineNum of pageRects
+   end repeat
+   put pageRects
+end menu_Rects
 
 private on _____
 end _____

@@ -15,6 +15,24 @@ version: 0.3
 local LocalArray
 
 
+--> Working on
+-
+on preOpenControl
+   set the flag_Handler of wikiView to "default"
+   set the show_Menu of _MenubarView() to true
+   
+   -- LayoutCard
+   
+   send wikiBrowser_SetEditMode to me in 30 ticks
+   pass preOpenControl
+end preOpenControl
+
+on wikiBrowser_SetEditMode
+   set the wiki_EditMode of _WikiView() to true
+   
+   -- could turn off camera
+end wikiBrowser_SetEditMode
+
 --> Custom | Events
 -
 on flag_Event flagYaml

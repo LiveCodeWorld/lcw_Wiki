@@ -36,6 +36,51 @@ function wikiPage_DomainTitle wikidomain, pWord
    return pageTitle
 end wikiPage_DomainTitle
 
+function wikiPage_FilteredDomainList tldDomain, pPageTitle, pFirstPara
+   -- might be renamed / same as some other handler?
+   if pPageTitle is empty then
+      put wikiPage_DomainTitle (tldDomain, "Sites") into pPageTitle
+   end if
+   put pPageTitle into pageTitle
+   
+   # WikiFolders
+   put "*" & tldDomain & "*" into sFilter
+   put wiki_ListLocalShortAll (sFilter) into wikiFolders
+   
+   # Construct PageArray
+   if pFirstPara is empty then
+      # Construct first paragraph
+      put pageTitle into shortTitle
+      delete word -1 of shortTitle
+      put "Here we list current sites related to [[{{shortTitle}} Sites]]. See [[{{shortTitle}} Activity]] for a chronological view of all contributions." into pFirstPara
+      curly_ReplaceText pFirstPara, "shortTitle", shortTitle
+   end if
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   
+   # Roster
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
+   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   
+   # Activity
+   pageArray_AddMarkdown pageArray, "# Activity"
+   pageArray_AddActivity pageArray, pageTitle, "1 week", "CONVERSATION"
+   
+   # Reference Links
+   pageArray_AddMarkdown pageArray, "# Reference Links"
+   pageArray_AddReferenceIndex pageArray, wikiDomains
+   
+   # Domain List
+   pageArray_AddMarkdown pageArray, "# Domains"
+   put markdown_LinkedBullets (wikiDomains) into mdDomains
+   pageArray_AddMarkdown pageArray, mdDomains
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_FilteredDomainList
+
 
 --> WikiPage | Activity
 -

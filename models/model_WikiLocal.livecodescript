@@ -15,29 +15,6 @@ local LocalArray
 --> Working on
 -
 
---> Wiki | Folders | List
--
-function wiki_ListLocalShortAll pFilter
-   put wiki_RootFolder() into wikiFolder
-   put folder_ListShortAll (wikiFolder) into shortWikiFolders
-   put _NotTheseWikiFolders() into notThese
-   put wiki_StripNotThese (shortWikiFolders, notThese) into goodShortFolders
-   --
-   if pFilter is not empty then filter goodShortFolders with pFilter
-   url_SortDomainIndex goodShortFolders
-   --
-   return goodShortFolders
-end wiki_ListLocalShortAll
-
-function wiki_ListFolders pRootFolder, pNotTheseShortFolders
-   if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
-   put folder_ListNonSymLinked (pRootFolder) into wikiFolders
-   --
-   put wiki_StripNotThese (wikiFolders, pNotTheseShortFolders) into goodWikiFolders
-   return goodWikiFolders
-end wiki_ListFolders
-
-
 --> Wiki | Construct
 -
 function wiki_ConstructLocalHostDomain wikidomain
@@ -134,49 +111,6 @@ function wiki_NumberOfpages wikiFolder, pUseSymLinked
 end wiki_NumberOfpages
 
 
---> Wiki | Local | Folders | Empty
--
-function wiki_ListEmptyLocalFolders pListShort
-   put wiki_RootFolder() into rootFolder
-   put _NotTheseWikiFolders into notThese
-   put wiki_ListEmptyFolders (rootFolder, pListShort, notThese) into wikiFolders
-   return wikiFolders
-end wiki_ListEmptyLocalFolders
-
-function wiki_ListEmptyFolders pRootFolder, pListShort, pNotTheseShortFolders
-   if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
-   put folder_ShortList (pRootFolder) into notSymLinkedFolderNames
-   --
-   put _TidyNotThese (pNotTheseShortFolders) into cleanNotTheseShortFolders
-   repeat for each line shortWikiFolder in notSymLinkedFolderNames
-      set the cursor to busy
-      if shortWikiFolder is among the lines of cleanNotTheseShortFolders then
-         next repeat
-      end if
-      --
-      put pRootFolder & shortWikiFolder & slash into wikiFolder
-      --
-      put wiki_FolderHasNoPages (wikiFolder) into noPages -- symlinked version
-      --
-      if noPages is true then
-         put wikiFolder & CR after emptyFolders
-         put shortWikiFolder & CR after emptyShortFolders
-      else
-         next repeat
-      end if
-   end repeat
-   delete char -1 of emptyShortFolders
-   delete char -1 of emptyFolders
-   
-   if pListShort is true then
-      url_SortDomainIndex emptyShortFolders
-      return emptyShortFolders
-   else
-      return emptyFolders
-   end if
-end wiki_ListEmptyFolders
-
-
 --> Fedwiki | Local | Folders
 -
 command fedwiki_SetLocalWikiRoot localWikiRoot
@@ -213,43 +147,6 @@ end fedwiki_SetLocalData
 
 --> Private
 -
-private function _NotTheseWikiFolders
-   return "commons,assets"
-end _NotTheseWikiFolders
-
-function wiki_StripNotThese longOrShortFolders, pNotTheseShortFolders
-   -- works with long or short folders
-   
-   # Not these
-   put _TidyNotThese (pNotTheseShortFolders) into cleanNotTheseShortFolders
-   
-   set the itemdelimiter to slash
-   repeat for each line longOrShortFolder in longOrShortFolders
-      get item -1 of longOrShortFolder
-      switch
-         case char 1 of longOrShortFolder = "_"
-            next repeat
-         case it is among the lines of cleanNotTheseShortFolders
-            next repeat
-         default
-            put longOrShortFolder & CR after goodLongOrShortFolders
-      end switch
-   end repeat
-   delete char -1 of goodLongOrShortFolders
-   return goodLongOrShortFolders
-end wiki_StripNotThese
-
-private function _TidyNotThese pNotTheseShortFolders
-   replace comma with CR in pNotTheseShortFolders
-   repeat for each line notThisShortFolder in pNotTheseShortFolders
-      put word 1 to -1 of notThisShortFolder into notThisShortFolder
-      if char -1 of notThisShortFolder is slash then delete char -1 of notThisShortFolder
-      put notThisShortFolder & CR after cleanNotTheseShortFolders
-   end repeat
-   delete char -1 of cleanNotTheseShortFolders
-   return cleanNotTheseShortFolders
-end _TidyNotThese
-
 private function _NumberOfpages wikiFolder
    if there is not a folder wikiFolder then return empty
    

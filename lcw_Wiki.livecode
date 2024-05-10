@@ -1,6 +1,7 @@
 ﻿script "lcw_Wiki"
 --> MetaData
 -
+copyright: David Bovill
 license: GPLv3
 name: lcw_Wiki
 type: project

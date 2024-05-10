@@ -28,14 +28,6 @@ function wikiFolder_ConstructCommons pWikiDomain
    return wikiCommonsFolder
 end wikiFolder_ConstructCommons
 
-function wikiFolder_Construct pWikiDomain
-   put wiki_RootFolder (pWikiDomain) into folderPath
-   if pWikiDomain is not empty then
-      put pWikiDomain & slash after folderPath
-   end if
-   return folderPath
-end wikiFolder_Construct
-
 function wiki_ModulesFolder
    if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
    return Wiki_ModulesFolder
@@ -184,11 +176,19 @@ function wikiFile_ConstructAsset relAssetPath, wikiDomain
    return sFile
 end wikiFile_ConstructAsset
 
+function wikiFile_Recycled wikiDomain, pSlug
+   put wikiFile_ConstructRecycled (wikiDomain, pSlug) into recycledFile
+   if there is a file recycledFile then
+      return recycledFile
+   else
+      return empty
+   end if
+end wikiFile_Recycled
+
 function wikiFile_ConstructRecycled wikiDomain, pSlug
    if pSlug is empty then put "welcome-visitors" into pSlug
    --
-   put wikiFolder_Recycled (wikiDomain) into wikiRecycleFolder
-   if wikiRecycleFolder is empty then return empty
+   put wikiFolder_ConstructRecycled (wikiDomain) into wikiRecycleFolder
    put wikiRecycleFolder & pSlug into recycledFile
    return recycledFile
 end wikiFile_ConstructRecycled
@@ -261,6 +261,12 @@ end wikiFolder_Get
 
 --> WikiFolder | Construct
 -
+function wikiFolder_ConstructCommons pWikiDomain
+   put wiki_RootFolder (pWikiDomain) into wikiRoot
+   put wikiRoot & "commons/" into wikiCommonsFolder
+   return wikiCommonsFolder
+end wikiFolder_ConstructCommons
+
 function wikiFolder_ConstructPageAssets pageSlug, wikiDomain
    put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
    put assetFolder & pageSlug & slash into oggFolder

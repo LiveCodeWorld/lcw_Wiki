@@ -165,8 +165,7 @@ private function _BrowserView tObject
 end _BrowserView
 
 private function _ListToplevelDomains
-   put wiki_ListTopLevelDomains() into wikiDomains
-   url_SortDomainIndex wikiDomains
+   put wikiFolder_ListTopLevel() into wikiDomains
    return wikiDomains
 end _ListToplevelDomains
 
@@ -190,7 +189,7 @@ getprop displayDomain_Params
 end displayDomain_Params
 
 getprop createGardenPage_Params
-   return wikiGarden_ListNames()
+   return wikiRouter_ListGardenNames()
 end createGardenPage_Params
 
 -- getprop createSitesPage_Params
@@ -214,6 +213,14 @@ getprop translateToWelsh_Params [browserView]
    return LocalArray ["pageTitles"]
 end translateToWelsh_Params
 
+getprop checked_MoveDomains [wikiView]
+   return false
+end checked_MoveDomains
+
+getprop checked_LiveServer [wikiView]
+   return true
+end checked_LiveServer
+
 
 --> Global | Obeya | Studio | Wiki | Menu
 -
@@ -224,23 +231,44 @@ on menu_DisplayDomain browserView, wikiDomain
          display_WikiBrowser "https://chat.openai.com/", browserView
          break
       default
-         -- display_LocalWiki wikiDomain, browserView
          display_Wiki wikiDomain, browserView
    end switch
 end menu_DisplayDomain
 
-getprop checked_FlagEvent [wikiView]
-   get the flag_Handler of wikiView
-   if it = "default" then
-      return true
-   else
-      return true
-   end if
-end checked_FlagEvent
+on menu_LiveServer wikiView
+   
+end menu_LiveServer
 
-on menu_FlagEvent wikiView
-   set the flag_Handler of wikiView to "default"
-end menu_FlagEvent
+on menu_NodeServer wikiView
+   if _DaemonIsRunning (wsView) is true then
+      set the daemon_IsRunning of wsView to false
+      wiki_StartNodeServer
+   else
+      wiki_StopNodeServer
+      set the daemon_IsRunning of wsView to true
+   end if
+end menu_NodeServer
+
+on menu_CloseOpenSockets
+   socket_CloseOpen
+end menu_CloseOpenSockets
+
+on menu_Port wsView, sPort
+   set the daemon_Port of wsView to sPort
+end menu_Port
+
+getprop moveMyDomains_Params [dsfa]
+   return wikiGarden_ListEcoNames()
+end moveMyDomains_Params
+   
+on menu_MoveMyDomains wikiView, ecoName
+   put the wiki_Domain of wikiView into wikiDomain
+   put url_GetTLD (wikiDomain) into tldDomain
+   put "*." & tldDomain into sFilter
+   
+   
+   put wiki_ListLocalShortAll (sFilter)
+end menu_MoveMyDomains
 
 private on _
 end _
@@ -348,33 +376,37 @@ on menu_SaveBrowser browserView
    lcw_Notify sComment
 end menu_SaveBrowser
 
-private on ____
-end ____
-
-on menu_DisplayWikiGardenModel
-   display_WikiGardenModel
-end menu_DisplayWikiGardenModel
-
 on menu_SetGardenEcoFolder
    put wikiFarm_EarthRoot() into rootFolder
    answer folder "Choose a Garden eco-folder for wiki..." with rootFolder as sheet
    if it is empty then exit to top
    put it into ecoFolder
    
-   -- wikiGarden_SetEcoFolder ecoFolder
-   wikiGarden_UpdateEcoFolder ecoFolder
+   wikiGarden_SetEcoFolder ecoFolder
+   -- wikiGarden_UpdateEcoFolder ecoFolder
    finder_Reveal ecoFolder
 end menu_SetGardenEcoFolder
 
-on menu_SetDefaultRootFolder
+on menu_SetWikiRootFolder
    put wikiFarm_EarthRoot() into rootFolder
    answer folder "Choose a default folder for wiki..." with rootFolder as sheet
    if it is empty then exit to top
    put it into newRootFolder
    
-   wikiFarm_SetRoot newRootFolder
+   wikiFarm_SetRoot newRootFolder, true
    finder_Reveal newRootFolder
-end menu_SetDefaultRootFolder
+end menu_SetWikiRootFolder
+
+private on ____
+end ____
+
+on menu_DisplayWikiServer
+   display_ViewTemplate "View|Wiki|Server"
+end menu_DisplayWikiServer
+
+on menu_DisplayWikiGardenModel
+   display_WikiEcoData
+end menu_DisplayWikiGardenModel
 
 on submenu_Dev
    return menu_DevTitle("Global | Obeya | Studio | Wiki | Menu")
