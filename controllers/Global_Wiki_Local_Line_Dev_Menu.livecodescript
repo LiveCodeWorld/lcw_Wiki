@@ -78,7 +78,7 @@ on menu_FixTwo dView
       replace " 2." with "." in fixedName
       --
       put wikiFolder_Get (localhostDomain) into twoFolder
-      put wikiFolder_Construct (fixedName) into fixedFolder 
+      put wikiFolder_Get (fixedName) into fixedFolder 
       --
       put there is a folder fixedFolder into fixedExists
       if fixedExists then
@@ -129,7 +129,7 @@ on menu_FixTwo dView
       end if
       --
       if folder_IsSymLink (twoFolder) then
-         put wiki_RootFolder() into rootFolder
+         put wikiFarm_GetFolder() into rootFolder
          set the defaultfolder to rootFolder
          -- put merge ("mv '[[twoFolder]]' '[[fixedFolder]]'") into someShell
          put merge ("mv '[[localhostDomain]]' '[[fixedName]]'") into someShell
@@ -157,7 +157,7 @@ end menu_FixGitSymlink
 
 on menu_MakeAstralSymLink dView
    put the selected_Line of dView into localhostDomain
-   put wiki_RootFolder() into rootFolder
+   put wikiFarm_GetFolder() into rootFolder
    put rootFolder & localhostDomain into symLinkedFolder 
    --
    put wiki_AstralFromLocalhost (localhostDomain) into astralDomain

@@ -43,10 +43,10 @@ end menu_ListLocalNonSymWikis
 private on _
 end _
 
-on menu_RevealWikiFolder
-   put wiki_RootFolder() into wikiFolder
+on menu_RevealFarmFolder
+   put wikiFarm_GetFolder() into wikiFolder
    finder_Reveal wikiFolder
-end menu_RevealWikiFolder
+end menu_RevealFarmFolder
 
 on menu_DisplayFederationChanges
    display_WardsRecentDomains

@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: lcw_Wiki
 type: project
-version: 0.3
+version: 0.4
 
 
 --> Deps
@@ -19,6 +19,7 @@ end project_Deps
 -
 command project_PostInit
    -- load wiki folders
+   -- wikiServer_Start
 end project_PostInit
 
 

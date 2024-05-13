@@ -46,7 +46,7 @@ private command _SetSelected dView, @shortFolder, @sFolder
 end _SetSelected
 
 private function _DisplayedFolder shortFolder
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    put wikiFolder & shortFolder into sFolder
    text_AddTrailing sFolder, slash
    return sFolder
@@ -57,7 +57,7 @@ private command _SelectedAstralFolders dView, @wikiFolder, @localFolder
    set the itemdelimiter to "."
    put item 1 to -3 of folderName & ".localhost" into localHostName
    --
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    set the defaultfolder to wikiFolder
    put wikiFolder & localHostName into localFolder
    text_AddTrailing localFolder, slash
@@ -120,7 +120,7 @@ on menu_SymLinkLocal displayView
    --
    put lcw_Ask("Name the localhost folder:", destFolder, "Sym Link", displayView) into destFolder
    --
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    set the defaultfolder to wikiFolder
    put wikiFolder & localFolder into longLocalFolder
    put wikiFolder & destFolder into longDestFolder

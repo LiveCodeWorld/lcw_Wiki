@@ -115,7 +115,7 @@ command wiki_CreateSymLink wikiDomain, pSymLinkDomain
    if pSymLinkDomain is empty then put wikiDomain into pSymLinkDomain
    --
    put wikiFolder_Get (wikiDomain) into wikiFolder
-   put wikiFolder_Construct (pSymLinkDomain) into symWikiFolder
+   put wikiFolder_Get (pSymLinkDomain) into symWikiFolder
    --
    symlink_CreateFolder wikiFolder, symWikiFolder
    return the result

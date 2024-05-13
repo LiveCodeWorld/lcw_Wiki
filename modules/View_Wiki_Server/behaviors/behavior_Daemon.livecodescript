@@ -22,10 +22,13 @@ Logging and similar functions are added using before/after middleware handlers.
 -
 local SocketData   -- Array used to gather socket data from potentially multiple connections as they come in
 
-local DropDelay = 60
-local SessionArray
-local DefaultPort = 80
-local LocalArray
+constant Daemon_DefaultPort = 80
+local Listen_Port = 80
+local Bound_Port
+local Request_Array
+
+local Session_Array
+local Drop_Delay = 60
 
 
 --> Working on
@@ -33,6 +36,83 @@ local LocalArray
 on socketTimeout pSocketID
    wikiServer_Restart true, the params
 end socketTimeout
+
+private function _DaemonIsRunning
+   put the server_Array of me into serverArray
+   put serverArray is an array into daemonIsRunning
+   -- put listen_Port is among the lines of the opensockets into daemonIsRunning
+   return daemonIsRunning
+end _DaemonIsRunning
+
+getprop server_Array
+   put the long id of me into serverObject
+   put revRuggedId (serverObject) into rServerObject
+   --
+   put wikiServer_GetData() into serverData
+   put serverData [rServerObject] into serverArray
+   return serverArray
+end server_Array
+
+command daemon_SetListenPort @pPort
+   _NormalizeDaemonPort pPort
+   put pPort into Listen_Port
+   return pPort
+end daemon_SetListenPort
+
+private command _NormalizeDaemonPort @pPort
+   if pPort is not a number then
+      put Listen_Port into pPort
+      if pPort is not a number then
+         put Daemon_DefaultPort into pPort
+      end if
+   end if
+end _NormalizeDaemonPort
+
+
+--> Props | Temporary
+-
+getprop bound_Port
+   return Bound_Port
+end bound_Port
+
+setprop bound_Port boundPort
+   put boundPort into Bound_Port
+end bound_Port
+
+getprop listen_Port
+   return Listen_Port
+end listen_Port
+
+setprop listen_Port newPort
+   daemon_SetListenPort newPort
+   return newPort
+end listen_Port
+
+
+--> Daemon | Start and Stop
+-
+command daemon_Start pPortToListenOn
+   daemon_SetListenPort pPortToListenOn
+   --
+   set the socketTimeoutInterval to 15000
+   accept connections on port pPortToListenOn with message "newConnection"
+   put it into boundPort
+   set the bound_Port of me to boundPort
+   --
+   return boundPort
+end daemon_Start
+
+command daemon_Stop pCloseAll
+   set the socketTimeoutInterval to 10000
+   --
+   if pCloseAll is true then
+      socket_CloseOpen
+      daemon_DeleteSocketData
+   else
+      put the bound_Port of me into boundPort
+      close socket boundPort
+   end if
+end daemon_Stop
 
 
 --> Props
@@ -54,37 +134,37 @@ getprop daemon_IsRunning
    return _DaemonIsRunning()
 end daemon_IsRunning
 
-setprop daemon_IsRunning [closeAll] someBoolean
-   put _DaemonIsRunning() into daemonIsRunning
-   --
+setprop daemon_IsRunning [pPort] someBoolean
+   put the long id of me into serverObject
+   
    if someBoolean is true then
+      put _DaemonIsRunning() into daemonIsRunning
+      daemon_SetListenPort pPort
+      --
       if daemonIsRunning is false then
-         daemon_Start
-      else
-         set the log_Hilite of me to someBoolean
+         daemon_Start pPort
+         put the result into boundPort
+         dispatch "wikiServer_Register" to me with serverObject,pPort,boundPort
       end if
    else
-      if closeAll is true then
-         socket_CloseOpen
-      else
-         if daemonIsRunning is true then
+      switch pPort
+         case pPort is "reset"
+            resetAll
+            break
+         case pPort is true
+            socket_CloseOpen
+            break
+         default
             daemon_Stop
-         else
-            set the log_Hilite of me to someBoolean
-         end if
-      end if
+      end switch
+      --
+      dispatch "wikiServer_UnRegister" with serverObject
    end if
+   
+   set the log_Hilite of serverObject to someBoolean
    --
-   return _DaemonIsRunning()
+   return serverObject
 end daemon_IsRunning
-
-getprop daemon_Port
-   return daemon_GetPort()
-end daemon_Port
-
-setprop daemon_Port newPort
-   daemon_SetPort newPort
-end daemon_Port
 
 getprop request_Referer
    put $HTTP_REFERER into sReferer
@@ -99,8 +179,7 @@ getprop request_Host
 end request_Host
 
 getprop request_Array
-   put LocalArray ["requestArray"] into requestArray
-   return requestArray
+   return Request_Array
 end request_Array
 
 
@@ -114,7 +193,7 @@ on newConnection pSocketID
    In this case, I assume that if we don't get a fully formed set of data within 10 minutes of the initial connection, it's not going to happen.
    */
    put the long id of target into SocketData [pSocketId]["theTarget"]
-   put the seconds + DropDelay into SocketData [pSocketId]["theSeconds"]
+   put the seconds + Drop_Delay into SocketData [pSocketId]["theSeconds"]
    read from socket pSocketID until CRLF with message "readRequest"
 end newConnection
 
@@ -161,7 +240,6 @@ on processRequest pSocketID, theData
    end switch
    
    -- let's automatically close the socket (so that routers don't need to do that)
-   -- 127.0.0.1:51606 -- bug with socket
    put requestArray ["socketID"] into socketID
    if socketID is among the lines of the opensockets then
       close socket socketID
@@ -173,13 +251,11 @@ end processRequest
 --> Daemon | Utils
 -
 command daemon_StoreServerInfo requestArray
-   put requestArray into LocalArray ["requestArray"]
+   put requestArray into Request_Array
    
-   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-   
-   put sReferer into $HTTP_REFERER
-   --put adfs into $_POST_RAW
+   -- put adfs into $_POST_RAW
    -- put fsda into $_SERVER
+   put daemon_ReceivedHeader ("Referer", requestArray) into $HTTP_REFERER
 end daemon_StoreServerInfo
 
 getprop socket_Data
@@ -232,7 +308,7 @@ function daemon_ReceivedHeader sKey, requestArray
    put word 1 to -1 of receivedHeaderArray [sKey] into sValue
    return sValue
 end daemon_ReceivedHeader
-   
+
 private function _ReceivedHeaderArray requestArray
    put requestArray ["receivedHeaders"] into receivedHeaderArray
    split receivedHeaderArray with CR and ":"
@@ -305,7 +381,7 @@ private command _AddSessionCookie @someHeader
    return empty
    
    -- for now a quick hack
-   if SessionArray is empty then return "Cookie not set"
+   if Session_Array is empty then return "Cookie not set"
    get "qvHx_T04gEAtKXxlGHG0Cw.j9Kd9ZUK-wSPFr12Ml4jtqhQsvXve3AnwUbVOYu081QD3Xe65TuV5s0Ts8IQWSYi.1438080455096.86400000.7Q_SkgQfc7nrHgjZoLfL-xSOKtNUKNounvxyD-oIjtI"
    _AddCookieHeader someHeader, "session", it
 end _AddSessionCookie
@@ -399,7 +475,7 @@ end daemon_SendSiteMapJSON
 -
 command daemon_SetSession socketID, someReply, pContentType
    -- Set-Cookie: sessionToken=abc123; Expires=Wed, 09 Jun 2021 10:18:14 GM
-   -- put true into SessionArray
+   -- put true into Session_Array
    
    get "IHqOSrK5HDQ7rFiarE1KcQ.EqHAy6x1nZ4z80ClyyMVivHNqfs4zhkNRoFqMbe6DlBkBAI3aRAtseJGHO7qcaqE.1438105299038.86400000.UzvAUVkRttrGikzPDllFJG4iNgURB4cVMqkr_rBR4EU"
    put it into theSessionID
@@ -407,44 +483,6 @@ command daemon_SetSession socketID, someReply, pContentType
    daemon_Send someHeader, someReply, socketID
    return the result
 end daemon_SetSession
-
-function daemon_GetPort
-   return DefaultPort
-end daemon_GetPort
-
-command daemon_SetPort newPort
-   -- so we can log with "after daemon_SetPort"
-   put the daemon_IsRunning of me into isRunning
-   if isRunning is true then daemon_Stop
-   --
-   put newPort into DefaultPort
-   --
-   if isRunning is true then daemon_Start
-end daemon_SetPort
-
-
---> Daemon | Start and Stop
--
-command daemon_Start pPortToListenOn
-   _NormalizeDaemonPort pPortToListenOn
-   set the socketTimeoutInterval to 15000
-   --
-   accept connections on port pPortToListenOn with message "newConnection"
-   --
-   return pPortToListenOn
-end daemon_Start
-
-command daemon_Stop pCloseAll
-   set the socketTimeoutInterval to 10000
-   --
-   if pCloseAll is true then
-      socket_CloseOpen
-      daemon_DeleteSocketData
-   else
-      put the daemon_Port of me into portToListenOn
-      close socket portToListenOn
-   end if
-end daemon_Stop
 
 
 --> Dameon | Send
@@ -789,16 +827,14 @@ private command _SetEnvironmentalVariables requestArray
    -- not vital (check them???)
    -- must happen after "_CacheRequestArray"
    put "LiveDaemon" into $SERVER_SOFTWARE
-   put the daemon_Port of me into $SERVER_PORT
+   put the listen_Port of me into $SERVER_PORT
    put requestArray ["SCRIPT_NAME"] into $SCRIPT_NAME
    put requestArray ["QUERY_STRING"] into $QUERY_STRING
 end _SetEnvironmentalVariables
 
 command _CleanSocketData pSocketId
-   -- display_Data SocketData, "SocketData"
-   
    /*
-   Clean out SocketData of any partial connection data that is older than the 'on newConnection' dropDelay number of seconds.
+   Clean out SocketData of any partial connection data that is older than the 'on newConnection' Drop_Delay number of seconds.
    If the connection to RevHTTPd does not complete but there has been some data stored in this array, this routine finds it and deletes it when it is too old.
    Otherwise SocketData could fill up and use up all available memory until Revolution dies.
    */
@@ -809,18 +845,12 @@ command _CleanSocketData pSocketId
       put SocketData [someSocketID]["theSeconds"] into timeToKill
       put the seconds into theSeconds
       if timeToKill < theSeconds then
+         lcw_Notify ("Closing socket" && someSocketID)
+         close socket someSocketID
          delete variable SocketData [someSocketID]
       end if
    end repeat
 end _CleanSocketData
-
-private command _NormalizeDaemonPort @pPortToListenOn
-   if pPortToListenOn is a number then
-      set the daemon_Port of me to pPortToListenOn
-   else
-      put the daemon_Port of me into pPortToListenOn
-   end if
-end _NormalizeDaemonPort
 
 private function _DaemonServer
    return the long id of me
@@ -834,13 +864,6 @@ private function _DaemonRouter
    if exists (routerObject) is false then put the long id of me into routerObject
    return routerObject
 end _DaemonRouter
-
-private function _DaemonIsRunning
-   put daemon_GetPort() into portToListenOn
-   get the opensockets
-   put portToListenOn is among the lines of it into daemonIsRunning
-   return daemonIsRunning
-end _DaemonIsRunning
 
 
 --> Deps

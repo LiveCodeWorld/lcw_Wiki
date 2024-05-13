@@ -17,6 +17,18 @@ Full help text should be provided on the linked wiki.
 -
 local LocalArray
 
+
+--> Working on
+-
+private function _LocalWikiFolder dView
+   put the selected_Line of dView into wikiDomain
+   --
+   breakpoint
+   put wikiFolder_ConstructFromFarm (wikiDomain) into symLinkedFolder
+   return symLinkedFolder
+end _LocalWikiFolder
+
+
 --> Menu | Props
 -
 getprop menu_Target [tObject]
@@ -55,14 +67,6 @@ private function _GitWikiFolder dView
    put gitwiki_GetFolder (shortWikiFolder) into gitWikiFolder
    return gitWikiFolder
 end _GitWikiFolder
-
-private function _LocalWikiFolder dView
-   put the selected_Line of dView into wikiDomain
-   --
-   put wiki_RootFolder (wikiDomain) into rootFolder
-   put rootFolder & wikiDomain into symLinkedFolder 
-   return symLinkedFolder
-end _LocalWikiFolder
 
 private command _Refresh dView
    display_LocalSymWikis dView, "*astralship.wiki", "Sym-linked Astral"
@@ -120,7 +124,7 @@ on menu_RenameLocalWiki dView
    put lcw_Ask ("Rename localhost...", fromDomain, "Rename", dView) into toDomain
    --
    put wikiFolder_Get (fromDomain) into oFolder
-   put wikiFolder_Construct (toDomain) into newFolder
+   put wikiFolder_Get (toDomain) into newFolder
    if there is a folder newFolder then
       return "Error, folder" && newFolder && "already exists."
    end if

@@ -32,10 +32,33 @@ end menu_CheckTarget
 
 --> Global | Wiki | Server | Dev | Menu
 -
-on menu_Behavior displayView
-   put the behavior of displayView into bObject
-   edit the script of bObject
-end menu_Behavior
+on menu_EditMiddleware wsView
+   edit the script of stack "behavior_DaemonMiddleware"
+end menu_EditMiddleware
+
+on menu_SetBehaviors wsView
+   menu_ClearBehaviors wsView
+   --
+   put "behavior_ViewWikiServer,behavior_Daemon,behavior_DaemonMiddleware,behavior_WikiRouter,behavior_DaemonLog" into stackNames
+   --
+   set the behavior_StackNames of wsView to stackNames
+   put the result
+end menu_SetBehaviors
+
+on menu_NoLoggingBehaviors wsView
+   menu_ClearBehaviors wsView
+   --
+   put "behavior_ViewWikiServer,behavior_Daemon,behavior_DaemonMiddleware,behavior_WikiRouter" into stackNames
+   --
+   set the behavior_StackNames of wsView to stackNames
+   put the result
+end menu_NoLoggingBehaviors
+
+on menu_ClearBehaviors wsView
+   put "behavior_ViewWikiServer,behavior_Daemon,behavior_DaemonMiddleware,behavior_WikiRouter,behavior_DaemonLog" into stackNames
+   --
+   set the behavior_ClearNames of wsView to stackNames
+end menu_ClearBehaviors
 
 private on _
 end _

@@ -115,7 +115,7 @@ on menu_RecreateEtcHosts dView
    --
    set the wiki_Filter of dView to empty
    display_LocalWikis dView
-   put wiki_ListLocalShortAll() into wikiFolders
+   put wikiGarden_ListAllDomains() into wikiFolders
    --
    put hosts_NewText (wikiFolders) into hostsText
    hosts_Set hostsText
@@ -124,7 +124,8 @@ on menu_RecreateEtcHosts dView
 end menu_RecreateEtcHosts
 
 on menu_InitialiseGit dView
-   put wiki_RootFolder() into gitRootFolder
+   breakpoint
+   put wikiFarm_GetFolder() into gitRootFolder
    git_InitFolder gitRootFolder
 end menu_InitialiseGit
 

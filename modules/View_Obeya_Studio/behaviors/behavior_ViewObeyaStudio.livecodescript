@@ -17,25 +17,10 @@ local LocalArray
 
 --> Working on
 -
-on preOpenControl
-   set the flag_Handler of wikiView to "default"
-   set the show_Menu of _MenubarView() to true
-   
-   -- LayoutCard
-   
-   send wikiBrowser_SetEditMode to me in 30 ticks
-   pass preOpenControl
-end preOpenControl
-
-on wikiBrowser_SetEditMode
-   set the wiki_EditMode of _WikiView() to true
-   
-   -- could turn off camera
-end wikiBrowser_SetEditMode
 
 --> Custom | Events
 -
-on flag_Event flagYaml
+on flag_Event flagYaml   
    -- called by wiki-client Livecode javascript
    split flagYaml using comma and ":"
    --
@@ -51,6 +36,8 @@ on flag_Event flagYaml
    else
       _DisplayToolsPage pageTitle, wikiDomain, urlPath
    end if
+   
+   lcw_Notify the params
 end flag_Event
 
 on wikiClick_HamburgerMenu
@@ -972,4 +959,3 @@ function json_ToArray pJSON
       return empty
    end try
 end json_ToArray
-

@@ -105,19 +105,19 @@ end menu_RemoveSymlinks
 
 private command _DeleteSymLinks wikiDomain
    # Delete symlink folder
-   put wikiFolder_Construct (wikiDomain) into symLinkedFolder 
+   put wikiFolder_Get (wikiDomain) into symLinkedFolder 
    symlink_Delete symLinkedFolder
    get the result
    
    # Delete localhost folder
    put wiki_ConstructLocalHostDomain (wikiDomain) into localhostDomain
-   put wikiFolder_Construct (localhostDomain) into localhostFolder
+   put wikiFolder_Get (localhostDomain) into localhostFolder
    symlink_Delete localhostFolder
    get the result
    
    # Delete old
    put old_LocalhostFolder (wikiDomain) into oldLocalhostDomain
-   put wikiFolder_Construct (oldLocalhostDomain) into oldSymlinkFolder
+   put wikiFolder_Get (oldLocalhostDomain) into oldSymlinkFolder
    symlink_Delete oldSymlinkFolder
    get the result
 end _DeleteSymLinks

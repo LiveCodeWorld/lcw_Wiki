@@ -17,9 +17,9 @@ local DynadotSubDomains
 command gitwiki_MoveToLocal wikiDomain, pAddTohosts, pNewName
    put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
    if pNewName is empty then
-      put wikiFolder_Construct (wikiDomain) into localFolder
+      put wikiFolder_Get (wikiDomain) into localFolder
    else
-      put wikiFolder_Construct (pNewName) into localFolder
+      put wikiFolder_Get (pNewName) into localFolder
    end if
    --
    if there is a folder localFolder then
@@ -39,9 +39,9 @@ end gitwiki_MoveToLocal
 command gitwiki_CopyToLocal wikiDomain, pAddTohosts, pNewName
    put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
    if pNewName is empty then
-      put wikiFolder_Construct (wikiDomain) into localFolder
+      put wikiFolder_Get (wikiDomain) into localFolder
    else
-      put wikiFolder_Construct (pNewName) into localFolder
+      put wikiFolder_Get (pNewName) into localFolder
    end if
    --
    if there is a folder localFolder then
@@ -49,7 +49,7 @@ command gitwiki_CopyToLocal wikiDomain, pAddTohosts, pNewName
       return "Error, folder" && localFolder && "already exists."
    else
       if pNewName is empty then
-         put wiki_RootFolder() into wikiRootFolder
+         put wikiFarm_GetFolder() into wikiRootFolder
          revCopyFolder gitWikiFolder, wikiRootFolder
       else
          put the tempname & slash into tempFolder
@@ -172,7 +172,7 @@ command gitwiki_CreateSymLink gitWikiDomain, pSymLinkDomain
    end if
    --
    put gitwiki_GetFolder (gitWikiDomain) into gitWikiFolder
-   put wikiFolder_Construct (pSymLinkDomain) into symWikiFolder
+   put wikiFolder_Get (pSymLinkDomain) into symWikiFolder
    --
    symlink_CreateFolder gitWikiFolder, symWikiFolder
    --

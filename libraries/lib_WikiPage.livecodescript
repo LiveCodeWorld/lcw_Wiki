@@ -15,6 +15,105 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
+function wikiPage_GardenActivity gardenName, wikiDomain
+   put gardenName && "Garden Sites" into pageTitle
+   -- put "This [[garden]] contains the following domains:" into someMarkdown
+   put empty into someMarkdown
+   
+   put wikiGarden_ListDomains (gardenName) into wikiDomains  
+   put _SitesIndex (wikiDomains, pageTitle, wikiDomain, pageTitle, someMarkdown) into pageArray
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_GardenActivity
+
+private function _SitesIndex wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara
+   # Construct PageArray
+   if pFirstPara is empty then
+      put pageTitle into shortTitle
+      delete word -1 of shortTitle
+      put "Here we list sites related to [[{{shortTitle}} Activity]]. See [[{{shortTitle}} Index]] for a chronological view of all contributions." into pFirstPara
+      curly_ReplaceText pFirstPara, "shortTitle", shortTitle
+   end if
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   
+   # Roster
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   
+   # Activity
+   pageArray_AddMarkdown pageArray, "# Activity"
+   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
+   pageArray_AddActivity pageArray, pageTitle, "1 week", moreActivityText
+   
+   # Reference Links
+   pageArray_AddMarkdown pageArray, "# Reference Links"
+   pageArray_AddReferenceIndex pageArray, wikiDomains
+   
+   # Domain List
+   pageArray_AddMarkdown pageArray, "# Domains"
+   put markdown_LinkedBullets (wikiDomains) into mdDomains
+   pageArray_AddMarkdown pageArray, mdDomains
+   
+   return pageArray
+end _SitesIndex
+
+function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
+   set the itemdelimiter to "."
+   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle   
+   put fedwiki_MarkdownIndex (rosterDomains) into curlyArray ["rosterIndex"]
+   
+   put rosterTitle into curlyArray ["rosterTitle"]
+   put wikiDomain into curlyArray ["wikiDomain"]
+   put rosterDomains into curlyArray ["rosterText"]
+   --
+   put curlyArray into curlyData ["all"]
+   curly_MergeAll pageArray, curlyData
+   --
+   put rosterTitle && "Activity" into pageTitle
+   put pageTitle into pageArray ["title"]
+   --
+   return pageArray
+end roster_ConstructActivityPage
+
+
+--> WikiPage | Dialogue
+-
+function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain, 
+   if pDialogueDomain is empty then put "dialogue.fedwiki.org" into pDialogueDomain
+   if pPageTitle is empty then
+      put fedwiki_ConstructTitle (dialogueSlug) into pPageTitle
+   end if
+   
+   # Fetch Dialogue
+   put pageArray_FetchTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
+   put "html" into pageArray ["plugin"]
+   pageArray_CleanJournal pageArray
+   --
+   return pageArray
+end pageArray_GetDialogue
+
+function wikiPage_Dialogue pageSlug, wikiDomain, dialogueSlug, pPageArrayTitle, pTemplateDomain
+   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
+   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
+   put pageTitle into curlyData ["all"]["New Page Title"]
+   put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
+   put pageSlug into curlyData ["all"]["originalSlug"]
+   put wikiDomain into curlyData ["all"]["wikiDomain"]
+   --
+   put wikiPage_CurlyDialogue (curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
+   return pageArray
+end wikiPage_Dialogue
+
+function wikiPage_CurlyDialogue curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain
+   put pageArray_GetDialogue (dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
+   curly_MergePageArray pageArray, curlyData
+   return pageArray
+end wikiPage_CurlyDialogue
+
 function wikiPage_DomainTitle wikidomain, pWord
    if pWord is empty then put "Sites" into pWord
    
@@ -45,7 +144,7 @@ function wikiPage_FilteredDomainList tldDomain, pPageTitle, pFirstPara
    
    # WikiFolders
    put "*" & tldDomain & "*" into sFilter
-   put wiki_ListLocalShortAll (sFilter) into wikiFolders
+   put wikiGarden_ListAllDomains (sFilter) into wikiFolders
    
    # Construct PageArray
    if pFirstPara is empty then
@@ -84,24 +183,6 @@ end wikiPage_FilteredDomainList
 
 --> WikiPage | Activity
 -
-function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
-   set the itemdelimiter to "."
-   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle   
-   put fedwiki_MarkdownIndex (rosterDomains) into curlyArray ["rosterIndex"]
-   
-   put rosterTitle into curlyArray ["rosterTitle"]
-   put wikiDomain into curlyArray ["wikiDomain"]
-   put rosterDomains into curlyArray ["rosterText"]
-   --
-   put curlyArray into curlyData ["all"]
-   curly_MergeAll pageArray, curlyData
-   --
-   put rosterTitle && "Activity" into pageTitle
-   put pageTitle into pageArray ["title"]
-   --
-   return pageArray
-end roster_ConstructActivityPage
-
 function wikiPage_TwoWeeksActivity pFirstPara
    return wikiPage_FederationActivity ("", pFirstPara)
 end wikiPage_TwoWeeksActivity
@@ -132,85 +213,33 @@ end wikiPage_FederationActivity
 
 --> WikiPage | Index
 -
-function wikiPage_ActivityIndex tldDomain, pPageTitle, pFirstPara
+function wikiPage_ActivityIndex someDomain, pPageTitle, pFirstPara
+   put url_GetTLD (someDomain) into tldDomain
    put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
    put CR & "SORT titles" after moreActivityText
    put _ActivityPageArray (tldDomain, moreActivityText, "Index", "", pPageTitle, pFirstPara) into pageArray
    return pageArray
 end wikiPage_ActivityIndex
 
-function wikiPage_SitesActivity tldDomain, pPageTitle, pFirstPara
+function wikiPage_SitesActivity someDomain, pPageTitle, pFirstPara
+   put url_GetTLD (someDomain) into tldDomain
    put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
    put _ActivityPageArray (tldDomain, moreActivityText, "Activity", "", pPageTitle, pFirstPara) into pageArray
    return pageArray
 end wikiPage_SitesActivity
 
-private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinceWhen, pPageTitle, pFirstPara
-   if pPageTitle is empty then
-      put wikiPage_DomainTitle (tldDomain, titleWord) into pPageTitle
-   end if
-   put pPageTitle into pageTitle
-   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
-   
-   # Construct PageArray
-   if pFirstPara is empty then
-      put "View all activity from [[{{sitesTitle}}]] listed in the roster below:" into pFirstPara
-      curly_ReplaceText pFirstPara, "sitesTitle", sitesTitle
-   end if
-   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
-   
-   # Roster
-   pageArray_AddMarkdown pageArray, "# Roster"
-   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
-   pageArray_AddRoster pageArray, rosterText
-   
-   # Activity
-   pageArray_AddMarkdown pageArray, "# Activity"
-   pageArray_AddActivity pageArray, sitesTitle, sinceWhen, moreActivityText
-   
-   # Clean and Return
-   pageArray_StripJournal pageArray
-   return pageArray
-end _ActivityPageArray
-
-function wikiPage_SitesIndex tldDomain, pPageTitle, pFirstPara
+function wikiPage_SitesIndex someDomain, pPageTitle, pFirstPara
+   put url_GetTLD (someDomain) into tldDomain
    if pPageTitle is empty then
       put wikiPage_DomainTitle (tldDomain, "Sites") into pPageTitle
    end if
    put pPageTitle into pageTitle
    
-   # Construct PageArray
-   if pFirstPara is empty then
-      put pageTitle into shortTitle
-      delete word -1 of shortTitle
-      put "Here we list current sites related to [[{{shortTitle}} Sites]]. See [[{{shortTitle}} Activity]] for a chronological view of all contributions." into pFirstPara
-      curly_ReplaceText pFirstPara, "shortTitle", shortTitle
-   end if
-   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
-   
-   # Roster
-   pageArray_AddMarkdown pageArray, "# Roster"
-   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
-   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
-   pageArray_AddRoster pageArray, rosterText
-   
-   # Activity
-   pageArray_AddMarkdown pageArray, "# Activity"
-   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
-   pageArray_AddActivity pageArray, pageTitle, "1 week", moreActivityText
-   
    # WikiFolders
-   put "*" & tldDomain & "*" into sFilter
-   put wiki_ListLocalShortAll (sFilter) into wikiDomains
+   put wikiGarden_ListAllDomains (tldDomain) into wikiDomains
+   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
    
-   # Reference Links
-   pageArray_AddMarkdown pageArray, "# Reference Links"
-   pageArray_AddReferenceIndex pageArray, wikiDomains
-   
-   # Domain List
-   pageArray_AddMarkdown pageArray, "# Domains"
-   put markdown_LinkedBullets (wikiDomains) into mdDomains
-   pageArray_AddMarkdown pageArray, mdDomains
+   put _SitesIndex (wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara) into pageArray
    
    # Clean and Return
    pageArray_StripJournal pageArray
@@ -250,58 +279,6 @@ function wikiPage_CreateMissingSites pageTitle, wikiDomains, pFirstPara
    pageArray_StripJournal pageArray
    return pageArray
 end wikiPage_CreateMissingSites
-
-private command _AddMissingSites wikiDomains, @pageArray
-   put wiki_ListLocalShortAll() into existingDomains
-   set the wholematches to true
-   put "http://rest.livecode.world/fedwiki/create_Wiki" into postURL
-   repeat for each line wikiDomain in wikiDomains
-      if wikiDomain is among the lines of existingDomains then
-         put wikiDomain & CR after foundWikiFolders
-      else
-         put wikiDomain into valueArray ["wikiDomain"]
-         pageArray_AddButton pageArray, wikiDomain, postURL, valueArray
-      end if
-   end repeat
-   delete char -1 of foundWikiFolders
-   return foundWikiFolders
-end _AddMissingSites
-
-
---> WikiPage | Dialogue
--
-function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain, 
-   if pDialogueDomain is empty then put "dialogue.fedwiki.org" into pDialogueDomain
-   if pPageTitle is empty then
-      put fedwiki_ConstructTitle (dialogueSlug) into pPageTitle
-   end if
-   
-   # Fetch Dialogue
-   put pageArray_FetchTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
-   put "html" into pageArray ["plugin"]
-   pageArray_CleanJournal pageArray
-   --
-   return pageArray
-end pageArray_GetDialogue
-
-function wikiPage_Dialogue pageSlug, wikiDomain, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
-   put fedwiki_ConstructTitle (pageSlug) into pageTitle
-   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
-   put pageTitle into curlyData ["all"]["New Page Title"]
-   put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
-   put pageSlug into curlyData ["all"]["originalSlug"]
-   put wikiDomain into curlyData ["all"]["wikiDomain"]
-   --
-   put wikiPage_CurlyDialogue (curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
-   return pageArray
-end wikiPage_Dialogue
-
-function wikiPage_CurlyDialogue curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   put pageArray_GetDialogue (dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
-   curly_MergePageArray pageArray, curlyData
-   return pageArray
-end wikiPage_CurlyDialogue
 
 
 --> WikiPage | Edit
@@ -770,3 +747,48 @@ private command _AddRefreshEmpty @pageArray
    pageArray_AddMarkdown pageArray, sMarkdown
    return sMarkdown
 end _AddRefreshEmpty
+
+private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinceWhen, pPageTitle, pFirstPara
+   if pPageTitle is empty then
+      put wikiPage_DomainTitle (tldDomain, titleWord) into pPageTitle
+   end if
+   put pPageTitle into pageTitle
+   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
+   
+   # Construct PageArray
+   if pFirstPara is empty then
+      put "View all activity from [[{{sitesTitle}}]] listed in the roster below:" into pFirstPara
+      curly_ReplaceText pFirstPara, "sitesTitle", sitesTitle
+   end if
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   
+   # Roster
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   
+   # Activity
+   pageArray_AddMarkdown pageArray, "# Activity"
+   pageArray_AddActivity pageArray, sitesTitle, sinceWhen, moreActivityText
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end _ActivityPageArray
+
+private command _AddMissingSites wikiDomains, @pageArray
+   put wikiGarden_ListAllDomains() into existingDomains
+   set the wholematches to true
+   put "http://rest.livecode.world/fedwiki/create_Wiki" into postURL
+   repeat for each line wikiDomain in wikiDomains
+      if wikiDomain is among the lines of existingDomains then
+         put wikiDomain & CR after foundWikiFolders
+      else
+         put wikiDomain into valueArray ["wikiDomain"]
+         pageArray_AddButton pageArray, wikiDomain, postURL, valueArray
+      end if
+   end repeat
+   delete char -1 of foundWikiFolders
+   return foundWikiFolders
+end _AddMissingSites
+

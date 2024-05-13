@@ -149,7 +149,7 @@ on platform_Wikipedia browserView, pageSlug
 end platform_Wikipedia
 
 on platform_Roster browserView
-   put wiki_ListLocalShortAll ("*astral*") into wikiDomains
+   put wikiGarden_ListAllDomains ("*astral*") into wikiDomains
    put roster_ConstructPageArray (wikiDomains) into pageArray
    transport_ReturnPageArray pageArray
 end platform_Roster

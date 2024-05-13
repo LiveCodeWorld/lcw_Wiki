@@ -35,9 +35,9 @@ on menu_NewAstralWiki dView
    breakpoint
    put lcw_Ask ("Choose a name for your new astral subdomain...", "new", "Create Astral Subdomain", dView) into newSubDomain
    --
-   put wiki_RootFolder() into wikiRootFolder
+   put wikiFarm_GetFolder() into wikiRootFolder
    set the defaultfolder to wikiRootFolder
-   put wiki_ListLocalShortAll ("*astralship.wiki") into wikiFolders
+   put wikiGarden_ListAllDomains ("astralship.wiki") into wikiFolders
    
    # Check newDomain does not exists
    put newSubDomain & ".astralship.wiki" into newDomain

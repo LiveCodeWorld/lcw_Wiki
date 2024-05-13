@@ -8,23 +8,13 @@ type: library
 version: 0.1
 
 /*
-function wiki_ListLocalShortAll pFilter
-   return wikiFarm_ListDomains (pFilter)
-end wiki_ListLocalShortAll
-
-function wiki_ListFolders pRootFolder, pNotTheseShortFolders
-   if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
-   put folder_ListNonSymLinked (pRootFolder) into wikiFolders
-   --
-   put _StripNotThese (wikiFolders, pNotTheseShortFolders) into goodWikiFolders
-   return goodWikiFolders
-end wiki_ListFolders
 */
 
 
 --> Working on
 -
-function wikiFolder_ListTopLevel pRootFolder
+function wikiFolder_ListTopLevel
+   put wikiGarden_ListAllDomains() into wikiDomains
    
    # List Toplevel
    put url_ListTopLevelDomains (wikiDomains) into toplevelDomains
@@ -35,37 +25,8 @@ function wikiFolder_ListTopLevel pRootFolder
    return goodShortFolders
 end wikiFolder_ListTopLevel
 
-
---> WikiFarm | List
--
-function wikiFarm_ListDomains pFilterDomain, pSimple
-   put wiki_RootFolder() into farmFolder
-   put wikiFarm_DomainsFromFolder (farmFolder, pFilterDomain, pSimple) into shortWikiFolders
-   return shortWikiFolders
-end wikiFarm_ListDomains
-
-function wikiFarm_DomainsFromFolder farmFolder, pFilterDomain, pSimple
-   # List Farm
-   put folder_ListShortAll (farmFolder) into shortWikiFolders 
-   put pFilterDomain is among the lines of shortWikiFolders into addTLD
-   
-   # Tidy
-   wikiFolder_TidyList shortWikiFolders
-   wikiFolder_FilterList shortWikiFolders, pFilterDomain, pSimple
-   
-   # Add Root
-   set the wholeMatches to true
-   if addTLD then
-      put pFilterDomain & CR before shortWikiFolders
-   end if
-   
-   # Sort
-   url_SortDomainIndex shortWikiFolders
-   return shortWikiFolders
-end wikiFarm_DomainsFromFolder
-
 function wiki_ListShortFolders pRootFolder, pNotTheseShortFolders
-   if pRootFolder is empty then put wikiFarm_GetRoot() into pRootFolder
+   if pRootFolder is empty then put wikiFarm_GetFolder() into pRootFolder
    if pNotTheseShortFolders is empty then put "commons" into pNotTheseShortFolders
    --
    put folder_ListShort (pRootFolder) into shortWikiFolders
@@ -79,15 +40,15 @@ end wiki_ListShortFolders
 --> WikiFolder | List | Empty
 -
 function wiki_ListEmptyLocalFolders pListShort
-   put wiki_RootFolder() into rootFolder
+   put wikiFarm_GetFolder() into farmFolder
    put _NotThese into notThese
-   put wiki_ListEmptyFolders (rootFolder, pListShort, notThese) into wikiFolders
+   put wiki_ListEmptyFolders (farmFolder, pListShort, notThese) into wikiFolders
    return wikiFolders
 end wiki_ListEmptyLocalFolders
 
-function wiki_ListEmptyFolders pRootFolder, pListShort, pNotTheseShortFolders
-   if pRootFolder is empty then put wiki_RootFolder() into pRootFolder
-   put folder_ShortList (pRootFolder) into notSymLinkedFolderNames
+function wiki_ListEmptyFolders pFarmFolder, pListShort, pNotTheseShortFolders
+   if pFarmFolder is empty then put wikiFarm_GetFolder() into pFarmFolder
+   put folder_ShortList (pFarmFolder) into notSymLinkedFolderNames
    --
    put _TidyNotThese (pNotTheseShortFolders) into cleanNotTheseShortFolders
    repeat for each line shortWikiFolder in notSymLinkedFolderNames
@@ -96,7 +57,7 @@ function wiki_ListEmptyFolders pRootFolder, pListShort, pNotTheseShortFolders
          next repeat
       end if
       --
-      put pRootFolder & shortWikiFolder & slash into wikiFolder
+      put pFarmFolder & shortWikiFolder & slash into wikiFolder
       --
       put wiki_FolderHasNoPages (wikiFolder) into noPages -- symlinked version
       --
@@ -125,17 +86,6 @@ command wikiFolder_TidyList @shortWikiFolders
    put _NotThese() into notThese
    put _StripNotThese (shortWikiFolders, notThese) into shortWikiFolders
 end wikiFolder_TidyList
-
-command wikiFolder_FilterList @shortWikiFolders, pFilter, pSimple
-   if pFilter is not empty then
-      if pSimple is true then
-         filter shortWikiFolders with pFilter
-      else
-         put "*." & pFilter into sFilter
-         filter shortWikiFolders with sFilter
-      end if
-   end if
-end wikiFolder_FilterList
 
 
 --> Private

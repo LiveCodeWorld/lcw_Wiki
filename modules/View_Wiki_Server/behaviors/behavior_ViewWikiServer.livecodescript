@@ -52,9 +52,6 @@ end log_Hilite
 
 setprop log_Hilite sBoolean
    set the hilite of _ToggleButton() to sBoolean
-   if sBoolean is false then
-      socket_CloseOpen
-   end if
 end log_Hilite
 
 
@@ -63,12 +60,14 @@ end log_Hilite
 on preOpenControl
    set the behavior_StackNames of me to "behavior_ViewWikiServer,behavior_Daemon,behavior_DaemonMiddleware,behavior_WikiRouter,behavior_DaemonLog"
    set the log_Text of me to empty
+   --
+   set the log_Hilite of me to the daemon_IsRunning of me
 end preOpenControl
 
 on mouseUp
    switch word 1 of the target
       case "button"
-         put the daemon_IsRunning of me into sBoolean
+         put the hilite of the target into sBoolean
          set the daemon_IsRunning of me to (sBoolean is false)
          break
       default

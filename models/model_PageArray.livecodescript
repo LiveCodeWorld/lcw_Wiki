@@ -138,16 +138,18 @@ end pageArray_AddButton
 
 --> PageArray
 -
-command pageArray_AddReferenceIndex @pageArray, wikiDomains
+command pageArray_AddReferenceIndex @pageArray, wikiDomains, pCaps
    put -3 into pItemNum
    set the itemDelimiter to "."
    repeat for each line wikiDomain in wikiDomains
       put item 1 to pItemNum of wikiDomain into someText
       if someText is empty then put wikiDomain into someText
       --
-      replace "." with space in someText
-      put text_InitialCaps (someText) into refText
-      pageArray_AddReference pageArray, "Welcome Visitors", wikiDomain, refText, "welcome-visitors"
+      if pCaps is true then
+         replace "." with space in someText
+         put text_InitialCaps (someText) into someText
+      end if
+      pageArray_AddReference pageArray, "Welcome Visitors", wikiDomain, someText, "welcome-visitors"
    end repeat
    delete char -1 of sMarkdown
    return sMarkdown

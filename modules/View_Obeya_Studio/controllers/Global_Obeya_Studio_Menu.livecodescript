@@ -92,7 +92,7 @@ getprop displayDomain_Param [browserView]
 end displayDomain_Param
 
 getprop displayDomain_Params
-   put wiki_ListLocalShortAll ("*.localhost") into wikiDomains
+   put wikiGarden_ListAllDomains ("*.localhost") into wikiDomains
    return "ChatGPT,Localhost,-," & wikiDomains
 end displayDomain_Params
 

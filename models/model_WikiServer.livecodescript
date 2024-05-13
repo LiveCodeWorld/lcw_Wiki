@@ -13,81 +13,34 @@ Wiki Server pages are default wiki pages that are avaialable to all wikis.
 This model lets you read, write and list these pages.
 */
 
+--> Variables
+-
+local WikiServer_Data
+
+
 --> Working on
 -
 function wikiServer_View
-   put view_GetTemplateObject ("View|Wiki|Server") into wsView
-   return wsView
+   put view_GetTemplateObject ("View|Wiki|Server") into wikiServerView
+   return wikiServerView
 end wikiServer_View
 
-command wikiServer_Reset pWikiServer, pCloseAll
-   wikiServer_Stop pWikiServer, pCloseAll
-   put the result into pWikiServer
-   --
-   resetAll
-   --
-   wikiServer_Start pWikiServer
-   --
-   return pWikiServer
-end wikiServer_Reset
 
-command wikiServer_Start pWikiServer, pPortToListenOn
-   if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
-   --
-   dispatch "daemon_Start" to pWikiServer with pPortToListenOn
-   put the result into pPortToListenOn
-   --
-   return pWikiServer
-end wikiServer_Start
-
-command wikiServer_Stop pWikiServer, pCloseAll
-   if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
-   put pCloseAll is not false into sBoolean
-   --
-   dispatch "daemon_Stop" to pWikiServer with sBoolean
-   return pWikiServer
-end wikiServer_Stop
-
-command wikiServer_Create wikiDomain
-   # Create folders
-   put wikiFolder_Construct (wikiDomain) into wikiFolder
-   repeat for each item shortFolder in "pages,recycle,status"
-      put wikiFolder & shortFolder & slash into sFolder
-      folder_CreateNested sFolder
-   end repeat
-   
-   # Create Image and Assets folders
-   put wikiFolder & "assets/plugins/image" & slash into sFolder
-   folder_CreateNested sFolder
-   
-   # Add domain to /etc/hosts
-   put system_GetAdminPassword() into systemPassword
-   hosts_Add wikiDomain, systemPassword
-   
-   # Create files
-   put "welcome-visitors" into pageSlug
-   put wikiServer_GetPageJson (pageSlug) into pageJSON
-   pageJson_Set wikiDomain, pageSlug, pageJSON
-   
-   put wikiServer_GetFavicon() into pngData
-   wiki_SetFavicon wikiDomain, pngData
-end wikiServer_Create
-
-
---> WikiPage | Default
+--> WikiServer | List
 -
-command wikiServer_CopyHomeToDefault wikiDomain, pForkDomains
-   wikiServer_CopyPageToDefault wikiDomain, "welcome-visitors", pForkDomains
-end wikiServer_CopyHomeToDefault
+function wikiServer_ListNames
+   repeat for each key rServerObject in WikiServer_Data
+      put WikiServer_Data [rServerObject]["name"] into serverName
+      put serverName & CR after serverNames
+   end repeat
+   delete char -1 of serverNames
+   return serverNames
+end wikiServer_ListNames
 
-command wikiServer_CopyPageToDefault wikiDomain, pageSlug, pForkDomains
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   pageArray_StripJournal pageArray
-   pageArray_AddFork pageArray, pForkDomains
-   --
-   wikiServer_SetPageArray pageArray
-   return the result
-end wikiServer_CopyPageToDefault
+function wikiServer_ListObjects
+   put keys (WikiServer_Data) into rServerObjects
+   return rServerObjects
+end wikiServer_ListObjects
 
 function wikiServer_ListPages pListShort
    put wikiServer_DefaultPagesFolder() into wikiDefaultPagesFolder
@@ -99,18 +52,37 @@ function wikiServer_ListPages pListShort
 end wikiServer_ListPages
 
 
---> WikiServer | Favicon
+--> WikiServer | Data
 -
-function wikiServer_GetFavicon
-   put wikiServer_DefaultStatusFolder() into defaultStatusFolder
-   put defaultStatusFolder & "favicon.png" into faviconFile
-   if there is a file faviconFile then
-      put url ("binfile:" & faviconFile) into pngData
-      return pngData
-   else
-      return empty
+function wikiServer_GetData
+   return WikiServer_Data
+end wikiServer_GetData
+
+command wikiServer_Register serverObject, pPortToListenOn, pServerName
+   if pServerName is empty then
+      put the short name of serverObject into pServerName
    end if
-end wikiServer_GetFavicon
+   put revRuggedId(serverObject) into rServerObject
+   --
+   put pPortToListenOn into WikiServer_Data [rServerObject]["port"]
+   put pServerName into WikiServer_Data [rServerObject]["name"]
+   --
+   -- display_ServerData
+   return WikiServer_Data
+end wikiServer_Register
+
+command wikiServer_UnRegister serverObject
+   if exists (serverObject) is false then
+      -- could dcheck target
+      return "Error, serverObject does not exist:" && pServerObject
+   end if
+   
+   put revRuggedId (serverObject) into rServerObject
+   delete variable WikiServer_Data [rServerObject]
+   --
+   -- display_ServerData
+   return WikiServer_Data
+end wikiServer_UnRegister
 
 
 --> WikiServer | PageArray
@@ -139,8 +111,19 @@ function wikiServer_GetPageJson pageSlug
 end wikiServer_GetPageJson
 
 
---> WikiServer | Default | Paths
+--> WikiServer | Files
 -
+function wikiServer_GetFavicon
+   put wikiServer_DefaultStatusFolder() into defaultStatusFolder
+   put defaultStatusFolder & "favicon.png" into faviconFile
+   if there is a file faviconFile then
+      put url ("binfile:" & faviconFile) into pngData
+      return pngData
+   else
+      return empty
+   end if
+end wikiServer_GetFavicon
+
 function wikiServer_ConstructDefaultPagePath pageSlug
    put wikiServer_DefaultPagesFolder() & pageSlug into wikiPagePath
    return wikiPagePath

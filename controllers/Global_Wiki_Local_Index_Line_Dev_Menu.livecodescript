@@ -41,7 +41,7 @@ on menu_CreateLocalTunnel displayView
 end menu_CreateLocalTunnel
 
 on menu_Reveal displayView
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    put the selected_Line of displayView into shortFolder
    put wikiFolder & shortFolder into longFolder
    --

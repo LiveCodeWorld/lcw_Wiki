@@ -16,18 +16,6 @@ local Wiki_ModulesFolder
 
 --> Working on
 -
-function wikiFile_ConstructConfig pWikiDomain
-   put wiki_RootFolder (pWikiDomain) into wikiRootFolder
-   put wikiRootFolder & "config.json" into wikiConfigFile
-   return wikiConfigFile
-end wikiFile_ConstructConfig
-
-function wikiFolder_ConstructCommons pWikiDomain
-   put wiki_RootFolder (pWikiDomain) into wikiRoot
-   put wikiRoot & "commons/" into wikiCommonsFolder
-   return wikiCommonsFolder
-end wikiFolder_ConstructCommons
-
 function wiki_ModulesFolder
    if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
    return Wiki_ModulesFolder
@@ -240,7 +228,7 @@ function wikiFolder_Recycled wikiDomain
 end wikiFolder_Recycled
 
 function wikiFolder_Pages wikiDomain
-   put wikiFolder_Construct (wikiDomain) into wikiFolder 
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder 
    put wikiFolder & "pages/" into wikiPagesFolder
    if there is a folder wikiPagesFolder then
       return wikiPagesFolder
@@ -249,20 +237,11 @@ function wikiFolder_Pages wikiDomain
    end if
 end wikiFolder_Pages
 
-function wikiFolder_Get sDomain
-   put wikiFolder_Construct (sDomain) into folderPath 
-   if there is a folder folderPath then
-      return folderPath
-   else
-      return empty
-   end if
-end wikiFolder_Get
-
 
 --> WikiFolder | Construct
 -
 function wikiFolder_ConstructCommons pWikiDomain
-   put wiki_RootFolder (pWikiDomain) into wikiRoot
+   put wikiFarm_GetFolder (pWikiDomain) into wikiRoot
    put wikiRoot & "commons/" into wikiCommonsFolder
    return wikiCommonsFolder
 end wikiFolder_ConstructCommons
@@ -274,25 +253,25 @@ function wikiFolder_ConstructPageAssets pageSlug, wikiDomain
 end wikiFolder_ConstructPageAssets
 
 function wikiFolder_ConstructImageAssets wikiDomain
-   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
    put wikiFolder & "assets/plugins/image/" into imageAssetsFolder
    return imageAssetsFolder
 end wikiFolder_ConstructImageAssets
 
 function wikiFolder_ConstructAssets wikiDomain
-   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
    put wikiFolder & "assets/" into assetsFolder
    return assetsFolder
 end wikiFolder_ConstructAssets
 
 function wikiFolder_ConstructStatus wikiDomain
-   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
    put wikiFolder & "status/" into statusFolder
    return statusFolder
 end wikiFolder_ConstructStatus
 
 function wikiFolder_ConstructRecycled wikiDomain
-   put wikiFolder_Construct (wikiDomain) into wikiFolder
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
    put wikiFolder & "recycle/" into recycleFolder
    return recycleFolder
 end wikiFolder_ConstructRecycled

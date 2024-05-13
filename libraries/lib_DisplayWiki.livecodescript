@@ -10,6 +10,26 @@ version: 0.2
 --> Working on
 -
 
+--> Display | WikiGarden
+-
+on mDoubleUp_WikiEco displayView, wikiFolder
+   put someLine &CR& the title_Text of displayView
+end mDoubleUp_WikiEco
+
+command display_WikiEcoData
+   put wikiGarden_GetModel() into ecoData
+   
+   display_Tools ecoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
+   return the result
+end display_WikiEcoData
+
+command display_RouterFolderArray
+   put wikiRouter_FolderArray() into routerFolderArray
+   
+   display_Data routerFolderArray, "WikiRouter_FolderArray", "Wiki"
+   return the result
+end display_RouterFolderArray
+
 
 --> Display | Wiki
 -
@@ -21,8 +41,8 @@ command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
    put wiki_ConstructUrl (wikiDomain) into wikiURL
    
    # Start server
-   wiki_Start -- wiki_StartNodeServer
-   if the result is not empty then wait 20 ticks
+   -- wikiServer_Start -- wikiServer_StartNode
+   -- if the result is not empty then wait 20 ticks
    
    # Display Browser
    display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
@@ -35,7 +55,8 @@ command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pW
    --
    if pStackLabel is empty then put "Browser" into pStackLabel
    if pWikiViewName is empty then
-      put "View|Browser" into pWikiViewName
+      put "View|Wiki|Browser" into pWikiViewName
+      -- put "View|Browser" into pWikiViewName
       -- put "View|Obeya|Studio" into pWikiViewName
    end if
    
@@ -335,7 +356,7 @@ end display_AstralMediaPhotos
 command display_LocalWikis pDisplayView, pTitle, pFilter
    if pTitle is empty then put "All" into pTitle
    --
-   put wiki_ListLocalShortAll (pFilter) into wikiFolders
+   put wikiGarden_ListAllDomains (pFilter) into wikiFolders
    --
    display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
    put the result into dView
@@ -346,7 +367,7 @@ command display_NonSymLinked pDisplayView, pFilter, pTitle
    breakpoint
    if pTitle is empty then put "Non-symlinked" into pTitle
    --
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    put folder_ListShortNonSymLinked (wikiFolder) into wikiFolders
    url_SortDomainIndex wikiFolders
    --
@@ -356,7 +377,7 @@ command display_NonSymLinked pDisplayView, pFilter, pTitle
 end display_NonSymLinked
 
 command display_LocalAstralWikis pDisplayView, pStripDynadot
-   put wiki_ListLocalShortAll() into localAstralDomains
+   put wikiGarden_ListAllDomains() into localAstralDomains
    --
    if pStripDynadot is true then
       put dynadot_StripSubDomainNames (localAstralDomains, "astralship.wiki") into wikiFolders
@@ -373,7 +394,7 @@ end display_LocalAstralWikis
 command display_LocalSymWikis pDisplayView, pFilter, pTitle
    if pTitle is empty then put "Symlinked Wikis" into pTitle
    --
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    put folder_ListShortSymLinked (wikiFolder) into wikiFolders
    --
    display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
@@ -468,7 +489,7 @@ command display_EmptyLocalWikis pDisplayView, pFilter, pTitle
 end display_EmptyLocalWikis dView, pFilter
 
 command display_LocalWithoutAstral dView, pFilter
-   put wiki_RootFolder() into wikiFolder
+   put wikiFarm_GetFolder() into wikiFolder
    put folder_ListShortAll (wikiFolder) into wikiFolders
    --
    put wikiFolders into localhostFolders

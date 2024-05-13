@@ -324,7 +324,7 @@ function wikiPage_Translation wikiDomain, pageSlug, sLang, pModel
    put wikiPage_FetchTranslation (userText, sLang, pModel) into sTranslation
    if sTranslation is empty then
       put pageArray_Construct ("Timeout", "Translation timed out. Try again?", "markdown") into pageArray
-      send "wikiServer_Reset" to me in 30 ticks
+      send "wikiServer_Restart" to me in 30 ticks
       return pageArray
    else   
       put pageArray ["title"] into pageTitle

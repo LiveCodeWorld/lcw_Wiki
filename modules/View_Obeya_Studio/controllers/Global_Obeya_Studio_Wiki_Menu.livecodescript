@@ -164,11 +164,6 @@ private function _BrowserView tObject
    end if
 end _BrowserView
 
-private function _ListToplevelDomains
-   put wikiFolder_ListTopLevel() into wikiDomains
-   return wikiDomains
-end _ListToplevelDomains
-
 getprop disabled_DisplayWiki [browserView]
    return exists (browserView) is false
 end disabled_DisplayWiki
@@ -179,7 +174,7 @@ getprop displayDomain_Param [browserView]
 end displayDomain_Param
 
 getprop displayDomain_Params
-   put _ListToplevelDomains() into wikiDomains
+   put wikiFolder_ListTopLevel() into wikiDomains
    --
    if wikiDomains is empty then
       return "ChatGPT,Localhost"
@@ -187,15 +182,6 @@ getprop displayDomain_Params
       return wikiDomains & ",-,ChatGPT,Localhost"
    end if
 end displayDomain_Params
-
-getprop createGardenPage_Params
-   return wikiRouter_ListGardenNames()
-end createGardenPage_Params
-
--- getprop createSitesPage_Params
-put _ListToplevelDomains() into wikiDomains
-return wikiDomains
-end createSitesPage_Params
 
 getprop speak_Params [browserView]
    return LocalArray ["pageTitles"]
@@ -221,6 +207,14 @@ getprop checked_LiveServer [wikiView]
    return true
 end checked_LiveServer
 
+getprop moveDomains_Params [wikiView]
+   return wikiGarden_ListUniqueNames()
+end moveDomains_Params
+
+getprop createGardenPage_Params
+   return wikiGarden_ListUniqueNames()
+end createGardenPage_Params
+
 
 --> Global | Obeya | Studio | Wiki | Menu
 -
@@ -235,16 +229,12 @@ on menu_DisplayDomain browserView, wikiDomain
    end switch
 end menu_DisplayDomain
 
-on menu_LiveServer wikiView
-   
-end menu_LiveServer
-
 on menu_NodeServer wikiView
    if _DaemonIsRunning (wsView) is true then
       set the daemon_IsRunning of wsView to false
-      wiki_StartNodeServer
+      wikiServer_StartNode
    else
-      wiki_StopNodeServer
+      wikiServer_StopNode
       set the daemon_IsRunning of wsView to true
    end if
 end menu_NodeServer
@@ -254,56 +244,15 @@ on menu_CloseOpenSockets
 end menu_CloseOpenSockets
 
 on menu_Port wsView, sPort
-   set the daemon_Port of wsView to sPort
+   set the listen_Port of wsView to sPort
 end menu_Port
-
-getprop moveMyDomains_Params [dsfa]
-   return wikiGarden_ListEcoNames()
-end moveMyDomains_Params
-   
-on menu_MoveMyDomains wikiView, ecoName
-   put the wiki_Domain of wikiView into wikiDomain
-   put url_GetTLD (wikiDomain) into tldDomain
-   put "*." & tldDomain into sFilter
-   
-   
-   put wiki_ListLocalShortAll (sFilter)
-end menu_MoveMyDomains
 
 private on _
 end _
 
-on menu_CreateSitesPage browserView
-   put the wiki_Domain of browserView into wikiDomain
-   put wikiPage_SitesIndex (wikiDomain) into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_CreateSitesPage
-
-on menu_CreateActivityPage
-   put the wiki_Domain of browserView into wikiDomain
-   put wikiPage_SitesActivity (wikiDomain) into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_CreateActivityPage
-
-on menu_CreateActivityIndex
-   put the wiki_Domain of browserView into wikiDomain
-   put wikiPage_ActivityIndex (wikiDomain) into pageArray
-   set the ghost_PageArray of browserView to pageArray
-end menu_CreateActivityIndex
-
-on menu_CreateGardenPage browserView, gardenName
-   put the wiki_Domain of browserView into wikiDomain
-   --
-   put gardenName && "Garden" into pageTitle
-   put "This [[garden]] contains the following domains:" into someMarkdown
-   put pageArray_Construct (pageTitle, someMarkdown) into pageArray
-   
-   put wikiGarden_ListDomains (gardenName) into wikiDomains
-   put markdown_LinkedBullets (wikiDomains) into domainBullets
-   pageArray_AddMarkdown pageArray, domainBullets
-   --
-   set the ghost_PageArray of browserView to pageArray
-end menu_CreateGardenPage
+on insert_Create
+   return "Global | Wiki | Browser | Create | Menu"
+end insert_Create
 
 private on __
 end __
@@ -348,26 +297,6 @@ end menu_TranslateToWelsh
 private on ___
 end ___
 
-on menu_CreateFarm browserView
-   put the wiki_Domain of browserView into wikiDomain
-   lcw_Answer "Move the current wiki '[[wikiDomain]]' to a new repo?", browserView, wikiDomain
-   
-   put env_GetRepoFolder() into sFolder
-   answer folder "Select a folder for the new farm..." with sFolder as sheet
-   if it is empty then exit to top
-   
-   put it into newRepoFolder
-   text_AddTrailing newRepoFolder, slash
-   put newRepoFolder & wikiDomain & slash into newWikiFolder
-   put wikiFolder_Get (wikiDomain) into oldWikiFolder
-   
-   # Move
-   revMoveFolder oldWikiFolder, newWikiFolder
-   
-   # Add to Redirect Model
-   wikiGarden_SetFolder wikiDomain, newRepoFolder
-end menu_CreateFarm
-
 on menu_SaveBrowser browserView
    put the stack_Name of browserView into stackName
    save stack stackName
@@ -377,28 +306,91 @@ on menu_SaveBrowser browserView
 end menu_SaveBrowser
 
 on menu_SetGardenEcoFolder
-   put wikiFarm_EarthRoot() into rootFolder
+   put wikiFarm_EarthFolder() into rootFolder
    answer folder "Choose a Garden eco-folder for wiki..." with rootFolder as sheet
    if it is empty then exit to top
    put it into ecoFolder
    
    wikiGarden_SetEcoFolder ecoFolder
-   -- wikiGarden_UpdateEcoFolder ecoFolder
+   wikiGarden_Init true
+   --
    finder_Reveal ecoFolder
 end menu_SetGardenEcoFolder
 
-on menu_SetWikiRootFolder
-   put wikiFarm_EarthRoot() into rootFolder
+on menu_StoreWikiFarmFolder
+   put wikiFarm_EarthFolder() into rootFolder
    answer folder "Choose a default folder for wiki..." with rootFolder as sheet
    if it is empty then exit to top
-   put it into newRootFolder
+   put it into newFarmFolder
    
-   wikiFarm_SetRoot newRootFolder, true
+   wikiFarm_SetFolder newFarmFolder
+   wikiFarm_StoreFolder newFarmFolder
+   --
    finder_Reveal newRootFolder
-end menu_SetWikiRootFolder
+end menu_StoreWikiFarmFolder
 
 private on ____
 end ____
+
+on menu_MoveWiki browserView
+   put the wiki_Domain of browserView into wikiDomain
+   put wikiFolder_FromRouter (wikiDomain) into oldWikiFolder
+   
+   put wikiGarden_GetEcoFolder() into oldEcoFolder
+   put oldWikiFolder into oldEcoFolder
+   set the itemdelimiter to slash
+   delete item -1 of oldEcoFolder
+   
+   answer folder "Select a garden folder for the new farm..." with oldEcoFolder as sheet
+   if it is empty then exit to top
+   put it into newGardenFolder
+   put slash after newGardenFolder
+   --
+   put newGardenFolder into newEcoFolder
+   delete item -1 of newEcoFolder
+   
+   # Old Wiki Folder
+   put newGardenFolder & wikiDomain & slash into newWikiFolder
+   
+   # Move
+   revMoveFolder oldWikiFolder, newWikiFolder
+   
+   # ReIndex
+   if folder_Within (ecoFolder, ecoFolders) is true then
+      wikiGarden_Init true
+   else
+      wikiGarden_AddEcoFolder newEcoFolder
+   end if
+end menu_MoveWiki
+
+on menu_MoveDomains wikiView, gardenName
+   # Domains to Move
+   put the wiki_Domain of wikiView into wikiDomain
+   put url_GetTLD (wikiDomain) into tldDomain
+   --
+   put wikiGarden_ListAllDomains (tldDomain) into domainsToMove
+   
+   put wikiGarden_FindGardenFolder (gardenName) into toGarden
+   repeat for each line wikiDomain in domainsToMove
+      put toGarden & wikiDomain & slash into toFolder
+      put wikiFolder_FromRouter (wikiDomain) into fromFolder
+      --
+      if there is not a folder fromFolder then next repeat
+      if fromFolder = toFolder then next repeat
+      if there is a folder toFolder then next repeat
+      
+      revMoveFolder fromFolder, toFolder
+   end repeat
+   
+   wikiGarden_Init true
+end menu_MoveDomains
+
+on menu_UpdateEcoData
+   wikiGarden_Init true
+end menu_UpdateEcoData
+
+private on _____
+end _____
 
 on menu_DisplayWikiServer
    display_ViewTemplate "View|Wiki|Server"

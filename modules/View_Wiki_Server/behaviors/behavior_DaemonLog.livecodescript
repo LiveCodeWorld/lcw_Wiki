@@ -29,6 +29,23 @@ before save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
    set the log_Line [word 1 of the params] of me to wikiDomain,pageSlug
 end save_AfterAction
 
+before daemon_SetListenPort
+   put the listen_Port of me into oldPort
+   --
+   set the log_Line ["User changed server port from:"] of me to oldPort
+   if the daemon_IsRunning of me is true then
+      set the log_Line of me to "Stopping server..."
+   end if
+end daemon_SetListenPort
+
+after daemon_SetListenPort pPort
+   if the daemon_IsRunning of me is true then
+      set the log_Line ["Starting server listening on port"] of me to the listen_Port of me
+   end if
+   return pPort
+end daemon_SetListenPort
+
+
 --> GET
 -
 -- before route_GET someRoute, socketID, requestArray
@@ -131,16 +148,16 @@ end undefined_Get
 -
 after daemon_Start
    set the log_Text of me to empty
-   set the log_Line ["Server started. Using port"] of me to the daemon_Port of me
+   set the log_Line ["Server started. Using port"] of me to the listen_Port of me
    --
    set the log_Hilite of me to true
    --
-   put the daemon_Port of me into portToListenOn
+   put the listen_Port of me into portToListenOn
    return portToListenOn
 end daemon_Start
 
 after daemon_Stop
-   set the log_Line ["Server stopped. Closed port"] of me to the daemon_Port of me
+   set the log_Line ["Server stopped. Closed port"] of me to the listen_Port of me
    
    get the opensockets
    if it is empty then
@@ -152,21 +169,6 @@ after daemon_Stop
    --
    set the log_Hilite of me to false
 end daemon_Stop
-
-before daemon_SetPort
-   put the daemon_Port of me into oldPort
-   --
-   set the log_Line ["User changed server port from:"] of me to oldPort
-   if the daemon_IsRunning of me is true then
-      set the log_Line of me to "Stopping server..."
-   end if
-end daemon_SetPort
-
-after daemon_SetPort
-   if the daemon_IsRunning of me is true then
-      set the log_Line ["Starting server listening on port"] of me to the daemon_Port of me
-   end if
-end daemon_SetPort
 
 
 --> Daemon | Before and Afters
@@ -191,11 +193,6 @@ end daemon_SendNotFound
 before daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
    set the log_Line [word 1 of the params] of me to redirectURL
 end daemon_SendRedirect
-
-before daemon_SetPort
-   set the log_Line ["User changed server port to"] of me to the daemon_Port of me 
-   set the log_Line of me to "Stopping server..."
-end daemon_SetPort
 
 
 --> Daemon | Log | lib_DaemonRouter

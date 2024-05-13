@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: behavior_ViewWikiBrowser
 type: behavior
-version: 0.1
+version: 0.2
 
 /*
 This view is for a single wiki-browser view
@@ -19,14 +19,120 @@ local LocalArray
 
 --> Working on
 -
+setprop page_Slug [domainAndPort] pageSlug
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
+   _DisplayPage pageTitle, domainAndPort
+   return the result
+end page_Slug
+
+setprop page_Title [domainAndPort] pTitle
+   _DisplayPage pTitle, domainAndPort
+   return the result
+end page_Title
+
+private command _DisplayPage pTitle, pDomainAndPort
+   -- put fedwiki_ConstructSlug (pTitle) into pageSlug
+   --
+   if pDomainAndPort is empty then
+      put wiki_InternalLinkJavascript (pTitle) into sJavascript
+   else
+      put wiki_RemoteLinkJavascript (pTitle, pDomainAndPort) into sJavascript
+   end if
+   set the browser_Javascript of me to sJavascript
+   put the result into doResult
+   return doResult
+end _DisplayPage
+
+
+--> Wiki | Scale
+-
+setprop wiki_Scale sFactor
+   put wikijs_ScaleViewport (sFactor) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end wiki_Scale
+
+setprop page_Scale [pageSlug] scaleItems
+   if scaleItems is empty then
+      put wikijs_ResetPageTransform (pageSlug) into sJavascript
+   else
+      put item 1 of scaleItems into sSale
+      put item 2 of scaleItems into sX
+      put item 3 of scaleItems into sY
+      put item 4 of scaleItems into sTime
+      --
+      -- put wikijs_SetPageScale (sSale, pageSlug) into sJavascript
+      put wikijs_TransformPage (pageSlug, sSale, sX, sY, sTime) into sJavascript
+   end if
+   --
+   set the browser_Javascript of me to sJavascript
+   return sJavascript
+end page_Scale
+
+
+--> Wiki | URL
+-
+getprop browser_URL
+   put the url of me into someURL
+   return someURL
+end browser_URL
+
+setprop browser_URL someURL
+   put the previous_Url of me into previousURL
+   set the url of me to someURL
+   
+   set the previous_Url of me to someURL
+   
+   # Init
+   send "wikiBrowser_Init" to me in 30 ticks
+   return previousURL
+end browser_URL
+
+on flag_Event flagYaml
+   -- called by wiki-client Livecode javascript
+   split flagYaml using comma and ":"
+   --
+   put flagYaml ["target"] into wikiDomain
+   put flagYaml ["href"] into urlPath
+   put flagYaml ["pageTitle"] into pageTitle
+   
+   # Store Yaml
+   set the clicked_FlagArray of me to flagYaml
+   
+   if char 1 to 2 of urlPath = "//" then
+      # Open nwiki in new tab
+      display_Wiki wikiDomain, "New"
+      put the result into wikiView
+   else
+      _DisplayToolsPage pageTitle, wikiDomain, urlPath
+   end if
+end flag_Event
+
+
+--> Custom | Events | Flag
+-
 on wikiBrowser_Init
    set the flag_Handler of me to "default"
    set the wiki_EditMode of me to true
    --
-   set the show_Menu of _MenubarView() to true
-   
-   -- could turn off camera
+   -- set the show_Menu of _MenubarView() to true
 end wikiBrowser_Init
+
+getprop flag_Event [pageSlug]
+   put wikijs_ConstructSelector(".header h1", pageSlug, "outerHTML") into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end flag_Event
+
+setprop flag_Handler flagHandler
+   if flagHandler is "default" then put "flag_Event" into flagHandler
+   set the browser_AddJavascriptHandlers of me to flagHandler
+   
+   # Set javascript
+   put wikijs_SetFlagHandler (flagHandler) into sJavascript
+   set the browser_Javascript of me to sJavascript -- causes error
+   return sJavascript
+end flag_Handler
 
 
 --> Events
@@ -57,43 +163,9 @@ command LayoutControl pRect
    set the rect of me to pRect
 end LayoutControl
 
-getprop flag_Event [pageSlug]
-   put wikijs_ConstructSelector(".header h1", pageSlug, "outerHTML") into sJavascript
-   put _GetJavascriptResult (sJavascript) into sResult
-   return sResult
-end flag_Event
-
-setprop flag_Handler flagHandler
-   if flagHandler is "default" then put "flag_Event" into flagHandler
-   set the browser_AddJavascriptHandlers of me to flagHandler
-   
-   # Set javascript
-   put wikijs_SetFlagHandler (flagHandler) into sJavascript
-   set the browser_Javascript of me to sJavascript -- causes error
-   return sJavascript
-end flag_Handler
-
 
 --> Custom | Events
 -
-on flag_Event flagYaml
-   -- called by wiki-client Livecode javascript
-   split flagYaml using comma and ":"
-   --
-   set the clicked_FlagArray of me to flagYaml
-   --
-   put flagYaml ["target"] into wikiDomain
-   put flagYaml ["href"] into urlPath
-   put flagYaml ["pageTitle"] into pageTitle
-   --
-   if char 1 to 2 of urlPath = "//" then
-      # Open nwiki in new tab
-      display_Wiki wikiDomain, "New"
-   else
-      _DisplayToolsPage pageTitle, wikiDomain, urlPath
-   end if
-end flag_Event
-
 on wikiClick_HamburgerMenu
    set the page_Title of me to "tools"
 end wikiClick_HamburgerMenu
@@ -281,12 +353,6 @@ end page_Class
 
 --> Page | Model
 -
-setprop page_Title [domainAndPort] pTitle
-   put fedwiki_ConstructSlug (pTitle) into pageSlug
-   _DisplayPage pageSlug, domainAndPort
-   return the result
-end page_Title
-
 getprop page_Array [titleOrNum]
    put the lineup_Data of me into lineupData
    switch
@@ -447,12 +513,6 @@ end element_IsTransparent
 
 --> Wiki
 -
-setprop wiki_Scale sFactor
-   put wikijs_ScaleViewport (sFactor) into sJavascript
-   set the browser_Javascript of me to sJavascript
-   return sJavascript
-end wiki_Scale
-
 getprop wiki_IsTransparent
    put the element_IsTransparent ["document.body"] of me into sBoolean
    return sBoolean
@@ -522,23 +582,6 @@ end ghost_PageJson
 
 --> Page
 -
-setprop page_Scale [pageSlug] scaleItems
-   if scaleItems is empty then
-      put wikijs_ResetPageTransform (pageSlug) into sJavascript
-   else
-      put item 1 of scaleItems into sSale
-      put item 2 of scaleItems into sX
-      put item 3 of scaleItems into sY
-      put item 4 of scaleItems into sTime
-      --
-      -- put wikijs_SetPageScale (sSale, pageSlug) into sJavascript
-      put wikijs_TransformPage (pageSlug, sSale, sX, sY, sTime) into sJavascript
-   end if
-   --
-   set the browser_Javascript of me to sJavascript
-   return sJavascript
-end page_Scale
-
 getprop page_Rect [pageSlug]
    if pageSlug is empty then put "welcome-visitors" into pageSlug
    get scaffold_Get ("page_Rect.js")
@@ -553,11 +596,6 @@ setprop page_Rect [pageSlug] sRect
    put _GetJavascriptResult (sJavascript) into sResult
    return sResult
 end page_Rect
-
-setprop page_Slug [domainAndPort] pageSlug
-   _DisplayPage pageSlug, domainAndPort
-   return the result
-end page_Slug
 
 getprop page_Slugs
    put the lineup_Urls of me into lineupUrls
@@ -703,18 +741,6 @@ setprop browser_Domain sDomain
    return the result
 end browser_Domain
 
-getprop browser_URL
-   put the url of me into someURL
-   return someURL
-end browser_URL
-
-setprop browser_URL someURL
-   put the previous_Url of me into previousURL
-   set the url of me to someURL
-   set the previous_Url of me to someURL
-   return previousURL
-end browser_URL
-
 getprop browser_HtmlText
    put the htmltext of me into someHTML
    return someHTML
@@ -841,7 +867,7 @@ end _GetJavascriptResult
 
 function _PageJsonConstructFile wikiDomain, pSlug
    -- was "wikiFile_Construct"
-   put wikiFolder_Get (wikiDomain) into wikiDomainFolder
+   put wikiFolder_FromRouter (wikiDomain) into wikiDomainFolder
    put wikiDomainFolder & pSlug into pageJsonFile
    return pageJsonFile
 end _PageJsonConstructFile
@@ -865,17 +891,6 @@ private command _SetJavascriptResult sJavascript
    put the result into doResult -- usually not intereting
    return doResult
 end _SetJavascriptResult
-
-private command _DisplayPage pageSlug, pDomainAndPort
-   if pDomainAndPort is empty then
-      put wiki_InternalLinkJavascript (pageSlug) into sJavascript
-   else
-      put wiki_RemoteLinkJavascript (pageSlug, pDomainAndPort) into sJavascript
-   end if
-   set the browser_Javascript of me to sJavascript
-   put the result into doResult
-   return doResult
-end _DisplayPage
 
 private function _ConstructJavascript pageJSON
    if pageJSON is empty then
