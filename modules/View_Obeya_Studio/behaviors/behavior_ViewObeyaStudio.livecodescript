@@ -259,7 +259,7 @@ command _DisplayToolsPage pageTitle, wikiDomain, urlPath
          if there is a file jsonFile then
             put wikiPage_EditPage (pageSlug, wikiDomain) into pageArray
          else
-            put wikiPage_CreatePage (pageSlug, wikiDomain) into pageArray
+            put wikiDialogue_Get (pageSlug, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
          end if
          set the ghost_PageArray of me to pageArray
          --
@@ -268,7 +268,7 @@ command _DisplayToolsPage pageTitle, wikiDomain, urlPath
 end _DisplayToolsPage
 
 private command _CheckPageArray pageArray, pageSlug, wikiDomain
-   put wikiServer_GuessLastSlug (urlPath) into lastPageSlug
+   put _GuessLastSlug (urlPath) into lastPageSlug
    --
    put pageArray ["story"] into storyArray
    put item 2 of the extents of storyArray into maxItemNum
@@ -279,7 +279,7 @@ private command _CheckPageArray pageArray, pageSlug, wikiDomain
    --
    if maxItemNum < 3 then
       breakpoint
-      put wikiPage_CreatePage (pageSlug, wikiDomain) into pageArray
+      put wikiDialogue_Get (pageSlug, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
    end if
 end _CheckPageArray
 
@@ -919,6 +919,15 @@ private function _ConstructJavascript pageJSON
    put merge ("wiki.showResult(wiki.newPage([[pageJSON]]))") into sJavascript
    return sJavascript
 end _ConstructJavascript
+
+private function _GuessLastSlug sReferer
+   set the itemdelimiter to slash
+   put item -1 of sReferer into lastPageSlug
+   if lastPageSlug = "tools" then
+      put item -3 of sReferer into lastPageSlug
+   end if
+   return lastPageSlug
+end _GuessLastSlug
 
 
 --> Deps

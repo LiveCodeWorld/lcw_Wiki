@@ -32,19 +32,13 @@ end menu_Target
 
 --> Global | Wiki | Browser | Help | Menu
 -
-on menu_WorkingOn wikiView
-   put the behavior of dView into bObject
-   edit the script of bObject
-end menu_WorkingOn
+on menu_RevMenuBarScript wikiView
+   edit the script of ide_DefaultMenuBarStack()
+end menu_RevMenuBarScript
 
-on menu_SecondHelp wikiView
-   set the page_Title of wikiView to "About"
-end menu_SecondHelp
+private on _
+end _
 
-on menu_Bout wikiView
-   set the page_Title of wikiView to "About"
-end menu_Bout
-
-on menu_LastHelp wikiView
-   set the page_Title of wikiView to "About"
-end menu_LastHelp
+on submenu_IdeHelp
+   return "Global | Menu | Group | Help | Menu"
+end submenu_IdeHelp

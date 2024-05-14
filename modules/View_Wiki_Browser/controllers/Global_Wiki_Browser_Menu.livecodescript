@@ -47,40 +47,6 @@ getprop displayDomain_Params
    end if
 end displayDomain_Params
 
-getprop disabled_EditMode
-   if LocalArray ["footer_IsVisible"] is true then
-      return false
-   else
-      return true
-   end if
-end disabled_EditMode
-
-getprop checked_EditWiki [wikiView]
-   put the wiki_EditMode of wikiView into sBoolean
-   return sBoolean
-end checked_EditWiki
-
-getprop checked_Footer [wikiView]
-   return LocalArray ["footer_IsVisible"]
-end checked_Footer
-
-getprop checked_BrowserVisible [wikiView]
-   put the visible of wikiView into isVisible
-   return isVisible
-end checked_BrowserVisible
-
-getprop shrink_Params [wikiView]
-   return the page_Slugs of wikiView
-end shrink_Params
-
-getprop scale_Params
-   return "0.2,0.4,0.6,0.8,1.0,1.2,1.4"
-end scale_Params
-
-getprop checked_Background [wikiView]
-   put the wiki_IsTransparent of wikiView into sBoolean
-   return sBoolean
-end checked_Background
 
 getprop subdomain_Params [wikiView]
    put the wiki_Domain of wikiView into wikiDomain
@@ -88,18 +54,12 @@ getprop subdomain_Params [wikiView]
    return thoughtDomain
 end subdomain_Params
 
-getprop checked_ShowMenu [wikiView]
-   put the menuBar_View of wikiView into mGroup
-   put the show_Menu of mGroup into sBoolean
-   return sBoolean
-end checked_ShowMenu
-
 getprop disabled_Subdomain [wikiView]
    put LocalArray ["wikiDomain"] into wikiDomain
    if wikiDomain = "localhost" then
       return true
    else
-      retrun false
+      return false
    end if
 end disabled_Subdomain
 
@@ -118,10 +78,6 @@ on menu_DisplayDomain wikiView, wikiDomain
    end switch
 end menu_DisplayDomain
 
-on submenu_Server
-   return "Global | Wiki | Browser | Server | Menu"
-end submenu_Server
-
 on menu_Subdomain wikiView, subDomain
    set the page_Title [subDomain] of wikiView to "Welcome Visitors"
 end menu_Subdomain
@@ -129,56 +85,21 @@ end menu_Subdomain
 private on _
 end _
 
-on menu_Thought.1 wikiView
-   set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
-end menu_Thought.1
+on menu_Localhost.1 wikiView
+   set the page_Title ["localhost"] of wikiView to "Welcome Visitors"
+end menu_Localhost.1
 
-on menu_Livecode.2 wikiView
+on menu_Thought.2 wikiView
+   set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
+end menu_Thought.2
+
+on menu_Livecode.3 wikiView
    set the page_Title ["livecode.world"] of wikiView to "Welcome Visitors"
    set the page_Title ["project.livecode.world"] of wikiView to "Welcome Visitors"
-end menu_Livecode.2
-
-on menu_Earth.3 wikiView
-   set the page_Title ["platform.earth"] of wikiView to "Welcome Visitors"
-end menu_Earth.3
-
-on menu_Localhost.4 wikiView
-   set the page_Title ["localhost"] of wikiView to "Welcome Visitors"
-end menu_Localhost.4
+end menu_Livecode.3
 
 private on __
 end __
-
-on menu_EditWiki wikiView
-   put the wiki_EditMode of wikiView into sBoolean
-   set the wiki_EditMode of wikiView to (sBoolean is false)
-end menu_EditWiki
-
-on menu_BrowserVisible wikiView
-   put the visible of wikiView into isVisible
-   set the visible of wikiView to (isVisible is false)
-end menu_BrowserVisible
-
-on menu_Footer wikiView
-   put the footer_IsVisible of wikiView into sBoolean
-   set the footer_IsVisible of wikiView to (sBoolean is false)
-end menu_Footer
-
-private on ___
-end ___
-
-on menu_ShowMenu wikiView
-   put the menuBar_View of wikiView into mGroup
-   menuBar_ToggleShowMenu mGroup
-end menu_ShowMenu
-
-on menu_Background wikiView
-   put the wiki_IsTransparent of wikiView into sBoolean
-   set the wiki_IsTransparent of wikiView to (sBoolean is false)
-end menu_Background
-
-private on ____
-end ____
 
 on menu_SaveStack wikiView
    put the stack_Name of wikiView into sName

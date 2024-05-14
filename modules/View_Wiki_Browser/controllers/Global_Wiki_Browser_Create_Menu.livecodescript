@@ -60,6 +60,20 @@ end _IsLocalHost
    
 --> Global | Wiki | Browser | Create | Menu
 -
+on menu_DraftWelcomeVisitors wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   put url_GetTLD (wikiDomain) into tldDomain
+   put tldDomain into pageTitle
+   replace "." with space in pageTitle
+   put text_InitialCaps (pageTitle) into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   --
+   put wikiDialogue_Get (pageSlug, tldDomain, "welcome-visitors-dialogue", pageTitle) into pageArray
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftWelcomeVisitors
+
 on menu_CreateNewWiki wikiView
    put the wiki_Domain of wikiView into wikiDomain
    --

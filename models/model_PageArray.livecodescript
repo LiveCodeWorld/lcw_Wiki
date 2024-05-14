@@ -34,9 +34,6 @@ function graph_Extract sText
    end if
 end graph_Extract
 
-
---> PageArray | Cred
--
 function accreditation_ChatGpt
    put snippet_Get ("chatgpt-accreditation") into mdCred
    return mdCred
@@ -50,6 +47,49 @@ function accreditation_WikiPedia mwTitle, mwSlug
    return mdCred
 end accreditation_WikiPedia
 
+
+--> PageArray | File | Model
+-
+function pageArray_Fetch wikiDomain, pSlug, pPort
+   put pageJson_Fetch (wikiDomain, pSlug, pPort) into pageJson
+   --
+   if pageJson is empty then return empty
+   put json_ToArray (pageJson) into pageArray
+   return pageArray
+end pageArray_Fetch
+
+function pageArray_Get wikiDomain, pageSlug
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
+   if there is a file wikiFile then
+      put json_GetArray (wikiFile) into pageArray
+      return pageArray
+   else
+      return empty
+   end if
+end pageArray_Get
+
+command pageArray_Set wikiDomain, pageSlug, pageArray, pDeleteSiteMap
+   put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
+   json_SetArray wikiFile, pageArray
+   --
+   if pDeleteSiteMap is not false then
+      wikiSiteMap_DeleteFile wikiDomain
+   end if
+   return wikiFile
+end pageArray_Set
+
+command pageArray_Delete wikiDomain, pageSlug
+   pageJson_Delete wikiDomain, pageSlug
+   put the result into shellResult
+   if shellResult is not empty then return shellResult
+   --
+   wikiSiteMap_DeleteFile wikiDomain
+   return empty
+end pageArray_Delete
+
+
+--> PageArray | Cred
+-
 command pageArray_AddChatGptCred @pageArray
    put accreditation_ChatGpt() into mdCred
    put mdCred into pageArray ["journal"][1]["provenance"]
@@ -61,6 +101,26 @@ command pageArray_AddWikipediaCred @pageArray, mwTitle, mwSlug
    put mdCred into pageArray ["journal"][1]["provenance"]
    delete variable pageArray ["plugin"]
 end pageArray_AddWikipediaCred
+
+
+--> PageArray | Add
+-
+command pageArray_AddRssButton @pageArray, podcastRSS, pTitle, pWikiDomain, pRssLastUpdated, pDisplayStyle
+   if pTitle is empty then
+      put "Import RSS" into buttonName
+   else
+      put pTitle into buttonName
+   end if
+   --
+   put podcastRSS into hiddenKeyValueArray ["rssURL"]
+   if pTitle is not empty then put pTitle into hiddenKeyValueArray ["pageTitle"]
+   if pWikiDomain is not empty then put pWikiDomain into hiddenKeyValueArray ["wikiDomain"]
+   if pRssLastUpdated is not empty then put pRssLastUpdated into hiddenKeyValueArray ["rssLastUpdated"]
+   if pDisplayStyle is not empty then put pDisplayStyle into hiddenKeyValueArray ["displayStyle"]
+   --
+   put LcwRestUrl & "/podcast/rss" into postURL
+   pageArray_AddButton pageArray, buttonName, postURL, hiddenKeyValueArray
+end pageArray_AddRssButton
 
 command pageArray_AddAssets @pageArray, sText, pID
    put itemArray_ConstructAssets (sText, pID) into itemArray

@@ -50,10 +50,6 @@ on insert_Edit
    return "Global | Menu | Group | Edit | Menu"
 end insert_Edit
 
--- on subMenu_Create
-return "Global | Wiki | Browser | Create | Menu"
-end subMenu_Create
-
 private on __
 end __
 

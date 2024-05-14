@@ -32,9 +32,9 @@ before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
          _ReturnAndExit pageArray, socketID
       case pageSlug = "tools"
          put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-         put wikiServer_GuessLastSlug (sReferer) into lastPageSlug
+         put _GuessLastSlug (sReferer) into lastPageSlug
          --
-         put wikiPage_Tools (lastPageSlug, wikiDomain) into pageArray
+         put wikiDialogue_Get (lastPageSlug, wikiDomain, "future-dialogue-template") into pageArray
          --
          _ReturnAndExit pageArray, socketID
          break
@@ -151,11 +151,10 @@ command get_FlagClick someRoute, socketID, requestArray, pPageTitle
          get_WikiDomain someRoute, socketID, requestArray -- the default behavior
       end if
    else
-      put wikiServer_GuessLastSlug (someRoute) into lastPageSlug
+      put _GuessLastSlug (someRoute) into lastPageSlug
       put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
       --
-      --put wikiPage_Tools (lastPageSlug, wikiDomain) into pageArray
-      put wikiPage_Dialogue (lastPageSlug, wikiDomain, "future-dialogue-template") into pageArray
+      put wikiDialogue_Get (lastPageSlug, wikiDomain, "future-dialogue-template") into pageArray
       --
       daemon_SendArray socketID, pageArray
       return "Sent JSON. Socket still open."
@@ -168,7 +167,8 @@ command get_CreatePage someRoute, socketID, requestArray
    put item -1 of someRoute into pageSlugToCreate
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    --
-   put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into createPageArray
+   put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into createPageArray
+   --
    pageArray_Set wikiDomain, "create-page", createPageArray, true
    wikiSiteMap_Create wikiDomain
    --
@@ -439,6 +439,15 @@ end ward_FetchRecentRoster
 
 --> Private
 -
+private function _GuessLastSlug sReferer
+   set the itemdelimiter to slash
+   put item -1 of sReferer into lastPageSlug
+   if lastPageSlug = "tools" then
+      put item -3 of sReferer into lastPageSlug
+   end if
+   return lastPageSlug
+end _GuessLastSlug
+
 private command _ReturnAndExit pageArray, socketID
    daemon_SendArray socketID, pageArray
    return "Sent JSON. Socket still open."

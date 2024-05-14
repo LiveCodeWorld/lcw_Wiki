@@ -18,8 +18,9 @@ end project_Deps
 --> Custom
 -
 command project_PostInit
-   -- load wiki folders
-   -- wikiServer_Start
+   if the shiftKey is "Up" then
+      revIDEToggle "Suppress Errors"
+   end if
 end project_PostInit
 
 

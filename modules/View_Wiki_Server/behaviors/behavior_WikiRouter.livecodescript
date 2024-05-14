@@ -93,10 +93,10 @@ command get_WikiPageJsonNotFound someRoute, socketID, requestArray
                   put mediawiki_FetchSummaryPageArray (pageTitle) into pageArray
                   put "markdown" into pageArray ["plugin"]
                else
-                  put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
+                  put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
                end if
             else
-               put wikiPage_CreatePage (pageSlugToCreate, wikiDomain, "Create Page") into pageArray
+               put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
             end if
             --
             daemon_SendArray socketID, pageArray

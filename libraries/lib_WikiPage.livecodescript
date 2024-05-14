@@ -78,42 +78,6 @@ function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArr
    return pageArray
 end roster_ConstructActivityPage
 
-
---> WikiPage | Dialogue
--
-function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain, 
-   if pDialogueDomain is empty then put "dialogue.fedwiki.org" into pDialogueDomain
-   if pPageTitle is empty then
-      put fedwiki_ConstructTitle (dialogueSlug) into pPageTitle
-   end if
-   
-   # Fetch Dialogue
-   put pageArray_FetchTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
-   put "html" into pageArray ["plugin"]
-   pageArray_CleanJournal pageArray
-   --
-   return pageArray
-end pageArray_GetDialogue
-
-function wikiPage_Dialogue pageSlug, wikiDomain, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
-   put fedwiki_ConstructTitle (pageSlug) into pageTitle
-   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
-   put pageTitle into curlyData ["all"]["New Page Title"]
-   put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
-   put pageSlug into curlyData ["all"]["originalSlug"]
-   put wikiDomain into curlyData ["all"]["wikiDomain"]
-   --
-   put wikiPage_CurlyDialogue (curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
-   return pageArray
-end wikiPage_Dialogue
-
-function wikiPage_CurlyDialogue curlyData, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   put pageArray_GetDialogue (dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
-   curly_MergePageArray pageArray, curlyData
-   return pageArray
-end wikiPage_CurlyDialogue
-
 function wikiPage_DomainTitle wikidomain, pWord
    if pWord is empty then put "Sites" into pWord
    
@@ -285,7 +249,7 @@ end wikiPage_CreateMissingSites
 -
 function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
    # Get Curly Template
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "edit-page-dialogue", pPageArrayTitle) into editPageArray
+   put wikiDialogue_Get (pageSlug, wikiDomain, "edit-page-dialogue", pPageArrayTitle) into editPageArray
    
    # Add Create Section
    wikiPage_AddCreateButtons editPageArray, wikiDomain, pageSlug
@@ -422,49 +386,6 @@ function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
    return pageArray
 end wikiPage_OpenVerseThumbNails
 
-
---> WikiPage | Tools
--
-function wikiPage_Tools pageSlug, wikiDomain, pPageTitle
-   -- put wikiPage_Future (pageSlug, wikiDomain, pPageTitle) into pageArray
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "future-dialogue-template", pPageTitle) into pageArray
-   return pageArray
-end wikiPage_Tools
-
-function wikiPage_Future pageSlug, wikiDomain, pPageArrayTitle
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "future-dialogue-template", pPageArrayTitle) into pageArray
-   return pageArray
-end wikiPage_Future
-
-function wikiPage_CreatePage pageSlug, wikiDomain, pPageArrayTitle
-   put wikiPage_Dialogue (pageSlug, wikiDomain, "create-page-dialogue", pPageArrayTitle) into pageArray
-   return pageArray
-end wikiPage_CreatePage
-
-
---> WikiPage | Get
--
-function wikiPage_GetText wikiDomain, pageSlug
-   put wikiPage_Get (wikiDomain, pageSlug) into pageArray
-   put pageArray_Text (pageArray) into userText
-   -- put textEncode (userText, "UTF-8") into userText
-   return userText
-end wikiPage_GetText
-
-function wikiPage_Get wikiDomain, pageSlug
-   put pageArray_Get (wikiDomain, pageSlug) into pageArray
-   if pageArray is an array then
-      return pageArray
-   else -- if pageArray begins with "Error, json file does not exist." then
-      put pageArray_Get (wikiDomain, pageSlug) into pageArray
-      put wikiServer_GetPageArray (pageSlug) into pageArray
-      if pageArray is not an array then
-         return "Error, cannnot locate page '[[pageSlug]]' of wiki '[[wikiDomain]]'."
-      else
-         return pageArray
-      end if
-   end if
-end wikiPage_Get
 
 function wikiPage_FiveConcepts wikiDomain, pageSlug, pModel
    return openAI_GetChatResponse ("five-concepts", wikiDomain, pageSlug, pModel)
@@ -616,7 +537,7 @@ function wikiPage_ImageEditor imageURL, imageAttributeArray, pAddMetaData
    html_DeconstructImageArray imageAttributeArray, srcURL, imageCaption, imageWidth, imageHeight, imageClass
    if imageCaption is empty then put "This is a full width image" into imageCaption
    --
-   put pageArray_FetchTemplate ("fedwiki.org", "edit-image-template", "Edit Image Tool", "fedwiki.org") into pageArray
+   put pageArray_GetTemplate ("fedwiki.org", "edit-image-template", "Edit Image Tool", "fedwiki.org") into pageArray
    --
    curly_ReplacePageArray pageArray, "ImageURL", imageURL
    --
@@ -652,18 +573,6 @@ function wikiPage_GoogleImage imageURL, imageAttributeArray
    --
    return pageArray
 end wikiPage_GoogleImage
-
-
---> WikiPage
--
-function wikiServer_GuessLastSlug sReferer
-   set the itemdelimiter to slash
-   put item -1 of sReferer into lastPageSlug
-   if lastPageSlug = "tools" then
-      put item -3 of sReferer into lastPageSlug
-   end if
-   return lastPageSlug
-end wikiServer_GuessLastSlug
 
 
 --> WikiPage | Filter

@@ -302,18 +302,6 @@ command pageArray_Combine @pageArray, templatePageArray
    end repeat
 end pageArray_Combine
 
-function pageArray_FetchTemplate wikiDomain, templateTitle, newTitle, pForkDomains
-   if pForkDomains is empty then put "fedwiki.org,server.fedwiki.org" into pForkDomains
-   
-   put fedwiki_ConstructSlug (templateTitle) into pageSlug
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   --
-   pageArray_Rename pageArray, newTitle
-   pageArray_CleanFork pageArray, pForkDomains
-   --
-   return pageArray
-end pageArray_FetchTemplate
-
 function pageArray_GetTitleText sectionTitle, pageArray
    put pageArray_FindTitle (pageArray, sectionTitle) into itemNum
    put pageArray ["story"][itemNum]["text"] into itemText

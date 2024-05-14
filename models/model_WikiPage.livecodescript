@@ -15,10 +15,6 @@ See also "model_AtopiaWikiPage", "model_AtopiaFiles", "lib_PageArray" and "lib_F
 
 --> Working on
 -
-
-
---> Wiki | List
--
 function wiki_ListMediaPhotos pListShort
    put wiki_MediaAssetFolder() into rootFolder
    if pListShort is true then
@@ -55,14 +51,6 @@ function pageArray_FetchByTitle wikiDomain, pTitle
    return pageArray
 end pageArray_FetchByTitle
 
-function pageArray_Fetch wikiDomain, pSlug, pPort
-   put pageJson_Fetch (wikiDomain, pSlug, pPort) into pageJson
-   --
-   if pageJson is empty then return empty
-   put json_ToArray (pageJson) into pageArray
-   return pageArray
-end pageArray_Fetch
-
 function pageArray_Check pageArray
    if pageArray is not an array then return false
    --
@@ -74,3 +62,30 @@ function pageArray_Check pageArray
       return pageArray
    end if
 end pageArray_Check
+
+
+--> WikiPage | Model
+-
+function wikiPage_GetText wikiDomain, pageSlug
+   put wikiPage_Get (wikiDomain, pageSlug) into pageArray
+   put pageArray_Text (pageArray) into userText
+   -- put textEncode (userText, "UTF-8") into userText
+   return userText
+end wikiPage_GetText
+
+function wikiPage_Get wikiDomain, pageSlug
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   if pageArray is an array then
+      return pageArray
+   else -- if pageArray begins with "Error, json file does not exist." then
+      put pageArray_Get (wikiDomain, pageSlug) into pageArray
+      put wikiServer_GetPageArray (pageSlug) into pageArray
+      if pageArray is not an array then
+         return "Error, cannnot locate page '[[pageSlug]]' of wiki '[[wikiDomain]]'."
+      else
+         return pageArray
+      end if
+   end if
+end wikiPage_Get
+
+

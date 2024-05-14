@@ -27,59 +27,6 @@ getprop menu_Target [tObject]
    return browserView
 end menu_Target
 
-private function _MenuButtonNames wikiView
-   put the menubar_View of wikiView into mBar
-   if exists (mBar) then
-      return the menuButton_Names of mBar
-   else
-      breakpoint
-      return empty
-   end if
-end _MenuButtonNames
-
-getprop disabled_EditMode
-   if LocalArray ["footer_IsVisible"] is true then
-      return false
-   else
-      return true
-   end if
-end disabled_EditMode
-
-getprop checked_Footer [wikiView]
-   -- return LocalArray ["footer_IsVisible"]
-   return the footer_IsVisible of wikiView
-end checked_Footer
-
-getprop checked_BrowserVisible [wikiView]
-   put the visible of wikiView into isVisible
-   return isVisible
-end checked_BrowserVisible
-
-getprop checked_SetMenuBar [wikiView]
-   put the show_Menu of wikiView into sBoolean
-   return sBoolean
-end checked_SetMenuBar
-
-getprop setMenuTitle_Params [wikiView]
-   return _MenuButtonNames (wikiView)
-end setMenuTitle_Params
-
-getprop menuButtonInspector_Params [wikiView]
-   return _MenuButtonNames (wikiView)
-end menuButtonInspector_Params
-
-getprop scale_Params
-   return "0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,-,1,-,1.5"
-end scale_Params
-
-getprop shrinkPage_Params [wikiView]
-   return the lineup_Titles of wikiView
-end shrinkPage_Params
-
-getprop updateToolsMenu_Params [wikiView]
-   return _MenuButtonNames (wikiView)
-end updateToolsMenu_Params
-
 getprop checked_FlagEvent [wikiView]
    get the flag_Handler of wikiView
    if it = "default" then
@@ -92,6 +39,43 @@ end checked_FlagEvent
 getprop checked_AnimationEngine [wikiView]
    return "animationEngine" is among the lines of the stacksinuse
 end checked_AnimationEngine
+
+getprop checked_Footer [wikiView]
+   return LocalArray ["footer_IsVisible"]
+end checked_Footer
+
+getprop checked_BrowserVisible [wikiView]
+   put the visible of wikiView into isVisible
+   return isVisible
+end checked_BrowserVisible
+
+getprop scale_Params
+   return "0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,-,1,-,1.5"
+end scale_Params
+
+getprop shrinkPage_Params [wikiView]
+   return the lineup_Titles of wikiView
+end shrinkPage_Params
+
+getprop shrink_Params [wikiView]
+   return the page_Slugs of wikiView
+end shrink_Params
+
+getprop checked_ScriptDebugMode
+   -- put revIDEGetPreference("cREVScriptDebugMode") into gREVRestore["scriptdebugmode"]
+   -- revIDESetPreference "cREVScriptDebugMode",false
+   return revIDEGetPreference("cREVScriptDebugMode")
+end checked_ScriptDebugMode
+
+getprop checked_SuppressMessages
+   global gRevSuppressMessages
+   return gRevSuppressMessages
+end checked_SuppressMessages
+
+getprop checked_SupressErrors
+   global gRevSuppressErrors
+   return gRevSuppressErrors
+end checked_SupressErrors
 
 
 --> Global | Wiki | Browser | Tools | Menu
@@ -117,25 +101,12 @@ on menu_FlagEvent wikiView
    set the flag_Handler of wikiView to "default"
 end menu_FlagEvent
 
-on menu_Footer wikiView
-   put the footer_IsVisible of wikiView into sBoolean
-   set the footer_IsVisible of wikiView to (sBoolean is false)
-end menu_Footer
+on submenu_Server
+   return "Global | Wiki | Browser | Server | Menu"
+end submenu_Server
 
-on menu_BrowserVisible wikiView
-   put the visible of wikiView into isVisible
-   set the visible of wikiView to (isVisible is false)
-end menu_BrowserVisible
-
-private on ___
-end ___
-
-on menu_Scale wikiView, sSale
-   -- put wikijs_SetPageScale (sSale) into sJavascript
-   -- set the browser_Javascript of wikiView to sJavascript
-   set the wiki_Scale of wikiView to sSale
-   -- set the page_Scale of wikiView to sScale
-end menu_Scale
+private on __
+end __
 
 on menu_Shrink wikiView, pageSlug
    -- put the page_Rect ["welcome-visitors"] of wikiView into sRect
@@ -149,14 +120,39 @@ on menu_Shrink wikiView, pageSlug
    set the page_Rect [pageSlug] of wikiView to sRect
 end menu_Shrink
 
+on menu_Scale wikiView, sSale
+   -- put wikijs_SetPageScale (sSale) into sJavascript
+   -- set the browser_Javascript of wikiView to sJavascript
+   set the wiki_Scale of wikiView to sSale
+   -- set the page_Scale of wikiView to sScale
+end menu_Scale
+
+private on ___
+end ___
+
+on menu_ScriptDebugMode
+   revIDEToggle "Script Debug Mode"
+end menu_ScriptDebugMode
+
+-- on menu_SuppressMessages
+   revIDEToggle "Suppress Messages"
+end menu_SuppressMessages
+
+on menu_SupressErrors
+   revIDEToggle "Suppress Errors"
+end menu_SupressErrors
+
+on menu_MessageWatcher
+   revIDEOpenPalette "message watcher"
+end menu_MessageWatcher
+
+on menu_SuspendDevelopmentTools
+   revIDESuspendDevelopmentTools
+end menu_SuspendDevelopmentTools
+
 private on ____
 end ____
 
-on submenu_Menu
-   return "Global | Menu | Group | Menu"
-end submenu_Menu
-
-on submenu_Tools
-   get menu_DevTitle ("Global | Wiki | Browser | Tools | Menu")
-   return it
-end submenu_Tools
+on submenu_Dev
+   return "Global | Wiki | Browser | Tools | Dev | Menu"
+end submenu_Dev
