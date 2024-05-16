@@ -16,10 +16,12 @@ on mDoubleUp_WikiEco displayView, wikiFolder
    put someLine &CR& the title_Text of displayView
 end mDoubleUp_WikiEco
 
-command display_WikiEcoData
-   put wikiGarden_GetModel() into ecoData
+command display_WikiEcoData pEcoData
+   if pEcoData is not an array then
+      put wikiGarden_GetModel() into pEcoData
+   end if
    
-   display_Tools ecoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
+   display_Tools pEcoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
    return the result
 end display_WikiEcoData
 

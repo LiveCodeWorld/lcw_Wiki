@@ -97,7 +97,12 @@ on menu_FixPageJson wikiView
    put lcw_Ask ("Choose a wiki page-slug for this domain...", pSlug, wikiDomain, wikiView) into pSlug
    --
    put pageJson_Get (wikiDomain, pSlug) into pageJson
-   put JSONToArray (pageJson) into pageArray
+   put pageArray_Get (wikiDomain, pSlug) into pageArray
+   
+   put wikiFile_Construct (wikiDomain, pSlug) into wikiPagePath
+   get jsonArray_FromFile (wikiPagePath, false)
+   --
+   display_PageArray pageArray
 end menu_FixPageJson
 
 on menu_SearchOpenverse wikiView

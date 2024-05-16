@@ -20,7 +20,7 @@ It is not for fetching them by http or url's, but reading and writing to the loc
 function jsonArray_FromFile sFile, pUseMerge
    if there is not a file sFile then return "Error, json file does not exist." && sFile
    
-   if pUseMerge is true then
+   if pUseMerge is not false then
       return _GetMergJsonArray (sFile)
    else
       return _GetJsonArray (sFile) -- uses "textDecode"
@@ -28,7 +28,7 @@ function jsonArray_FromFile sFile, pUseMerge
 end jsonArray_FromFile
 
 command jsonArray_ToFile sFile, jsonArray, pCreateFolder, pUseMerge
-   if pUseMerge is true then
+   if pUseMerge is not false then
       _SetMergJsonArray sFile, jsonArray, pCreateFolder
    else
       _SetJsonArray sFile, jsonArray, pCreateFolder -- uses "textEncode"
@@ -165,6 +165,7 @@ private function _GetJsonArray sFile
    put _GetJson (sFile) into sJSON
    try
       # More tolerant and uses textDecode with _GetJson
+      -- but numbers indexed arrays differently to mergeJSON
       put jsonImport (sJSON) into jsonArray
       if jsonArray is an array then
          return jsonArray

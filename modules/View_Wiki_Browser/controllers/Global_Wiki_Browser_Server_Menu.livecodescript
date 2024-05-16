@@ -140,6 +140,9 @@ on menu_SetLogging wsView
    _RefreshMenu wikiView
 end menu_SetLogging
 
+private on ___
+end ___
+
 on submenu_ServerTools
    return "Global | Wiki | Server | Menu"
 end submenu_ServerTools

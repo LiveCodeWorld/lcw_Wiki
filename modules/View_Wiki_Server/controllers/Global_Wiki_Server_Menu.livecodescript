@@ -44,6 +44,11 @@ getprop checked_StartWiki [wikiView]
    return sBoolean is false
 end checked_StartWiki
 
+getprop disabled_DisplayLoadedWikiEcoData
+   put wikiGarden_GetEcoData() into ecoData
+   return ecoData is not an array
+end disabled_DisplayLoadedWikiEcoData
+
 
 --> Global | Wiki | Server | Menu
 -
@@ -80,12 +85,26 @@ end menu_UpdateEtcHosts
 private on __
 end __
 
+on menu_UpdateWikiEcoData
+   wikiGarden_UpdateEcoData
+   put the result into ecoData
+   --
+   display_WikiEcoData
+end menu_UpdateWikiEcoData
+
+on menu_ReloadWikiEcoData
+   wikiGarden_Init
+   --
+   display_WikiEcoData
+end menu_ReloadWikiEcoData
+
+on menu_DisplayLoadedWikiEcoData
+   put wikiGarden_GetEcoData() into ecoData
+   display_WikiEcoData ecoData
+end menu_DisplayLoadedWikiEcoData
+
 private on ___
 end ___
-
-on menu_DisplayWikiEcoData
-   display_WikiEcoData
-end menu_DisplayWikiEcoData
 
 on menu_ReloadPluginRouteData wsView
    dispatch "daemon_ClearPluginRouteData" to wsView
@@ -107,6 +126,9 @@ on menu_DisplayStaticTemplate
    put the result into wsView
    display_SetMenu wsView, "Global | Wiki | Default | Static | Menu", "title_Menu", "lcw_Wiki"
 end menu_DisplayStaticTemplate
+
+private on ____
+end ____
 
 on submenu_InstallWiki
    return "Global | Wiki | Install | Menu"
