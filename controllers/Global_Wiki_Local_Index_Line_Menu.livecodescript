@@ -80,14 +80,14 @@ getprop disabled_DisplayPages [dView]
    if the shiftKey is "down" then return false
    put _SelectedFolder (dView) into sFolder
    --
-   return wiki_FolderHasNoPages (sFolder) is false
+   return wikiFolder_HasNoPages (sFolder) is false
 end disabled_DisplayPages
 
 getprop disabled_TrashFolder [dView]
    if the shiftKey is "down" then return false
    _SelectedAstralFolders dView, astralFolder, localFolder
    --
-   return wiki_FolderHasNoPages (astralFolder) is false
+   return wikiFolder_HasNoPages (astralFolder) is false
 end disabled_TrashFolder
 
 getprop disabled_SymLinkLocal [dView]

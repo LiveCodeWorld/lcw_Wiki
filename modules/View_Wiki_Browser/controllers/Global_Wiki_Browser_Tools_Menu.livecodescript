@@ -18,13 +18,13 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   put the browser_View of tObject into browserView
+   put the browser_View of tObject into wikiView
    --
    put the card_Object of tObject into arrayObject
    put the displayed_RectDataNum [true] of arrayObject into LocalArray ["dRectDataNum"]
    put the displayed_ObjectNames of arrayObject into LocalArray ["objectNames"]
    --
-   return browserView
+   return wikiView
 end menu_Target
 
 getprop checked_FlagEvent [wikiView]
@@ -53,9 +53,11 @@ getprop scale_Params
    return "0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,-,1,-,1.5"
 end scale_Params
 
-getprop shrinkPage_Params [wikiView]
-   return the lineup_Titles of wikiView
-end shrinkPage_Params
+getprop compactRefs_Params [wikiView]
+   put the lineup_Data of wikiView into lineupData
+   put the lineup_Titles of wikiView into pageTitles
+   return pageTitles
+end compactRefs_Params
 
 getprop shrink_Params [wikiView]
    return the page_Slugs of wikiView
@@ -77,9 +79,27 @@ getprop checked_SupressErrors
    return gRevSuppressErrors
 end checked_SupressErrors
 
+private command _RefreshMenu wikiView
+   put the menubar_View of wikiView into mGroup
+   --
+   put the live_Menu of mGroup into isLive
+   if isLive is false then
+      set the menuButton_Refresh of mGroup to "Tools"
+   end if
+end _RefreshMenu
+
 
 --> Global | Wiki | Browser | Tools | Menu
 -
+on menu_FixPageJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   put the last_PageSlug of wikiView into pSlug
+   put lcw_Ask ("Choose a wiki page-slug for this domain...", pSlug, wikiDomain, wikiView) into pSlug
+   --
+   put pageJson_Get (wikiDomain, pSlug) into pageJson
+   put JSONToArray (pageJson) into pageArray
+end menu_FixPageJson
+
 on menu_SearchOpenverse wikiView
    put lcw_Ask ("Enter search terms...", "cat|dog", "Openverse", dView) into searchBit
    --
@@ -89,21 +109,21 @@ on menu_SearchOpenverse wikiView
    set the ghost_PageArray of wikiView to pageArray
 end menu_SearchOpenverse
 
-on menu_SaveStack browserView
-   put the stack_Name of browserView into stackName
-   save stack stackName
-end menu_SaveStack
+on menu_CompactRefs wikiView, pageTitle
+   put the lineup_Data of wikiView into lineupData
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put pageArray_Get (wikiDomain, pageSlug)
+   pageArray_CompactRefs pageArray
+end menu_CompactRefs
 
 private on _
 end _
 
 on menu_FlagEvent wikiView
    set the flag_Handler of wikiView to "default"
+   --
+   _RefreshMenu wikiView
 end menu_FlagEvent
-
-on submenu_Server
-   return "Global | Wiki | Browser | Server | Menu"
-end submenu_Server
 
 private on __
 end __
@@ -138,20 +158,42 @@ end menu_ScriptDebugMode
    revIDEToggle "Suppress Messages"
 end menu_SuppressMessages
 
-on menu_SupressErrors
+on menu_SupressErrors wikiView
    revIDEToggle "Suppress Errors"
+   --
+   _RefreshMenu wikiView
 end menu_SupressErrors
 
-on menu_MessageWatcher
+on menu_MessageWatcher wikiView
    revIDEOpenPalette "message watcher"
+   --
+   _RefreshMenu wikiView
 end menu_MessageWatcher
 
-on menu_SuspendDevelopmentTools
+on menu_SuspendDevelopmentTools wikiView
    revIDESuspendDevelopmentTools
+   --
+   _RefreshMenu wikiView
 end menu_SuspendDevelopmentTools
 
 private on ____
 end ____
+
+on menu_RevealWikiFolder wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   put wikiFolder_Get (wikiDomain) into wikiFolder
+   if there is a folder wikiFolder then
+      finder_Reveal wikiFolder
+   else
+      lcw_AnswerWarning "Cannot locate wiki-folder for domain [[wikiDomain]]", wikiView, wikiDomain
+   end if
+end menu_RevealWikiFolder
+
+on menu_SaveStack wikiView
+   put the stack_Name of wikiView into stackName
+   save stack stackName
+end menu_SaveStack
 
 on submenu_Dev
    return "Global | Wiki | Browser | Tools | Dev | Menu"

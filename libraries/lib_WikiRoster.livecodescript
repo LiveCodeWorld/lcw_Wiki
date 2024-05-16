@@ -39,6 +39,12 @@ function roster_ConstructReferenceText tldDomain, pTitle
    return rosterText
 end roster_ConstructReferenceText
 
+function roster_ConstructText rosterDomains, pRosterTitle
+   if pRosterTitle is empty then return rosterDomains
+   --
+   return pRosterTitle & CR&CR & rosterDomains
+end roster_ConstructText
+
 
 --> Roster | Construct
 -
@@ -245,7 +251,7 @@ command roster_AddDomain @rosterText, wikiDomain
    roster_Deconstruct rosterText, rosterDomains, rosterTitle
    put the result into hasTitle
    line_Add wikiDomain, rosterDomains
-   put roster_Reconstruct (rosterDomains, rosterTitle) into rosterText
+   put roster_ConstructText (rosterDomains, rosterTitle) into rosterText
    return hasTitle
 end roster_AddDomain
 
@@ -259,12 +265,6 @@ command roster_StripDomain @rosterText, wikiDomain
    put lineOffset (wikiDomain, rosterText) into lineNum
    delete line lineNum of rosterText
 end roster_StripDomain
-
-function roster_Reconstruct rosterDomains, pRosterTitle
-   if pRosterTitle is empty then return rosterDomains
-   --
-   return pRosterTitle & CR&CR & rosterDomains
-end roster_Reconstruct
 
 command roster_Deconstruct rosterText, @rosterDomains, @rosterTitle
    put word 1 to -1 of rosterText into rosterText

@@ -57,7 +57,7 @@ on menu_DisplayNumbers dView
       switch destFolder
          case empty
             -- Not a symlink
-            put wiki_NumberOfpages (localFolder) into numOfPages
+            put wikiFolder_NumberOfPages (localFolder) into numOfPages
             breakpoint
             switch
                case numOfPages is empty
@@ -70,7 +70,7 @@ on menu_DisplayNumbers dView
             end switch
             break
          case wikiRootFolder
-            put wiki_NumberOfpages (localFolder) into numOfPages
+            put wikiFolder_NumberOfPages (localFolder) into numOfPages
             switch
                case numOfPages is empty
                   breakpoint

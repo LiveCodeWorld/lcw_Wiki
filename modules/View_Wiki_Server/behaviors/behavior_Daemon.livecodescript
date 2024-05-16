@@ -33,6 +33,43 @@ local Drop_Delay = 60
 
 --> Working on
 -
+command daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
+   put _NormalizeSocket (socketorRequestArray) into socketID
+   put _OkHeaders ("application/json; charset=utf-8") into someHeader
+   --
+   daemon_Send someHeader, someJSON, socketID, pSendCompressed
+   -- daemon_SendAndCloseSocket someHeader, someJSON, socketID, pSendCompressed
+   --
+   return someHeader
+end daemon_SendJSON
+
+command daemon_Send someHeader, contentToSend, socketID, pSendCompressed
+   -- always adds "Content-Length:" header
+   -- should choose compression based on headers of requestArray
+   if pSendCompressed is true then
+      put CRLF & "Content-Encoding: gzip" after someHeader
+      put compress (contentToSend) into contentToSend
+   end if
+   
+   _AddContentLengthHeader someHeader, contentToSend
+   
+   daemon_SendRaw someHeader, contentToSend, socketID
+   -- daemon_SendAndCloseSocket someHeader, contentToSend, socketID
+   --
+   return the result
+end daemon_Send
+
+command daemon_SendOK socketOrRequestArray, contentToSend, pContentType, pCookieName, pCookieValue
+   -- sends output back to the browser
+   if socketorRequestArray is an array then
+      put socketorRequestArray ["socketID"] into socketID
+   else
+      put socketorRequestArray into socketID
+   end if
+   put _OkHeaders (pContentType, pCookieName, pCookieValue) into someHeader
+   daemon_SendAndCloseSocket someHeader, contentToSend, socketID
+end daemon_SendOK
+
 on socketTimeout pSocketID
    wikiServer_Restart true, the params
 end socketTimeout
@@ -494,14 +531,6 @@ command daemon_SendArray socketOrRequestArray, sArray, pSendCompressed
    return someHeader
 end daemon_SendArray
 
-command daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
-   put _NormalizeSocket (socketorRequestArray) into socketID
-   put _OkHeaders ("application/json; charset=utf-8") into someHeader
-   daemon_Send someHeader, someJSON, socketID, pSendCompressed
-   -- put socketID & CR & someJSON
-   return someHeader
-end daemon_SendJSON
-
 command daemon_SendJS socketOrRequestArray, sJavascript, pSendCompressed
    put _NormalizeSocket (socketorRequestArray) into socketID
    put _OkHeaders ("application/javascript; charset=UTF-8") into someHeader
@@ -566,19 +595,6 @@ command daemon_SendHeaderArray someRoute, headerArray, socketID, pSendCompressed
    return the result
 end daemon_SendHeaderArray
 
-command daemon_Send someHeader, contentToSend, socketID, pSendCompressed
-   -- always adds "Content-Length:" header
-   -- should choose compression based on headers of requestArray
-   if pSendCompressed is true then
-      put CRLF & "Content-Encoding: gzip" after someHeader
-      put compress (contentToSend) into contentToSend
-   end if
-   
-   _AddContentLengthHeader someHeader, contentToSend
-   daemon_SendRaw someHeader, contentToSend, socketID
-   return the result
-end daemon_Send
-
 command daemon_SendCompressed someHeader, contentToSend, socketID
    -- always adds "Content-Length:" header
    put CRLF & "Content-Encoding: gzip" after someHeader
@@ -608,17 +624,6 @@ end daemon_SendRaw
 
 --> Dameon | Send | And Close
 -
-command daemon_SendOK socketOrRequestArray, contentToSend, pContentType, pCookieName, pCookieValue
-   -- sends output back to the browser
-   if socketorRequestArray is an array then
-      put socketorRequestArray ["socketID"] into socketID
-   else
-      put socketorRequestArray into socketID
-   end if
-   put _OkHeaders (pContentType, pCookieName, pCookieValue) into someHeader
-   daemon_SendAndCloseSocket someHeader, contentToSend, socketID
-end daemon_SendOK
-
 command daemon_SendAndCloseSocket someHeader, contentToSend, socketID
    -- always adds "Content-Length:" header
    _AddContentLengthHeader someHeader, contentToSend

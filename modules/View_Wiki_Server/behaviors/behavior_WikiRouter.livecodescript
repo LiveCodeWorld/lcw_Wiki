@@ -627,7 +627,7 @@ command get_WikiClientJavascript someRoute, socketID
    -- "/js/jquery.ui.touch-punch.min.js"
    -- "/js/underscore-min.js"
    
-   put wikiClient_GetClientFile (someRoute) into sJavascript
+   put _GetClientData (someRoute) into sJavascript
    daemon_SendJS socketID, sJavascript
    return "Sent client js" && someRoute
 end get_WikiClientJavascript
@@ -639,14 +639,14 @@ command get_FactoriesJson socketID
 end get_FactoriesJson
 
 command get_CSS someRoute, socketID
-   put wikiClient_GetClientFile (someRoute) into sCSS
+   put _GetClientData (someRoute) into sCSS
    daemon_SendCSS socketID, sCSS
    return "Sent client css" && someRoute
 end get_CSS
 
 command get_LocalFavicon wikiDomain, socketID
    -- wiki-client only asks server for local favicons on startup
-   put wiki_GetFavicon (wikiDomain) into sPNG
+   put wikiServer_GetFavicon (wikiDomain) into sPNG
    if sPNG is empty then
       put wikiServer_GetFavicon() into sPNG
    end if
@@ -656,7 +656,7 @@ end get_LocalFavicon
 
 command get_ClientPNG someRoute, socketID
    -- /images/noise.png
-   put wikiClient_ConstructFile (someRoute) into pngFile
+   put wikiFile_ConstructClient (someRoute) into pngFile
    --
    if there is a file pngFile then
       put url ("binfile:" & pngFile) into sImage
@@ -1106,6 +1106,19 @@ command save_UpdatedSiteMap pageSlug, wikiDomain, pageArray, actionArray
       return writeResult
    end if
 end save_UpdatedSiteMap
+
+
+--> Private
+-
+function _GetClientData clientRelativePath
+   put wikiFile_ConstructClient (clientRelativePath) into sFile
+   if there is a file sFile then
+      put url ("binfile:" & sFile) into sJavascript
+      return sJavascript
+   else
+      return empty
+   end if
+end _GetClientData
 
 private function _ConstructSiteMapItemArray pageTitle, pageSynopsis, pDateInMilliseconds, pPageSlug
    if pPageSlug is empty then put fedwiki_ConstructSlug (pageTitle) into pPageSlug

@@ -4,7 +4,7 @@
 license: GPLv3
 name: model_PageArray
 type: model
-version: 0.4
+version: 0.5
 
 /*
 Should use "textDecode" every time we fetch text?
@@ -61,7 +61,7 @@ end pageArray_Fetch
 function pageArray_Get wikiDomain, pageSlug
    put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
    if there is a file wikiFile then
-      put json_GetArray (wikiFile) into pageArray
+      put jsonArray_FromFile (wikiFile) into pageArray
       return pageArray
    else
       return empty
@@ -70,7 +70,7 @@ end pageArray_Get
 
 command pageArray_Set wikiDomain, pageSlug, pageArray, pDeleteSiteMap
    put wikiFile_Construct (wikiDomain, pageSlug) into wikiFile
-   json_SetArray wikiFile, pageArray
+   jsonArray_ToFile wikiFile, pageArray
    --
    if pDeleteSiteMap is not false then
       wikiSiteMap_DeleteFile wikiDomain

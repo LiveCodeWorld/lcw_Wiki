@@ -29,8 +29,19 @@ getprop menu_Target [tObject]
    
    put the wiki_Domain of wikiView into wikiDomain
    put wikiDomain into LocalArray ["wikiDomain"]
+   --
+   put _ListSubdomains(wikiDomain) into LocalArray ["subDomains"]
    return wikiView
 end menu_Target
+
+private function _ListSubdomains wikiDomain
+   put wikiGarden_ListAllDomains (wikiDomain) into wikiDomains
+   --
+   put url_GetTLD (wikiDomain) into tldDomain
+   line_Delete tldDomain, wikiDomains
+   --
+   return wikiDomains
+end _ListSubdomains
 
 getprop displayDomain_Param [wikiView]
    put the browser_Domain of wikiView into wikiDomain
@@ -47,20 +58,21 @@ getprop displayDomain_Params
    end if
 end displayDomain_Params
 
-
 getprop subdomain_Params [wikiView]
-   put the wiki_Domain of wikiView into wikiDomain
-   put wikiGarden_ListAllDomains (wikiDomain) into thoughtDomain
-   return thoughtDomain
+   return LocalArray ["subDomains"]
 end subdomain_Params
 
-getprop disabled_Subdomain [wikiView]
+getprop disabled_Subdomain [wikiView] 
    put LocalArray ["wikiDomain"] into wikiDomain
-   if wikiDomain = "localhost" then
-      return true
-   else
-      return false
-   end if
+   
+   switch
+      case wikiDomain = "localhost"
+         return "delete"
+      case LocalArray ["subDomains"] is empty
+         return "delete"
+      default
+         return false
+   end switch
 end disabled_Subdomain
 
 
@@ -73,13 +85,16 @@ on menu_DisplayDomain wikiView, wikiDomain
          display_WikiBrowser "https://chat.openai.com/", wikiView
          break
       default
-         -- display_LocalWiki wikiDomain, wikiView
          display_Wiki wikiDomain, wikiView
    end switch
 end menu_DisplayDomain
 
 on menu_Subdomain wikiView, subDomain
-   set the page_Title [subDomain] of wikiView to "Welcome Visitors"
+   if the shiftKey is "Down" then
+      display_Wiki subDomain
+   else
+      set the page_Title [subDomain] of wikiView to "Welcome Visitors"
+   end if
 end menu_Subdomain
 
 private on _
@@ -100,6 +115,13 @@ end menu_Livecode.3
 
 private on __
 end __
+
+on menu_ResetDomain.0 wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   -- put url_GetTLD (wikiDomain) into tldDomain
+   display_Wiki wikiDomain, wikiView
+end menu_ResetDomain.0
 
 on menu_SaveStack wikiView
    put the stack_Name of wikiView into sName

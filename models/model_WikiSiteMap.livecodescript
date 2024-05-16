@@ -70,7 +70,7 @@ end wikiSiteMap_Create
 
 function wikiSiteMap_GetArray wikiDomain
    put wikiFile_ConstructSiteMap (wikiDomain) into siteMapFile
-   put json_GetArray (siteMapFile) into sitemapArray
+   put jsonArray_FromFile (siteMapFile) into sitemapArray
    --
    switch
       case sitemapArray is an array
@@ -89,7 +89,7 @@ end wikiSiteMap_GetArray
 
 command wikiSiteMap_SetArray siteMapArray, wikiDomain
    put wikiFile_ConstructSiteMap (wikiDomain) into siteMapFile
-   json_SetArray siteMapFile, siteMapArray
+   jsonArray_ToFile siteMapFile, siteMapArray
    return the result 
 end wikiSiteMap_SetArray
 

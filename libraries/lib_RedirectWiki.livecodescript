@@ -11,65 +11,21 @@ version: 0.2
 This library organises federated wiki sites into folders we term "gardens".
 When we load the Garden Model, we load the following variables used by this library:
 
-- Router_FolderArray
+- Router_Array
 */
 
 --> Variables
 -
-local Router_FolderArray
+local Router_Array
 
 
 --> Working on
 -
-function wikiFile_ConstructConfig pWikiDomain
-   put wikiFolder_ConstructFromFarm (pWikiDomain) into farmFolder
-   put farmFolder & "config.json" into wikiConfigFile
-   return wikiConfigFile
-end wikiFile_ConstructConfig
-
-command wikiFarm_StoreFolder farmFolder
-   if there is not a folder farmFolder then return "Error, folder does not exist." && farmFolder
-   text_AddTrailing farmFolder, slash
+command display_WikiRouterArray
+   put wikiRouter_GetArray() into routerArray
    --
-   put wikiGarden_GetModel() into ecoData
-   put farmFolder into ecoData ["Farm"]["folder"]
-   wikiGarden_SetModel ecoData
-   return ecoData
-end wikiFarm_StoreFolder
-
-
---> WikiRouter | Fast | WikiFolder
--
-function wikiFolder_FromRouter wikiDomain
-   -- put wikiGarden_GetDomainData() into gardenDomainData
-   -- put gardenDomainData [wikiDomain]["folder"] into wikiFolder
-   
-   put wikiRouter_GetFolderArray() into routerFolderArray
-   put routerFolderArray [wikiDomain] into gardenWikiFolder
-   if gardenWikiFolder is empty then -- defaults to farm
-      put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
-      return wikiFolder
-   else
-      return gardenWikiFolder
-   end if
-end wikiFolder_FromRouter
-
-
---> WikiGarden | FarmFolder | Model | Local
--
-function wikiFolder_Get wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   if there is a folder wikiFolder then 
-      return wikiFolder
-   else
-      return empty
-   end if
-end wikiFolder_Get
-
-function wikiFolder_ConstructFromFarm wikiDomain
-   put wikiFarm_GetFolder() & wikiDomain & slash into wikiFolder
-   return wikiFolder
-end wikiFolder_ConstructFromFarm
+   display_Data routerArray, "wikiRouter_GetArray()", "Wiki Router"
+end display_WikiRouterArray
 
 function wikiFarm_GetFolder
    put wikiGarden_GetEcoData() into ecoData
@@ -78,23 +34,26 @@ end wikiFarm_GetFolder
 
 command wikiFarm_SetFolder pFarmFolder
    if pFarmFolder is empty then put node_DefaultFarmFolder() into pFarmFolder
-   text_AddTrailing farmFolder, slash
+   text_AddTrailing pFarmFolder, slash
    
    put wikiGarden_GetEcoData() into ecoData
    put pFarmFolder into ecoData ["Farm"]["folder"]
    wikiGarden_SetEcoData ecoData
+   return ecoData
 end wikiFarm_SetFolder
 
 
 --> WikiRouter | Model | Local
 -
-function wikiRouter_GetFolderArray
-   return Router_FolderArray
-end wikiRouter_GetFolderArray
+function wikiRouter_GetArray
+   -- if Router_Array is not an array then wikiGarden_Init true
+   --
+   return Router_Array
+end wikiRouter_GetArray
 
-command wikiRouter_SetFolderArray routerFolderArray
-   put routerFolderArray into Router_FolderArray
-end wikiRouter_SetFolderArray
+command wikiRouter_SetArray routerFolderArray
+   put routerFolderArray into Router_Array
+end wikiRouter_SetArray
 
 
 --> Deps

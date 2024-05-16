@@ -59,6 +59,16 @@ end wikiFarm_DomainsFromFolder
 
 --> WikiGarden | List
 -
+function wikiGarden_ListFolders
+   put wikiGarden_GetDomainData() into domainData
+   repeat for each key domainName in domainData
+      put domainData [domainName]["folder"] into wikiFolder
+      put wikiFolder & CR after wikiFolders
+   end repeat
+   delete char -1 of wikiFolders
+   return wikiFolders
+end wikiGarden_ListFolders
+
 function wikiGarden_ListDomains pGardenName
    switch pGardenName
       case empty
@@ -66,7 +76,7 @@ function wikiGarden_ListDomains pGardenName
       case "Farm"
          return wikiFarm_GetDomains()
       default
-         put wikiRouter_GetFolderArray() into routerFolderArray
+         put wikiRouter_GetArray() into routerFolderArray
          set the itemdelimiter to slash
          repeat for each key wikiDomain in routerFolderArray
             put routerFolderArray [wikiDomain] into wikiFolder
@@ -89,80 +99,6 @@ function wikiGarden_ListAllDomains pFilterDomain
    url_SortDomainIndex wikiDomains
    return wikiDomains
 end wikiGarden_ListAllDomains
-
-
---> WikiGarden | List
--
-function wikiGarden_ListUniqueNames
-   local ecoGardenData
-   
-   put wikiGarden_GetEcoData() into ecoData
-   put ecoData ["Eco"] into ecoFolderArray
-   repeat for each key ecoName in ecoFolderArray
-      put ecoFolderArray [ecoName]["Gardens"] into gardenData
-      union ecoGardenData with gardenData
-   end repeat
-   put keys (ecoGardenData) into gardenNames
-   sort gardenNames
-   return gardenNames
-end wikiGarden_ListUniqueNames
-
-function wikiGarden_ListEcoFolders pEcoData
-   if pEcoData is not an array then
-      put wikiGarden_GetModel() into pEcoData
-   end if
-   
-   put pEcoData ["Eco"] into ecoNameArray
-   repeat for each key ecoName in ecoNameArray
-      put ecoNameArray [ecoName]["folder"] into ecoFolder
-      put ecoFolder & CR after ecoFolders
-   end repeat
-   delete char -1 of ecoFolders
-   return ecoFolders
-end wikiGarden_ListEcoFolders
-
-
---> WikiGarden | Folder | Find
--
-function wikiGarden_FindGardenFolder gardenName
-   put wikiGarden_GetEcoData() into ecoData
-   repeat for each key ecoName in ecoData ["Eco"]
-      put ecoData ["Eco"][ecoName] into gardenData
-      put ecoData ["Eco"][ecoName]["folder"] into ecoFolder
-      repeat for each key foundGardenName in gardenData ["Gardens"]
-         if foundGardenName = gardenName then
-            return ecoFolder & gardenName & slash
-         end if
-      end repeat
-   end repeat
-end wikiGarden_FindGardenFolder
-
-function wikiGarden_FindEcoFolder ecoName
-   put wikiGarden_GetEcoData() into ecoData
-   repeat for each key foundEcoName in ecoData ["Eco"]
-      if ecoName = foundEcoName then
-         put ecoData ["Eco"][ecoName]["folder"] into ecoFolder
-      end if
-   end repeat
-   return ecoFolder
-end wikiGarden_FindEcoFolder
-
-
-
---> WikiFarm
--
-command wikiGarden_AddEcoFolder ecoFolder
-   put wikiGarden_ListEcoFolders() into ecoFolders
-   if folder_Within (ecoFolder, ecoFolders) is false then
-      return "Error, ecoFolder is within existing ecoFolders:" && ecoFolder
-   end if
-   --
-   line_Add ecoFolder, ecoFolders
-   wikiGarden_UpdateEcoData ecoFolders
-   put the result into ecoData
-   wikiGarden_Init false
-   return ecoData
-end wikiGarden_AddEcoFolder
 
 
 --> DomainData | Model | Local

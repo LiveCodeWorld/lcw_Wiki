@@ -28,6 +28,50 @@ function wikiPage_GardenActivity gardenName, wikiDomain
    return pageArray
 end wikiPage_GardenActivity
 
+function wikiPage_LocalActivity
+   -- put wikiGarden_ListAllDomains() into wikiDomains
+   put wikiGarden_GetDomainData() into gardenDomainData
+   repeat for each key wikiDomain in gardenDomainData
+      set the cursor to busy
+      put gardenDomainData [wikiDomain]["folder"] into wikiFolder
+      put wikiFolder_HasNoPages (wikiFolder) into noPages
+      if nPages is true then
+         put wikiFolder & CR after emptyFolders
+      else
+         put wikiDomain & CR after wikiDomains
+         put wikiFolder & CR after wikiFolders
+      end if
+   end repeat
+   delete char -1 of emptyFolders
+   delete char -1 of wikiDomains
+   delete char -1 of wikiFolders
+   --
+   url_SortDomainIndex wikiDomains
+   
+   if emptyFolders is not empty then
+      put emptyFolders
+   end if
+   --
+   put "Local Activity" into pageTitle
+   
+   put "This site index lists all [[local activity]] from all the garden domains on your local machine:" into someMarkdown
+   put pageArray_Construct (pageTitle, someMarkdown) into pageArray
+   
+   # Roster
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put roster_ConstructText (wikiDomains, pageTitle) into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   
+   # Activity
+   pageArray_AddMarkdown pageArray, "# Activity"
+   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
+   pageArray_AddActivity pageArray, pageTitle, "1 week", moreActivityText   
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_LocalActivity
+
 private function _SitesIndex wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara
    # Construct PageArray
    if pFirstPara is empty then
@@ -580,7 +624,7 @@ end wikiPage_GoogleImage
 function wikiPage_EmptyLocalFolders
    put "Empty Folders" into pageTitle
    --
-   put wiki_ListEmptyLocalFolders (true) into emptyFolders
+   put wikiFarm_ListEmptyFolders (true) into emptyFolders
    if emptyFolders is empty then
       put "There are no local wikis with empty page folders!" into firstPara
       put pageArray_Construct (pageTitle, firstPara) into pageArray

@@ -14,33 +14,6 @@ local Node_ModulesFolder
 local Wiki_ModulesFolder
 
 
---> Working on
--
-function wiki_ModulesFolder
-   if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
-   return Wiki_ModulesFolder
-end wiki_ModulesFolder
-
-
---> Wiki | Favicon
--
-function wiki_GetFavicon wikiDomain
-   put wikiFile_Favicon (wikiDomain) into faviconFile
-   if there is a file faviconFile then
-      put url ("binfile:" & faviconFile) into pngData
-      return pngData
-   else
-      return empty
-   end if
-end wiki_GetFavicon
-
-command wiki_SetFavicon wikiDomain, pngData
-   put wikiFile_Favicon (wikiDomain) into faviconFile
-   put pngData into url ("binfile:" & faviconFile)
-   return faviconFile
-end wiki_SetFavicon
-
-
 --> WikiUrl
 -
 function wikiUrl_Asset relAssetPath, wikiDomain
@@ -49,6 +22,20 @@ function wikiUrl_Asset relAssetPath, wikiDomain
    put urlEncode (relAssetPath) after assetsURL
    return assetsURL
 end wikiUrl_Asset
+
+
+--> Working on
+-
+function wikiFile_ConstructOwner wikiDomain
+   put wikiFolder_ConstructStatus (wikiDomain) into statusFolder
+   put statusFolder & "owner.json" into faviconFile
+   return faviconFile
+end wikiFile_ConstructOwner
+
+function wikiFolder_Modules
+   if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
+   return Wiki_ModulesFolder
+end wikiFolder_Modules
 
 
 --> WikiFile | List
@@ -173,6 +160,25 @@ function wikiFile_Recycled wikiDomain, pSlug
    end if
 end wikiFile_Recycled
 
+
+--> WikiFile | Construct
+-
+function wikiFile_ConstructClient clientRelativePath
+   if char 1 of clientRelativePath = slash then delete char 1 of clientRelativePath
+   --
+   put wikiFolder_Client ("client/") into clientFolder
+   put clientFolder & clientRelativePath into sFile
+   return sFile
+end wikiFile_ConstructClient
+
+end wikiFile_ConstructOwner
+
+function wikiFile_ConstructConfig pWikiDomain
+   put wikiFolder_ConstructFromFarm (pWikiDomain) into farmFolder
+   put farmFolder & "config.json" into wikiConfigFile
+   return wikiConfigFile
+end wikiFile_ConstructConfig
+
 function wikiFile_ConstructRecycled wikiDomain, pSlug
    if pSlug is empty then put "welcome-visitors" into pSlug
    --
@@ -218,6 +224,18 @@ end wikiFile_Construct
 
 --> WikiFolder
 -
+function wikiFolder_Client pRelFolderPath
+   put wikiFolder_ConstructClient() into wikiClientFolder
+   put pRelFolderPath after wikiClientFolder
+   text_AddTrailing wikiClientFolder, slash
+   
+   if there is a folder wikiClientFolder then
+      return wikiClientFolder
+   else
+      return empty
+   end if
+end wikiFolder_Client
+
 function wikiFolder_Recycled wikiDomain
    put wikiFolder_ConstructRecycled (wikiDomain) into wikiRecycleFolder
    if there is a folder wikiRecycleFolder then
@@ -240,6 +258,11 @@ end wikiFolder_Pages
 
 --> WikiFolder | Construct
 -
+function wikiFolder_ConstructClient
+   put wikiFolder_Modules() & "wiki-client/" into wikiClientFolder
+   return wikiClientFolder
+end wikiFolder_ConstructClient
+
 function wikiFolder_ConstructCommons pWikiDomain
    put wikiFarm_GetFolder (pWikiDomain) into wikiRoot
    put wikiRoot & "commons/" into wikiCommonsFolder

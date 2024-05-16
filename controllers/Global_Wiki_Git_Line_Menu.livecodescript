@@ -31,7 +31,7 @@ getprop disabled_TrashGitwikiFolder [dView]
    --
    put the selected_Line of dView into shortWikiFolder
    put gitwiki_GetFolder (shortWikiFolder) into gitWikiFolder
-   return wiki_FolderHasNoPages (gitWikiFolder) is false
+   return wikiFolder_HasNoPages (gitWikiFolder) is false
 end disabled_TrashGitwikiFolder
 
 -- getprop disabled_Register

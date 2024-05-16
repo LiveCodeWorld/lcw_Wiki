@@ -15,6 +15,28 @@ It is not for fetching them by http or url's, but reading and writing to the loc
 --> Working on
 -
 
+--> JsonArray
+-
+function jsonArray_FromFile sFile, pUseMerge
+   if there is not a file sFile then return "Error, json file does not exist." && sFile
+   
+   if pUseMerge is true then
+      return _GetMergJsonArray (sFile)
+   else
+      return _GetJsonArray (sFile) -- uses "textDecode"
+   end if
+end jsonArray_FromFile
+
+command jsonArray_ToFile sFile, jsonArray, pCreateFolder, pUseMerge
+   if pUseMerge is true then
+      _SetMergJsonArray sFile, jsonArray, pCreateFolder
+   else
+      _SetJsonArray sFile, jsonArray, pCreateFolder -- uses "textEncode"
+   end if
+   return the result
+end jsonArray_ToFile
+
+
 --> PageJson | Fetch
 -
 function pageJson_Fetch wikiDomain, pSlug, pPort, pDecode
@@ -56,19 +78,19 @@ end pageJson_ConstructUrl
 -
 function pageJson_GetRecycled wikiDomain, pageSlug
    put wikiFile_ConstructRecycled (wikiDomain, pageSlug) into recycledPagePath
-   put json_Get (recycledPagePath) into pageJSON
+   put _GetJson (recycledPagePath) into pageJSON
    return pageJSON
 end pageJson_GetRecycled
 
 function pageJson_Get wikiDomain, pageSlug
    put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
-   put json_Get (wikiPagePath) into pageJSON
+   put _GetJson (wikiPagePath) into pageJSON
    return pageJSON
 end pageJson_Get
 
 command pageJson_Set wikiDomain, pageSlug, pageJSON, pDeleteSiteMap
    put wikiFile_Construct (wikiDomain, pageSlug) into wikiPagePath
-   json_Set wikiPagePath, pageJSON
+   _SetJson wikiPagePath, pageJSON
    --
    if pDeleteSiteMap is not false then
       wikiSiteMap_DeleteFile wikiDomain
@@ -99,40 +121,6 @@ command pageJson_Delete wikiDomain, pageSlug
    revDeleteFile wikiPagePath
    return the result
 end pageJson_Delete
-
-function json_Get sFile
-   if there is not a file sFile then return empty
-   put url ("binfile:" & sFile) into binaryJSON
-   put textDecode (binaryJSON, "UTF-8") into sJSON
-   return sJSON
-end json_Get
-
-command json_Set sFile, sJSON, pCreateFolder
-   if pCreateFolder is true then
-      put sFile into sFolder
-      set the itemdelimiter to slash
-      put empty into item -1 of sFolder
-      folder_CreateNested sFolder
-   end if
-   --
-   put word 1 to -1 of sJSON into sJSON
-   put textEncode (sJSON, "UTF-8") into binaryJSON
-   put binaryJSON into url ("binfile:" & sFile)
-   put the result into writeResult
-   return writeResult
-end json_Set
-
-function json_GetArray sFile
-   if there is not a file sFile then
-      return "Error, json file does not exist." && sFile
-   end if
-   return _GetMergJsonArray (sFile)
-end json_GetArray
-
-command json_SetArray sFile, jsonArray, pCreateFolder
-   _SetMergJsonArray sFile, jsonArray, pCreateFolder
-   return the result
-end json_SetArray
 
 
 --> Private
@@ -174,9 +162,9 @@ end _SetMergJsonArray
 
 private function _GetJsonArray sFile
    -- put _GetMergJsonArray (sFile) into jsonArray
-   put json_Get (sFile) into sJSON
+   put _GetJson (sFile) into sJSON
    try
-      # More tolerant and uses textDecode with json_Get
+      # More tolerant and uses textDecode with _GetJson
       put jsonImport (sJSON) into jsonArray
       if jsonArray is an array then
          return jsonArray
@@ -189,17 +177,39 @@ private function _GetJsonArray sFile
    end try
 end _GetJsonArray
 
-private command _SetJsonArray  sFile, jsonArray, pCreateFolder
+private command _SetJsonArray sFile, jsonArray, pCreateFolder
    /* Use of jsonExport does not create correct json.
    Temporarily using ArrayToJSON and mergJson.*/
    
    try
-      # More tolerant and uses textEncode with json_Set
+      # More tolerant and uses textEncode with _SetJson
       put jsonExport (jsonArray) into sJSON
-      json_Set sFile, sJSON, pCreateFolder
+      _SetJson sFile, sJSON, pCreateFolder
       put the result into writeResult
       return writeResult
    catch e
       return "Error, problem decoding array to json for:" && sFile & CR & e
    end try
 end _SetJsonArray
+
+private function _GetJson sFile
+   if there is not a file sFile then return empty
+   put url ("binfile:" & sFile) into binaryJSON
+   put textDecode (binaryJSON, "UTF-8") into sJSON
+   return sJSON
+end _GetJson
+
+private command _SetJson sFile, sJSON, pCreateFolder
+   if pCreateFolder is true then
+      put sFile into sFolder
+      set the itemdelimiter to slash
+      put empty into item -1 of sFolder
+      folder_CreateNested sFolder
+   end if
+   --
+   put word 1 to -1 of sJSON into sJSON
+   put textEncode (sJSON, "UTF-8") into binaryJSON
+   put binaryJSON into url ("binfile:" & sFile)
+   put the result into writeResult
+   return writeResult
+end _SetJson

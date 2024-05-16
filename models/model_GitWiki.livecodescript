@@ -139,8 +139,8 @@ command gitwiki_FixLocalDomain localhostDomain, pDisplayView
    put wikiFolder_Get (localhostDomain) into wikiFolder
    put gitwiki_GetFolder (localhostDomain) into gitWikiFolder
    --
-   put wiki_NumberOfpages (wikiFolder) into wikiPageNum
-   put wiki_NumberOfpages (gitWikiFolder) into gitWikiPageNum
+   put wikiFolder_NumberOfPages (wikiFolder) into wikiPageNum
+   put wikiFolder_NumberOfPages (gitWikiFolder) into gitWikiPageNum
    --
    switch
       case (wikiPageNum = 0) AND (gitWikiPageNum > 0)
@@ -229,7 +229,7 @@ end gitwiki_ListFolders
 
 function gitwiki_ListEmptyFolders pListShort
    put gitwiki_RootFolder() into rootFolder
-   put wiki_ListEmptyFolders (rootFolder, pListShort, ".git,fedwiki_owners,dead.anarchive.earth") into emptyFolders
+   put wikiFolder_ListEmpty (rootFolder, pListShort, ".git,fedwiki_owners,dead.anarchive.earth") into emptyFolders
    return emptyFolders
 end gitwiki_ListEmptyFolders
 

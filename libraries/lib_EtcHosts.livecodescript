@@ -12,14 +12,6 @@ version: 0.1
 
 --> Working on
 -
-function system_GetAdminPassword
-   return secret_Get ("systemPassowrd")
-end system_GetAdminPassword
-
-command system_SetAdminPassword sPassword
-   secret_Set "systemPassowrd", sPassword
-end system_SetAdminPassword
-
 private command _NormalizeSystemPassword @pSystemPassword
    if pSystemPassword is empty then
       put system_GetAdminPassword() into pSystemPassword

@@ -70,7 +70,7 @@ on menu_DisplayNumbers dView
       switch destFolder
          case empty
             -- Not a symlink
-            put wiki_NumberOfpages (gitWikiFolder) into numOfPages
+            put wikiFolder_NumberOfPages (gitWikiFolder) into numOfPages
             switch
                case numOfPages is empty
                case numOfPages < 1
@@ -83,7 +83,7 @@ on menu_DisplayNumbers dView
             end switch
             break
          case wikiRootFolder
-            put wiki_NumberOfpages (gitWikiFolder) into numOfPages
+            put wikiFolder_NumberOfPages (gitWikiFolder) into numOfPages
             switch
                case numOfPages is empty
                   breakpoint

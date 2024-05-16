@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: model_WikiClient
 type: model
-version: 0.1
+version: 0.2
 
 /*
 This model is for all the files and folders in the wiki-client npm moule of federated wiki.
@@ -53,49 +53,11 @@ function wikiClient_ConstructFactoriesJson
 end wikiClient_ConstructFactoriesJson
 
 
---> WikiClient | File
+--> WikiClient | Html
 -
 function wikiClient_GetStaticHtml
-   put wikiClient_Folder ("views/") into clientViewFolder
+   put wikiFolder_Client ("views/") into clientViewFolder
    put clientViewFolder & "static.html" into clientViewPath
    put text_Get (clientViewPath) into someHTML
    return someHTML
 end wikiClient_GetStaticHtml
-
-function wikiClient_GetClientFile clientRelativePath
-   put wikiClient_ConstructFile (clientRelativePath) into sFile
-   if there is a file sFile then
-      put url ("binfile:" & sFile) into sJavascript
-      return sJavascript
-   else
-      return empty
-   end if
-end wikiClient_GetClientFile
-
-function wikiClient_ConstructFile clientRelativePath
-   if char 1 of clientRelativePath = slash then delete char 1 of clientRelativePath
-   --
-   put wikiClient_Folder ("client/") into clientFolder
-   put clientFolder & clientRelativePath into sFile
-   return sFile
-end wikiClient_ConstructFile
-
-
---> WikiClient | Folder
--
-function wikiClient_Folder pRelFolderPath
-   put node_WikiModulesFolder() & "wiki-client/" into wikiClientFolder
-   text_AddTrailing pRelFolderPath, slash
-   put pRelFolderPath after wikiClientFolder
-   
-   if there is a folder wikiClientFolder then
-      return wikiClientFolder
-   else
-      return empty
-   end if
-end wikiClient_Folder
-
-function wiki_GetWikiClientFolder
-   put wiki_ModulesFolder() & "wiki-client/" into wikiClientFolder
-   return wikiClientFolder
-end wiki_GetWikiClientFolder

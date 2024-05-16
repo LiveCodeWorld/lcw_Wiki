@@ -4,7 +4,7 @@
 license: GPLv3
 name: lib_DisplayWiki
 type: library
-version: 0.2
+version: 0.3
 
 
 --> Working on
@@ -101,7 +101,7 @@ command display_WikiPage wikiDomain, pSlug
    set the wiki_Domain of displayView to wikiDomain
    set the page_Slug of displayView to pSlug
    --
-   set the data_MenuBit of displayView to "Wiki | Page"
+   set the tool_MenuBit of displayView to "Wiki | Page"
    return displayView
 end display_WikiPage
 

@@ -84,7 +84,7 @@ on menu_FixTwo dView
       if fixedExists then
          if folder_IsSymLink (fixedFolder) then
             put true into fixedIsSymLinked
-         else if wiki_FolderHasNoPages (fixedFolder) is true then
+         else if wikiFolder_HasNoPages (fixedFolder) is true then
             put true into fixedIsEmpty
          else
             put false into fixedIsEmpty
@@ -94,7 +94,7 @@ on menu_FixTwo dView
       breakpoint
       
       if there is a folder fixedFolder then
-         if wiki_FolderHasNoPages (fixedFolder) is true then
+         if wikiFolder_HasNoPages (fixedFolder) is true then
             if folder_IsSymLink (fixedFolder) is true then
                breakpoint
                return "Error, fixed symlink folder alreaady exists."
@@ -108,11 +108,11 @@ on menu_FixTwo dView
                symlink_Delete twoFolder
                symlink_CreateFolder twoDestFolder, fixedFolder
             else
-               if wiki_FolderHasNoPages (twoFolder) is true then
+               if wikiFolder_HasNoPages (twoFolder) is true then
                   put symlink_Destination (twoFolder) into twoDestFolder
                   revDeleteFolder twoFolder
                   symlink_CreateFolder twoDestFolder, twoFolder
-               else if wiki_FolderHasNoPages (fixedFolder) is true then
+               else if wikiFolder_HasNoPages (fixedFolder) is true then
                   put symlink_Destination (twoFolder) into twoDestFolder
                   if twoDestFolder is empty then
                      breakpoint

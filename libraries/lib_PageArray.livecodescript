@@ -14,6 +14,12 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 
 --> Working on
 -
+function wiki_FetchRefDomains wikiDomain, pageSlug
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   put pageArray_ListReferenceDomains (pageArray) into refDomains
+   return refDomains
+end wiki_FetchRefDomains
+
 function dot_FetchHandlerGraphData hName, pJsonType
    -- https://graphviz.org/docs/outputs/json/
    if pJsonType is empty then put "json" into pJsonType -- "json0,dot_json,xdot_json"
@@ -44,20 +50,83 @@ function dot_GetArray hkey
    return dotArray
 end dot_GetArray
 
-function wiki_FetchRefDomains wikiDomain, pageSlug
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   put pageArray_ListReferenceDomains (pageArray) into refDomains
-   return refDomains
-end wiki_FetchRefDomains
 
-command pageArray_SetFork @pageArray, wikiDomain, pForkDate
+--> PageArray | List
+-
+function pageArray_ListReferenceDomains pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      if storyArray [itemNum]["type"] = "reference" then
+         put storyArray [itemNum]["site"] into refDomain
+         put refDomain & CR after refDomains
+      end if
+   end repeat
+   delete char -1 of refDomains
+   return refDomains
+end pageArray_ListReferenceDomains
+
+function pageArray_ExtractRefItems fromPageArray
+   put fromPageArray ["story"] into fromStoryArray
+   put 1 into newItemNum
+   repeat with itemNum = 1 to item 2 of the extents of fromStoryArray
+      put fromStoryArray [itemNum] into itemArray
+      if itemArray ["type"] = "reference" then
+         put itemArray into refItemStoryArray [newItemNum]
+         add 1 to newItemNum
+      end if
+   end repeat
+   return refItemStoryArray
+end pageArray_ExtractRefItems
+
+function pageArray_ReferenceLinkArray pageArray, fromSlug, fromDomain
+   put fromDomain & "/" & fromSlug into fromLink
+   put pageArray ["story"] into storyArray
+   repeat for each key nodeNum in storyArray
+      put storyArray [nodeNum] into nodeArray
+      put nodeArray ["type"] into nodeType
+      if nodeType = "reference" then
+         put nodeArray ["site"] into toDomain
+         put nodeArray ["slug"] into toSlug
+         
+         -- a bit archaic (should use nested arrays I think)
+         put toDomain & "/" & toSlug into toLink
+         if toDomain = fromDomain then
+            put nodeArray into linkArray ["internal"][fromLink][toLink]
+         else
+            put nodeArray into linkArray ["external"][fromLink][toLink]
+         end if
+      end if
+   end repeat
+   return linkArray
+end pageArray_ReferenceLinkArray
+
+function pageArray_ForkLinks pageArray, fromSlug, fromDomain
+   -- was "fedwiki_ExtractForkLinks"
+   put fromDomain & "/" & fromSlug into fromLink
    put pageArray ["journal"] into journalArray
-   put item 2 of the extents of journalArray into indexNum
-   add 1 to indexNum
-   put itemArray_ConstructFork (wikiDomain, pForkDate) into itemArray
-   put itemArray into journalArray [indexNum]
-   put journalArray into pageArray ["journal"]
-end pageArray_SetFork
+   
+   put item 2 of the extents of journalArray into maxNum
+   put 1 into forkNum
+   repeat with nodeNum = 1 to maxNum
+      put journalArray [nodeNum] into nodeArray
+      put nodeArray ["type"] into nodeType
+      if nodeType = "fork" then
+         put nodeArray ["site"] into toDomain
+         
+         if toDomain is fromDomain or toDomain is empty then
+            -- going to assume it's a self-fork
+            put fromDomain into toDomain
+            next repeat -- not bothering storing this information (it's sort of useful for bugs?)
+         end if
+         
+         -- a bit archaic (should use nested arrays I think)
+         put toDomain & "/" & fromSlug into toLink -- a fork has the same slug
+         put nodeArray into linkArray [forkNum][fromLink][toLink]
+         add 1 to forkNum
+      end if
+   end repeat
+   return linkArray
+end pageArray_ForkLinks
 
 
 --> PageArray | First
@@ -210,33 +279,6 @@ command pageArray_SetCreationDate @pageArray, pMilliseconds
 end pageArray_SetCreationDate
 
 
---> PageArray | List
--
-function pageArray_ListReferenceDomains pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      if storyArray [itemNum]["type"] = "reference" then
-         put storyArray [itemNum]["site"] into refDomain
-         put refDomain & CR after refDomains
-      end if
-   end repeat
-   delete char -1 of refDomains
-   return refDomains
-end pageArray_ListReferenceDomains
-
-function pageArray_ExtractRefItems fromPageArray
-   put fromPageArray ["story"] into fromStoryArray
-   put 1 into newItemNum
-   repeat with itemNum = 1 to item 2 of the extents of fromStoryArray
-      put fromStoryArray [itemNum] into itemArray
-      if itemArray ["type"] = "reference" then
-         put itemArray into refItemStoryArray [newItemNum]
-         add 1 to newItemNum
-      end if
-   end repeat
-   return refItemStoryArray
-end pageArray_ExtractRefItems
-
 --> PageArray | Graph
 -
 function pageArray_GetSvg pageArray
@@ -311,6 +353,15 @@ end pageArray_GetTitleText
 
 --> PageArray | Forks
 -
+command pageArray_SetFork @pageArray, wikiDomain, pForkDate
+   put pageArray ["journal"] into journalArray
+   put item 2 of the extents of journalArray into indexNum
+   add 1 to indexNum
+   put itemArray_ConstructFork (wikiDomain, pForkDate) into itemArray
+   put itemArray into journalArray [indexNum]
+   put journalArray into pageArray ["journal"]
+end pageArray_SetFork
+
 command pageArray_CleanFork @pageArray, pForkDomains
    pageArray_StripJournal pageArray
    pageArray_AddFork pageArray, pForkDomains

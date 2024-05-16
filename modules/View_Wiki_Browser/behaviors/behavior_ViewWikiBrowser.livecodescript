@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: behavior_ViewWikiBrowser
 type: behavior
-version: 0.2
+version: 0.3
 
 /*
 This view is for a single wiki-browser view
@@ -19,6 +19,18 @@ local LocalArray
 
 --> Working on
 -
+getprop last_PageSlug
+   put the browser_URL of me into browserURL
+   get _LineUpInfo (browserURL)
+   return item -1 of line -1 of it
+end last_PageSlug
+
+getprop last_PageInfo
+   put the browser_URL of me into browserURL
+   get _LineUpInfo (browserURL)
+   return line -1 of it
+end last_PageInfo
+
 setprop page_Slug [domainAndPort] pageSlug
    put fedwiki_ConstructTitle (pageSlug) into pageTitle
    _DisplayPage pageTitle, domainAndPort
@@ -255,6 +267,11 @@ getprop lineUp_Domain [slugOrNum]
    put url_GetDomain (lineupURL) into lineUpDomain
    return lineUpDomain
 end lineUp_Domain
+
+getprop lineUp_Info
+   put the browser_URL of me into browserURL
+   return _LineUpInfo (browserURL)
+end lineUp_Info
 
 getprop lineUp_URL [slugOrNum]
    put the browser_URL of me into browserURL
@@ -779,16 +796,38 @@ end _BrowserWidget
 
 --> Private
 -
-private function _LineUpUrls browserURL
-   put wikijs_GetLinupUrls() into sJavascript
-   put _GetJavascriptResult (sJavascript) into lineupJson
+private function _LineUpInfo browserURL
+   put _LineUpJson() into lineupJson
    
-   # Work out urls in Livecode (probably faster in js)
+   set the itemdelimiter to slash
+   put item 3 of browserURL into ownerDomain
+   
+   replace comma with CR in lineupJson
+   replace quote with empty in lineupJson
+   
+   repeat for each line sLink in lineupJson
+      set the itemdelimiter to slash
+      if char 1 to 2 of sLink = "//" then
+         put item 3 of sLink into sDomain
+         put item 4 of sLink into pageSlug
+      else
+         put ownerDomain into sDomain
+         put item -1 of sLink into pageSlug
+      end if
+      
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      put sDomain,pageSlug & CR after lineUpInfo
+   end repeat
+   delete char -1 of lineUpInfo
+   return lineUpInfo
+end _LineUpInfo
+
+private function _LineUpUrls browserURL
+   put _LineUpJson() into lineupJson
+   
    set the itemdelimiter to slash
    put item 3 of browserURL into urlDomain
-   --
-   delete char 1 of lineupJson
-   delete char -1 of lineupJson
    
    set the itemdelimiter to comma
    repeat for each item sLink in lineupJson
@@ -803,6 +842,18 @@ private function _LineUpUrls browserURL
    delete char -1 of lineUpURLs
    return lineUpURLs
 end _LineUpUrls
+
+private function _LineUpJson
+   put wikijs_GetLinupUrls() into sJavascript
+   put _GetJavascriptResult (sJavascript) into lineupJson
+   
+   # Work out urls in Livecode (probably faster in js)
+   --
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   
+   return lineupJson
+end _LineUpJson
 
 private function _IsTicked
    put the footer_WikiEditTag of me into htmlTag

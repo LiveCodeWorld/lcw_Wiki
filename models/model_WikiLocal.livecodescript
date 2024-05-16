@@ -87,30 +87,6 @@ function wiki_DefaultLocalUrl
 end wiki_DefaultLocalUrl
 
 
---> Wiki | Pages
--
-function wiki_FolderHasNoPages wikiFolder, pNum
-   if pNum is not a number then put 1 into pNum
-   put wiki_NumberOfpages (wikiFolder) into numOfPages
-   if numOfPages is empty then return empty -- not a wiki
-   return numOfPages < pNum
-end wiki_FolderHasNoPages
-
-function wiki_NumberOfpages wikiFolder, pUseSymLinked
-   if pUseSymLinked is true then
-      put symlink_Destination (wikiFolder) into destFolder
-      if destFolder is empty then
-         put _NumberOfpages (wikiFolder) into numOfPages
-      else
-         put _NumberOfpages (destFolder) into numOfPages
-      end if
-   else
-      put _NumberOfpages (wikiFolder) into numOfPages
-   end if
-   return numOfPages
-end wiki_NumberOfpages
-
-
 --> Fedwiki | Local | Folders
 -
 command fedwiki_SetLocalWikiRoot localWikiRoot
@@ -147,19 +123,3 @@ end fedwiki_SetLocalData
 
 --> Private
 -
-private function _NumberOfpages wikiFolder
-   if there is not a folder wikiFolder then return empty
-   
-   # Check pages
-   text_AddTrailing wikiFolder, slash
-   put wikiFolder & "pages/" into pageFolder
-   if there is not a folder pageFolder then
-      return empty -- not a wiki
-   end if
-   
-   # List wiki-pages and count
-   put files (pageFolder) into pageFiles
-   if pageFiles is empty then return 0
-   put the number of lines of pageFiles - 1 into numOfPages
-   return numOfPages
-end _NumberOfpages

@@ -79,60 +79,6 @@ command fedwiki_DownloadDomainToFolder fedwikiDomain, pLocalWikiFolder
       fedwiki_SetLocalPageJson pageSlug, pageJSON, fedwikiDomain, pLocalWikiFolder
    end repeat
    put fedwiki_FetchFavicon (fedwikiDomain) into pngData
-   wiki_SetFavicon fedwikiDomain, pngData
+   wikiServer_SetFavicon fedwikiDomain, pngData
    return siteArray
 end fedwiki_DownloadDomainToFolder
-
-
---> Fedwiki | PageArray | Process 
--
-function fedwiki_ExtractReferenceLinks pageArray, fromSlug, fromDomain
-   put fromDomain & "/" & fromSlug into fromLink
-   put pageArray ["story"] into storyArray
-   repeat for each key nodeNum in storyArray
-      put storyArray [nodeNum] into nodeArray
-      put nodeArray ["type"] into nodeType
-      if nodeType = "reference" then
-         put nodeArray ["site"] into toDomain
-         put nodeArray ["slug"] into toSlug
-         
-         -- a bit archaic (should use nested arrays I think)
-         put toDomain & "/" & toSlug into toLink
-         if toDomain = fromDomain then
-            put nodeArray into linkArray ["internal"][fromLink][toLink]
-         else
-            put nodeArray into linkArray ["external"][fromLink][toLink]
-         end if
-      end if
-   end repeat
-   return linkArray
-end fedwiki_ExtractReferenceLinks
-
-function fedwiki_ExtractForkLinks pageArray, fromSlug, fromDomain
-   if fromDomain is empty then
-      breakpoint
-   end if
-   put fromDomain & "/" & fromSlug into fromLink
-   put pageArray ["journal"] into journalArray
-   put item 2 of the extents of journalArray into maxNum
-   put 1 into forkNum
-   repeat with nodeNum = 1 to maxNum
-      put journalArray [nodeNum] into nodeArray
-      put nodeArray ["type"] into nodeType
-      if nodeType = "fork" then
-         put nodeArray ["site"] into toDomain
-         
-         if toDomain is fromDomain or toDomain is empty then
-            -- going to assume it's a self-fork
-            put fromDomain into toDomain
-            next repeat -- not bothering storing this information (it's sort of useful for bugs?)
-         end if
-         
-         -- a bit archaic (should use nested arrays I think)
-         put toDomain & "/" & fromSlug into toLink -- a fork has the same slug
-         put nodeArray into linkArray [forkNum][fromLink][toLink]
-         add 1 to forkNum
-      end if
-   end repeat
-   return linkArray
-end fedwiki_ExtractForkLinks

@@ -20,6 +20,13 @@ local Garden_EcoData
 
 --> Working on
 -
+command display_GardenEcodata
+   put wikiGarden_GetModel() into ecoData
+   display_Array ecoData, "wikiGarden_GetModel()", "Ecodata"
+   put the result into dView
+   return dView
+end display_GardenEcodata
+
 function wikiGarden_ConstructFolder gardenName, pEcoName
    if pEcoName is empty then
       
@@ -30,49 +37,121 @@ function wikiGarden_ConstructFolder gardenName, pEcoName
    return gardenFolder
 end wikiGarden_ConstructFolder
 
+command wikiGarden_Close
+   wikiGarden_SetEcoData empty
+   wikiFarm_SetDomains empty
+   wikiRouter_SetArray empty
+   wikiGarden_SetDomainData empty
+end wikiGarden_Close
+
+
+--> WikiGarden | EcoFolder
+-
+command wikiGarden_AddEcoFolder ecoFolder
+   text_AddTrailing ecoFolder, slash
+   put wikiGarden_ListEcoFolders() into ecoFolders
+   if folder_Within (ecoFolder, ecoFolders) is false then
+      return "Error, ecoFolder is within existing ecoFolders:" && ecoFolder
+   end if
+   --
+   line_Add ecoFolder, ecoFolders
+   wikiGarden_UpdateEcoData ecoFolders
+   put the result into ecoData
+   --
+   wikiGarden_Init ecoData
+   return ecoData
+end wikiGarden_AddEcoFolder
+
+
+--> WikiGarden | List
+-
+function wikiGarden_ListUniqueNames
+   local ecoGardenData
+   
+   put wikiGarden_GetEcoData() into ecoData
+   put ecoData ["Eco"] into ecoFolderArray
+   repeat for each key ecoName in ecoFolderArray
+      put ecoFolderArray [ecoName]["Gardens"] into gardenData
+      union ecoGardenData with gardenData
+   end repeat
+   put keys (ecoGardenData) into gardenNames
+   sort gardenNames
+   return gardenNames
+end wikiGarden_ListUniqueNames
+
+function wikiGarden_ListEcoFolders pEcoData
+   if pEcoData is not an array then
+      -- put wikiGarden_GetModel() into pEcoData
+      put wikiGarden_GetEcoData() into pEcoData
+   end if
+   
+   put pEcoData ["Eco"] into ecoNameArray
+   repeat for each key ecoName in ecoNameArray
+      put ecoNameArray [ecoName]["folder"] into ecoFolder
+      put ecoFolder & CR after ecoFolders
+   end repeat
+   delete char -1 of ecoFolders
+   return ecoFolders
+end wikiGarden_ListEcoFolders
+
+
+--> WikiGarden | Folder | Find
+-
+function wikiGarden_FindGardenFolder gardenName
+   put wikiGarden_GetEcoData() into ecoData
+   repeat for each key ecoName in ecoData ["Eco"]
+      put ecoData ["Eco"][ecoName] into gardenData
+      put ecoData ["Eco"][ecoName]["folder"] into ecoFolder
+      repeat for each key foundGardenName in gardenData ["Gardens"]
+         if foundGardenName = gardenName then
+            return ecoFolder & gardenName & slash
+         end if
+      end repeat
+   end repeat
+end wikiGarden_FindGardenFolder
+
+function wikiGarden_FindEcoFolder ecoName
+   put wikiGarden_GetEcoData() into ecoData
+   repeat for each key foundEcoName in ecoData ["Eco"]
+      if ecoName = foundEcoName then
+         put ecoData ["Eco"][ecoName]["folder"] into ecoFolder
+      end if
+   end repeat
+   return ecoFolder
+end wikiGarden_FindEcoFolder
+
 
 --> WikiGarden | Folder
 -
 function wikiGarden_GetEcoFolder pEcoName
+   if pEcoName is empty then put WikiFarm_DefaultEcoName into pEcoName
+   --
    put wikiGarden_GetModel() into ecoData
-   put _GetEcoFolder (ecoData, pEcoName) into ecoFolder
+   put ecoData ["Eco"][pEcoName]["folder"] into ecoFolder
    return ecoFolder
 end wikiGarden_GetEcoFolder
 
 command wikiGarden_SetEcoFolder ecoFolder, pEcoName
    if pEcoName is empty then put WikiFarm_DefaultEcoName into pEcoName
+   text_AddTrailing ecoFolder, slash
    
    put wikiGarden_GetModel() into ecoData
-   _SetEcoFolder ecoData, ecoFolder, pEcoName
+   put ecoFolder into ecoData ["Eco"][pEcoName]["folder"]
    wikiGarden_SetModel ecoData
    --
    return ecoData
 end wikiGarden_SetEcoFolder
 
 
---> Init
+--> WikiGarden | Init
 -
-command wikiGarden_Close
-   wikiGarden_SetEcoData empty
-   wikiFarm_SetDomains empty
-   wikiRouter_SetFolderArray empty
-   wikiGarden_SetDomainData empty
-end wikiGarden_Close
-   
-command wikiGarden_Init pUpdateModel
-   if pUpdateModel is true then
-      wikiGarden_UpdateEcoData
-      put the result into ecoData
-   else
+command wikiGarden_Init ecoData
+   if ecoData is not an array then
       put wikiGarden_GetModel() into ecoData
    end if
-   wikiGarden_SetEcoData ecoData
-   
-   # Fast Router_FolderArray (essentail)
-   put ecoData ["Farm"]["folder"] into farmFolder
-   -- wikiFarm_SetFolder farmFolder
    
    # Get default farm domains from folder
+   put ecoData ["Farm"]["folder"] into farmFolder
    put wikiFarm_DomainsFromFolder (farmFolder) into farmDomains
    wikiFarm_SetDomains farmDomains
    
@@ -83,11 +162,7 @@ command wikiGarden_Init pUpdateModel
       put farmFolder into gardenDomainData [farmDomain]["folder"]
    end repeat
    
-   # Construct and store routerFolderArray
-   put wikiGarden_ConstructRouterArray (ecoData) into routerFolderArray
-   wikiRouter_SetFolderArray routerFolderArray
-   
-   # Construct Garden gardenDomainData
+   # Add Garden folders to gardenDomainData
    put ecoData ["Eco"] into ecoFolderArray
    repeat for each key ecoName in ecoFolderArray
       put ecoFolderArray [ecoName] into ecoNameArray
@@ -106,16 +181,25 @@ command wikiGarden_Init pUpdateModel
    
    # Garden_DomainData (used by "wikiFolder_FromRouter" and "wikiGarden_ListAllDomains")
    wikiGarden_SetDomainData gardenDomainData
+   
+   # Construct and store routerFolderArray
+   put wikiGarden_ConstructRouterArray (ecoData) into routerFolderArray
+   wikiRouter_SetArray routerFolderArray
+   
+   wikiGarden_SetEcoData ecoData
+   return ecoData
 end wikiGarden_Init
 
 command wikiGarden_UpdateEcoData pEcoFolders
    -- does not load local variables to models (use init)
    local ecoArray
    --
-   put wikiGarden_GetModel() into ecoData
    if pEcoFolders is empty then
       put wikiGarden_ListEcoFolders (ecoData) into pEcoFolders
+   else
+      wikiGarden_SetEcoFolder pEcoFolders
    end if
+   put wikiGarden_GetModel() into ecoData
    
    # Construct ecoArray from folders
    set the itemdelimiter to slash
@@ -126,6 +210,8 @@ command wikiGarden_UpdateEcoData pEcoFolders
          put ecoFolder into ecoArray [ecoName]["folder"]
          put folder_ListShort (ecoFolder) into gardenNames
          repeat for each line gardenName in gardenNames
+            put empty into ecoArray [ecoName]["Gardens"][gardenName]
+            --
             put wikiGarden_ConstructFolder (gardenName, ecoName) into gardenFolder
             put folder_ListShort (gardenFolder) into wikiDomains
             repeat for each line wikiDomain in wikiDomains
@@ -139,6 +225,10 @@ command wikiGarden_UpdateEcoData pEcoFolders
    # Save updated ecoData
    put ecoArray into ecoData ["Eco"]
    wikiGarden_SetModel ecoData
+   
+   if pLoadEcoData is not false then
+      wikiGarden_Init ecoData
+   end if
    return ecoData
 end wikiGarden_UpdateEcoData
 
@@ -152,6 +242,12 @@ end wikiGarden_GetEcoData
 command wikiGarden_SetEcoData ecoData
    put ecoData into Garden_EcoData
 end wikiGarden_SetEcoData
+
+command wikiGarden_StoreCachedEcoData
+   put wikiGarden_GetEcoData() into ecoData
+   wikiGarden_SetModel ecoData
+   return ecoData
+end wikiGarden_StoreCachedEcoData
 
 
 --> WikiGarden | List
@@ -198,16 +294,3 @@ end wikiGarden_RemoveFromModel
 
 --> Private
 -
-private function _GetEcoFolder ecoData, pEcoName
-   if pEcoName is empty then put WikiFarm_DefaultEcoName into pEcoName
-   --
-   put ecoData ["Eco"][pEcoName]["folder"] into ecoFolder
-   return ecoFolder
-end _GetEcoFolder
-
-private command _SetEcoFolder @ecoData, ecoFolder, pEcoName
-   if pEcoName is empty then put WikiFarm_DefaultEcoName into pEcoName
-   text_AddTrailing ecoFolder, slash
-   --
-   put ecoFolder into ecoData ["Eco"][pEcoName]["folder"]
-end _SetEcoFolder

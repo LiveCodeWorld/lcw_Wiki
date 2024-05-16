@@ -77,14 +77,14 @@ getprop disabled_TrashLocalFolder [dView]
    put the selected_Line of dView into shortWikiFolder
    put wikiFolder_Get (shortWikiFolder) into wikiFolder
    --
-   return wiki_FolderHasNoPages (wikiFolder) is false
+   return wikiFolder_HasNoPages (wikiFolder) is false
 end disabled_TrashLocalFolder
 
 getprop disabled_TrashGitWikiFolder [dView]
    if the shiftKey is "down" then return false
    put _GitWikiFolder (dView) into gitWikiFolder
    --
-   return wiki_FolderHasNoPages (gitWikiFolder) is false
+   return wikiFolder_HasNoPages (gitWikiFolder) is false
 end disabled_TrashGitWikiFolder
 
 getprop disabled_DeleteSymLink [dView]

@@ -24,11 +24,99 @@ command display_ServerData
    return dView
 end display_ServerData
 
+function wikiServer_OwnerExists wikiDomain
+   put wikiFile_ConstructOwner (wikiDomain) into ownerFile
+   return there is a file ownerFile
+end wikiServer_OwnerExists
+
+
+--> WikiServer | Files
+-
+command display_WikiOwner wikiDomain, pDisplayView
+   put wikiServer_GetOwnerData (wikiDomain) into ownerData
+   display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
+   put the result into dView
+   return dVIEW
+end display_WikiOwner
+
+command wikiServer_SetFriendlyData wikiDomain, pUserName, pSecret
+   put wikiServer_FriendlyOwnerData (pUserName, pSecret) into ownerData
+   wikiServer_SetOwnerData wikiDomain, ownerData
+   put the result into ownerFile
+   return ownerFile
+end wikiServer_SetFriendlyData
+
+function wikiServer_GetOwnerData wikiDomain
+   put wikiFile_ConstructOwner (wikiDomain) into ownerFile
+   if there is a file ownerFile then
+      put jsonArray_FromFile (ownerFile) into ownerData
+      return ownerData
+   else
+      return empty
+   end if
+end wikiServer_GetOwnerData
+
+command wikiServer_SetOwnerData wikiDomain, pOwnerData
+   if pOwnerData is not an array then
+      put wikiServer_FriendlyOwnerData() inot pOwnerData
+   end if
+   
+   put wikiFile_ConstructOwner (wikiDomain) into ownerFile
+   jsonArray_ToFile ownerFile, pOwnerData
+   return ownerFile
+end wikiServer_SetOwnerData
+
+function wikiServer_FriendlyOwnerData pUserName, pSecret
+   if pUserName is empty then put lcw_GetAuthor() into pUserName
+   if pSecret is empty then put system_GetAdminPassword() into pSecret
+   --
+   put wikiServer_ConstructOwnerData (pUserName, pSecret, "friendly") into ownerData
+   return ownerData
+end wikiServer_FriendlyOwnerData
+
+function wikiServer_ConstructOwnerData pUserName, pSecret, pSecurityType
+   -- only "friendly" for now
+   if pUserName is empty then put lcw_GetAuthor() into pUserName
+   if pSecret is empty then put system_GetAdminPassword() into pSecret
+   
+   switch pSecurityType
+      case "friendly"
+      default
+         put pUserName into ownerData ["name"]
+         put pSecret into ownerData ["friend"]["secret"]
+   end switch
+   return ownerData
+end wikiServer_ConstructOwnerData
+
+function wikiServer_ConstructFriendlyJson pUserName, pSecret
+   if pUserName is empty then put lcw_GetAuthor() into pUserName
+   if pSecret is empty then put system_GetAdminPassword() into pSecret
+   --
+   replace "'" with quote in ownerJSON
+   return ownerJSON
+end wikiServer_ConstructFriendlyJson
+
+function wikiServer_GetFavicon wikiDomain
+   put wikiFile_Favicon (wikiDomain) into faviconFile
+   if there is a file faviconFile then
+      put url ("binfile:" & faviconFile) into pngData
+      return pngData
+   else
+      return empty
+   end if
+end wikiServer_GetFavicon
+
+command wikiServer_SetFavicon wikiDomain, pngData
+   put wikiFile_Favicon (wikiDomain) into faviconFile
+   put pngData into url ("binfile:" & faviconFile)
+   return faviconFile
+end wikiServer_SetFavicon
+
 
 --> WikiServer
 -
 function wikiServer_GetSecurityType
-   if WikiServer_SecurityType is empty then put "legacy" into WikiServer_SecurityType
+   if WikiServer_SecurityType is empty then put "friends" into WikiServer_SecurityType
    --
    return WikiServer_SecurityType
 end wikiServer_GetSecurityType
@@ -36,6 +124,14 @@ end wikiServer_GetSecurityType
 command wikiServer_SetSecurityType securityType
    put securityType into WikiServer_SecurityType
 end wikiServer_SetSecurityType
+
+function wikiServer_ListSecurityTypes pPrettyMenu
+   if pPrettyMenu is true then
+      return "legacy,cookie,passport,-,friends"
+   else
+      return "legacy,cookie,passport,friends"
+   end if
+end wikiServer_ListSecurityTypes
 
 
 --> WikiServer | Create
@@ -63,7 +159,7 @@ command wikiServer_Create wikiDomain
    pageJson_Set wikiDomain, pageSlug, pageJSON
    
    put wikiServer_GetFavicon() into pngData
-   wiki_SetFavicon wikiDomain, pngData
+   wikiServer_SetFavicon wikiDomain, pngData
 end wikiServer_Create
 
 
@@ -83,6 +179,19 @@ end wikiServer_NodeIsRunning
 
 --> WikiServer | Start
 -
+command wikiServer_Toggle pWikiView
+   if wikiServer_IsRunning() is true then
+      wikiServer_Stop
+      --
+      lcw_Notify "Stopped wiki-server!"
+   else
+      wikiServer_StopNode
+      wikiServer_Start
+      --
+      lcw_Notify "Started wiki-server!"
+   end if
+end wikiServer_Toggle
+
 command wikiServer_StartWithXterm pXtermBrowser, pLog
    put wikiServer_TerminalCommand() into someShell -- not working with Shell
    --
@@ -154,6 +263,10 @@ command wikiServer_StartNode pSecurityType, pFarm, pPort
    put shell (someShell) into shellResult
    put word 2 of shellResult into wikiProcessID
    
+   # Notify
+   put "Started node server using" && someShell into sComment
+   lcw_Notify sComment, "Node Server"
+   
    # Indicate wiki starting up
    return wikiProcessID
 end wikiServer_StartNode
@@ -167,7 +280,11 @@ command wikiServer_StopNode pIDs
       repeat for each item pID in pIDs
          kill process pID
       end repeat
+      
+      # Notify
+      lcw_Notify "Closed node server!", "Node Server"
    else
+      breakpoint
       close process wiki
    end if
 end wikiServer_StopNode

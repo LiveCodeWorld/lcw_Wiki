@@ -11,34 +11,6 @@ version: 0.2
 */
 
 
---> Move
--
-command wiki_TrashEmpty pEmptyLocalDomains, pDisplayView
-   if pEmptyLocalDomains is empty then
-      put wiki_ListEmptyLocalFolders (true) into pEmptyLocalDomains
-   end if
-   --
-   repeat for each line wikiDomain in pEmptyLocalDomains
-      display_Spin wikiDomain, pDisplayView, "red"
-      put the result into lineNum
-      --
-      put wikiFolder_Get (wikiDomain) into wikiFolder
-      if there is a folder wikiFolder then
-         if wiki_NumberOfpages (wikiFolder) < 1 then
-            revDeleteFolder wikiFolder
-            if exists (pDisplayView) then
-               set the deleted_Line of pDisplayView to lineNum
-            end if
-         else
-            breakpoint
-         end if
-      else
-         breakpoint
-      end if
-   end repeat
-end wiki_TrashEmpty
-
-
 --> Working on
 -
 function pageArray_FromURL droppedURL, pWikiDomain
@@ -124,18 +96,6 @@ command platform_CleanJournal browserView
    -- set the page_Slug [wikidomain] of browserView to pageSlug
    set the ghost_PageArray of browserView to pageArray
 end platform_CleanJournal
-
-command platform_DeleteEmptyWikis browserView
-   lcw_Answer "Are you sure you want to delete these empty wiki folders?", browserView
-   --
-   wiki_TrashEmpty
-end platform_DeleteEmptyWikis
-
-command platform_RefreshEmptyWikis browserView
-   put wikiPage_EmptyLocalFolders() into pageArray
-   set the ghost_PageArray of browserView to pageArray
-   return pageArray
-end platform_RefreshEmptyWikis
 
 on platform_ToggleMenuBar browserView
    put the show_Menu of browserView into sBoolean

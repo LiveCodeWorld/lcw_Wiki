@@ -77,22 +77,8 @@ on menu_UpdateEtcHosts
    display_Text hostsText, "/etc/hosts"
 end menu_UpdateEtcHosts
 
-on menu_DisplayLog
-   display_ViewTemplate "View|Wiki|Server"
-end menu_DisplayLog
-
 private on __
 end __
-
-on menu_SetLogging wsView
-   put the behavior of stack "behavior_WikiRouter" is not empty into isLogging
-   if isLogging is true then
-      set the behavior of stack "behavior_WikiRouter" to empty
-   else
-      put the name of stack "behavior_DaemonLog" into bObject
-      set the behavior of stack "behavior_WikiRouter" to bObject
-   end if
-end menu_SetLogging
 
 private on ___
 end ___

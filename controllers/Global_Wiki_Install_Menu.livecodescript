@@ -51,7 +51,7 @@ on menu_ShowHiddenFiles mTarget, someBoolean
 end menu_ShowHiddenFiles
 
 on menu_RevealWikiModulesFolder
-   put wiki_ModulesFolder() into wikiModulesFolder
+   put wikiFolder_Modules() into wikiModulesFolder
    finder_Reveal wikiModulesFolder
 end menu_RevealWikiModulesFolder
 
