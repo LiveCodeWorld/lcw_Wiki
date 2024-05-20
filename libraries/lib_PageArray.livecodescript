@@ -14,12 +14,6 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 
 --> Working on
 -
-function wiki_FetchRefDomains wikiDomain, pageSlug
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   put pageArray_ListReferenceDomains (pageArray) into refDomains
-   return refDomains
-end wiki_FetchRefDomains
-
 function dot_FetchHandlerGraphData hName, pJsonType
    -- https://graphviz.org/docs/outputs/json/
    if pJsonType is empty then put "json" into pJsonType -- "json0,dot_json,xdot_json"

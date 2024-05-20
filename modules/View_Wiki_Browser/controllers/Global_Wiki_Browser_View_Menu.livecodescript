@@ -57,6 +57,18 @@ getprop checked_Background [wikiView]
    return sBoolean
 end checked_Background
 
+getprop scale_Params
+   return "0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,-,1,-,1.5"
+end scale_Params
+
+getprop shrink_Params [wikiView]
+   return the page_Slugs of wikiView
+end shrink_Params
+
+getprop checked_AnimationEngine [wikiView]
+   return "animationEngine" is among the lines of the stacksinuse
+end checked_AnimationEngine
+
 
 --> Global | Wiki | Browser | View | Menu
 -
@@ -90,6 +102,29 @@ end menu_Background
 
 private on __
 end __
+
+on menu_Shrink wikiView, pageSlug
+   -- put the page_Rect ["welcome-visitors"] of wikiView into sRect
+   -- 204,364,302,542
+   
+   set the page_Scale [pageSlug] of wikiView to 0.2
+   put the page_Rect [pageSlug] of wikiView into sRect
+   --
+   rect_Translate sRect, 400, 200
+   --
+   set the page_Rect [pageSlug] of wikiView to sRect
+end menu_Shrink
+
+on menu_Scale wikiView, sSale
+   -- put wikijs_SetPageScale (sSale) into sJavascript
+   -- set the browser_Javascript of wikiView to sJavascript
+   set the wiki_Scale of wikiView to sSale
+   -- set the page_Scale of wikiView to sScale
+end menu_Scale
+
+on menu_AnimationEngine
+   breakpoint
+end menu_AnimationEngine
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | View | Menu")

@@ -30,13 +30,18 @@ end menu_CheckTarget
 
 --> Global | Wiki | Owner | Menu
 -
-on menu_SetFriendly dView
+on menu_DisplayFrinedlyDefault dView
+   put wikiServer_FriendlyOwnerData() into ownerData
+   set the displayed_Data of dView to ownerData
+end menu_DisplayFrinedlyDefault
+
+on menu_SetFriendlyDefault dView
    put the title_Text of dView into wikiDomain
    --
    wikiServer_SetFriendlyData wikiDomain
    --
    lcw_Answer "Set owner.json", dView, pQVar
-end menu_SetFriendly
+end menu_SetFriendlyDefault
 
 private on _
 end _

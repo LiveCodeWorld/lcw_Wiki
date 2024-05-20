@@ -20,29 +20,6 @@ local Garden_EcoData
 
 --> Working on
 -
-command display_GardenEcodata
-   put wikiGarden_GetModel() into ecoData
-   display_Array ecoData, "wikiGarden_GetModel()", "Ecodata"
-   put the result into dView
-   return dView
-end display_GardenEcodata
-
-function wikiGarden_ConstructFolder gardenName, pEcoName
-   if pEcoName is empty then
-      
-   else
-      put wikiGarden_GetEcoFolder (pEcoName) into ecoFolder
-      put ecoFolder & gardenName & slash into gardenFolder
-   end if
-   return gardenFolder
-end wikiGarden_ConstructFolder
-
-command wikiGarden_Close
-   wikiGarden_SetEcoData empty
-   wikiFarm_SetDomains empty
-   wikiRouter_SetArray empty
-   wikiGarden_SetDomainData empty
-end wikiGarden_Close
 
 
 --> WikiGarden | EcoFolder

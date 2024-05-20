@@ -57,7 +57,7 @@ function wikiFolder_HasNoPages wikiFolder, pNum
    if pNum is not a number then put 1 into pNum
    put wikiFolder_NumberOfPages (wikiFolder) into numOfPages
    if numOfPages is empty then return empty -- not a wiki
-   return numOfPages < pNum
+   return numOfPages <= pNum
 end wikiFolder_HasNoPages
 
 function wikiFolder_NumberOfPages wikiFolder, pUseSymLinked
@@ -77,27 +77,6 @@ end wikiFolder_NumberOfPages
 
 --> List | Empty
 -
-function wikiGarden_ListEmptyFolders pListShort
-   put wikiGarden_ListFolders() into wikiFolders
-   --
-   set the itemdelimiter to slash
-   repeat for each line wikiFolder in wikiFolders
-      set the cursor to busy
-      put wikiFolder_HasNoPages (wikiFolder) into noPages
-      if noPages is false then next repeat
-      
-      if pListShort is true then
-         put item -1 of wikiFolder & CR after emptyFolders
-      else
-         put wikiFolder & CR after emptyFolders
-      end if
-   end repeat
-   delete char -1 of emptyFolders
-   
-   url_SortDomainIndex emptyFolders
-   return emptyFolders
-end wikiGarden_ListEmptyFolders
-
 function wikiFarm_ListEmptyFolders pListShort
    put wikiFarm_GetFolder() into farmFolder
    put _NotThese into notThese
@@ -266,8 +245,12 @@ private function _NumberOfpages wikiFolder
    
    # List wiki-pages and count
    put files (pageFolder) into pageFiles
+   if ".." is among the lines of pageFiles then
+      breakpoint -- no longer needed?
+      delete line 1 of pageFiles
+   end if
    if pageFiles is empty then return 0
-   put the number of lines of pageFiles - 1 into numOfPages
+   put the number of lines of pageFiles into numOfPages
    return numOfPages
 end _NumberOfpages
 

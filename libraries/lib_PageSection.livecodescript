@@ -16,6 +16,37 @@ You can refer to sections by index or title.
 
 --> Working on
 -
+command pageArray_SetSectionBulletIndex @pageArray, sectionTitle, bulletIndex, pIntroText
+   put markdown_LinkedBullets (bulletIndex) into sMarkdown
+   if pIntroText is not empty then
+      put pIntroText &CR&CR before sMarkdown
+   end if
+   --
+   pageArray_ReplaceSectionMarkdown pageArray, sectionTitle, sMarkdown
+   --
+   put the result into itemNumsToDelete
+   return itemNumsToDelete
+end pageArray_SetSectionBulletIndex
+
+command pageArray_ReplaceSectionMarkdown @pArray, sTitle, sMarkdown
+   local startItemNum, endItemNum
+   
+   pageArray_DeleteSection pArray, sTitle
+   if the result = 0 then return 0
+   put item 1 of the result - 1 into beforeTitleNum
+   --
+   put "#" && sTitle & CR&CR before sMarkdown 
+   get itemArray_Construct ("markdown", "", sMarkdown)
+   put it into sArray[1]
+   --
+   pageArray_InsertStoryAfter pArray, sArray, beforeTitleNum
+   --
+   return itemNumsToDelete
+end pageArray_ReplaceSectionMarkdown
+
+
+--> PageArray | Section
+-
 command pageArray_AddSection @pageArray, storyArray, sectionTitle, pAfterSectionTitle
    pageArray_SetSectionOffsets sectionTitle, pageArray, startItemNum, endItemNum
    if the result is true then
@@ -39,7 +70,25 @@ command pageArray_AddSection @pageArray, storyArray, sectionTitle, pAfterSection
    end if
 end pageArray_AddSection
 
-function pageArray_GetSectionText pageArray, sectionTitle
+function pageArray_GetSectionBulletIndex pageArray, sectionTitle
+   put pageArray_GetSection (sectionTitle, pageArray) into sectionStory
+   --
+   put item 2 of the extents of sectionStory into maxItem
+   repeat with itemNum = 2 to maxItem
+      put sectionStory [itemNum] into itemArray
+      if itemArray ["type"] is not "markdown" then next repeat
+      --
+      put itemArray ["text"] & CR into itemText
+      filter itemText with "- *"
+      put CR after itemText
+      replace "- [[" with empty in itemText
+      replace ("]]" & CR) with CR in itemText
+      put itemText after bulletLines
+   end repeat
+   return word 1 to -1 of bulletLines
+end pageArray_GetSectionBulletIndex
+
+function pageArray_GetSectionText pageArray
    put pageArray_GetSection (sectionTitle, pageArray) into sectionStory
    --
    put item 2 of the extents of sectionStory into maxItem
@@ -105,23 +154,6 @@ command pageArray_ReplaceSection @pArray, sTitle, storyArray
    pageArray_InsertStoryAfter pArray, storyArray, beforeTitleNum
    return beforeTitleNum
 end pageArray_ReplaceSection
-
-command pageArray_ReplaceSectionMarkdown @pArray, sTitle, sMarkdown
-   local startItemNum, endItemNum
-   
-   pageArray_DeleteSection pArray, sTitle
-   if the result = 0 then return 0
-   put item 1 of the result - 1 into beforeTitleNum
-   --
-   put "#" && sTitle & CR&CR before sMarkdown 
-   get itemArray_Construct ("markdown", "", sMarkdown)
-   put it into sArray[1]
-   --
-   breakpoint
-   pageArray_InsertStoryAfter pArray, sArray, beforeTitleNum
-   --
-   return itemNumsToDelete
-end pageArray_ReplaceSectionMarkdown
 
 command pageArray_ReplaceSectionBody @pageArray, sectionTitle, storyArray
    pageArray_DeleteSection pageArray, sectionTitle, true

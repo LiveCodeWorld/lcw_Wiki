@@ -52,9 +52,9 @@ getprop displayDomain_Params
    put wikiFolder_ListTopLevel() into wikiDomains
    --
    if wikiDomains is empty then
-      return "ChatGPT,Localhost"
+      return "ChatGPT,Localhost,-,Ask"
    else
-      return wikiDomains & ",-,ChatGPT,Localhost"
+      return "Ask,-" &CR& wikiDomains &CR& "-,ChatGPT"
    end if
 end displayDomain_Params
 
@@ -81,6 +81,18 @@ end disabled_Subdomain
 on menu_DisplayDomain wikiView, wikiDomain   
    if the shiftKey is "down" then put empty into wikiView
    switch wikiDomain
+      case "Ask"
+         put the wiki_Domain of wikiView into wikiDomain
+         put lcw_Ask ("Display wiki '[[var]]'...", wikiDomain, wikiView, wikiDomain) into wikiDomain
+         --
+         put wikiGarden_Folder (wikiDomain) into gardenFolder
+         if gardenFolder is not empty then
+            put wikiGarden_Name (wikiDomain) into gardenName
+            wikiServer_StartNodeGarden gardenName
+         end if
+         --
+         display_WikiBrowser wikiDomain, wikiView
+         break
       case "ChatGPT"
          display_WikiBrowser "https://chat.openai.com/", wikiView
          break
@@ -100,21 +112,25 @@ end menu_Subdomain
 private on _
 end _
 
-on menu_Localhost.1 wikiView
-   set the page_Title ["localhost"] of wikiView to "Welcome Visitors"
-end menu_Localhost.1
+on menu_Fedwiki.1 wikiView
+   display_WikiDomain "fedwiki.org"
+end menu_Fedwiki.1
 
-on menu_Thought.2 wikiView
+on menu_Livecode.2 wikiView
+   -- set the page_Title ["livecode.world"] of wikiView to "Welcome Visitors"
+   display_WikiDomain "livecode.world"
+end menu_Livecode.2
+
+on menu_Thought.3 wikiView
    set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
-end menu_Thought.2
-
-on menu_Livecode.3 wikiView
-   set the page_Title ["livecode.world"] of wikiView to "Welcome Visitors"
-   set the page_Title ["project.livecode.world"] of wikiView to "Welcome Visitors"
-end menu_Livecode.3
+end menu_Thought.3
 
 private on __
 end __
+
+on menu_Localhost.9 wikiView
+   display_WikiBrowser "localhost", wikiView
+end menu_Localhost.9
 
 on menu_ResetDomain.0 wikiView
    put the wiki_Domain of wikiView into wikiDomain
@@ -123,9 +139,14 @@ on menu_ResetDomain.0 wikiView
    display_Wiki wikiDomain, wikiView
 end menu_ResetDomain.0
 
+private on ___
+end ___
+
 on menu_SaveStack wikiView
    put the stack_Name of wikiView into sName
    save stack sName
+   --
+   lcw_Notify "Saved stack!", sName
 end menu_SaveStack
 
 on submenu_Dev

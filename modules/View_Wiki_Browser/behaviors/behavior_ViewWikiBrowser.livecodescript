@@ -19,6 +19,42 @@ local LocalArray
 
 --> Working on
 -
+getprop menu_Target [tObject]
+   -- used but menus of "View|Wiki|Browser"
+   if exists (tObject) is false then
+      put the long id of the target into tObject
+   end if
+   --
+   put the wikiBrowser_View of tObject into wikiView
+   if exists (wikiView) is false then
+      put the display_View of tObject into dView
+      put the displayed_Object of dView into wikiView
+      if exists (wikiView) is false then
+         return empty
+      end if
+   end if
+   
+   return wikiView
+end menu_Target
+
+
+--> Objects
+-
+getprop wikiBrowser_View
+   return the long id of me
+end wikiBrowser_View
+
+getprop browser_View
+   return the long id of me
+end browser_View
+
+getprop view_Object
+   return the long id of me
+end view_Object
+
+
+--> Props
+-
 getprop last_PageSlug
    put the browser_URL of me into browserURL
    get _LineUpInfo (browserURL)
@@ -546,14 +582,26 @@ setprop wiki_IsTransparent sBoolean
    return sJavascript
 end wiki_IsTransparent
 
+getprop wiki_Garden
+   put _WikiDomain() into wikiDomain
+   put wikiGarden_Name (wikiDomain) into gardenName
+   return gardenName
+end wiki_Garden
+
 getprop wiki_Domain
-   put the browser_URL of me into someURL
+   return _WikiDomain()
+end wiki_Domain
+
+private function _WikiDomain
    set the itemdelimiter to slash
+   --
+   put the browser_URL of me into someURL
    put item 3 of someURL into wikiDomain
+   --
    set the itemdelimiter to "."
    if item 1 of wikiDomain = "www" then delete item 1 of wikiDomain
    return wikiDomain
-end wiki_Domain
+end _WikiDomain
 
 setprop wiki_Domain domainOrURL
    put _BrowserWidget() into browserWidget
@@ -767,17 +815,6 @@ setprop browser_HtmlText someHTML
    set the htmltext of me to someHTML
    return the long id of me
 end browser_HtmlText
-
-
---> Objects
--
-getprop view_Object
-   return the long id of me
-end view_Object
-
-getprop browser_View
-   return the long id of me
-end browser_View
 
 
 --> Private | Objects

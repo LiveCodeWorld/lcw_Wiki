@@ -31,6 +31,12 @@ function atopia_FetchRoster
    return word 1 to -1 of rosterText
 end atopia_FetchRoster
 
+function roster_FromReferences wikiDomain, pageSlug
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   put pageArray_ListReferenceDomains (pageArray) into refDomains
+   return refDomains
+end roster_FromReferences
+
 function roster_ConstructReferenceText tldDomain, pTitle
    local rosterText
    put pTitle & CR&CR into rosterText
@@ -576,7 +582,7 @@ private command _FetchRosterReferences refLines, @domainArray
       put item 1 of refLine into refDomain
       put item 2 of refLine into refSlug
       --
-      put wiki_FetchRefDomains (refDomain, refSlug) into moreDomains
+      put roster_FromReferences (refDomain, refSlug) into moreDomains
       _AddRosterToArray domainArray, moreDomains
    end repeat
 end _FetchRosterReferences

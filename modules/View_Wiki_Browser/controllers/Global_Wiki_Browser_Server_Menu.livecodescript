@@ -15,21 +15,22 @@ Full help text should be provided on the linked wiki.*/
 -
 local LocalArray
 
+
 --> Menu | Props
 -
-getprop menu_Target [tObject]
-   -- put display_MenuTarget (tObject) into dView
-   put the display_View of tObject into dView
-   return dView
-end menu_Target
+getprop menu_CheckTarget [wikiView]
+   -- put the wiki_Domain of wikiView into wikiDomain
+   -- put wikiDomain into LocalArray ["wikiDomain"]
+   return exists (wikiView)
+end menu_CheckTarget
 
 getprop checked_StartServer
    return wikiServer_IsRunning()
 end checked_StartServer
 
-getprop checked_UseNodeServer
+getprop checked_StartNodeServer
    return wikiServer_NodeIsRunning()
-end checked_UseNodeServer
+end checked_StartNodeServer
 
 getprop port_Param [wsView]
    put the listen_Port of wsView into sPort
@@ -60,44 +61,46 @@ getprop checked_SetLogging
    return isLogging
 end checked_SetLogging
 
-private command _RefreshMenu wikiView
-   put the menubar_View of wikiView into mGroup
-   --
-   put the live_Menu of mGroup into isLive
-   if isLive is false then
-      set the menuButton_Refresh of mGroup to "Server"
-   end if
-end _RefreshMenu
+getprop checked_AddOwnerJson [wikiView]
+   put the wiki_Domain of wikiView into wikiDomain
+   return wikiServer_OwnerExists (wikiDomain)
+end checked_AddOwnerJson
+
+getprop disabled_AddOwnerJson [wikiView]
+   put the wiki_Domain of wikiView into wikiDomain
+   switch wikiDomain
+      case "localhost"
+         return "delete"
+      default
+         return false
+   end switch
+end disabled_AddOwnerJson
 
 
 --> Global | Wiki | Browser | Server | Menu
 -
 on menu_StartServer.5 wikiView
    wikiServer_Toggle wikiView
-   --
-   _RefreshMenu wikiView
 end menu_StartServer.5
 
-on menu_UseNodeServer.4 wikiView
+on menu_StartNodeServer.4 wikiView
    if wikiServer_NodeIsRunning() then
       wikiServer_StopNode
    else
       wikiServer_Stop
-      wikiServer_StartNode
+      wikiServer_StartNodeFarm
    end if
-   --
-   _RefreshMenu wikiView
-end menu_UseNodeServer.4
+end menu_StartNodeServer.4
 
-on menu_StopServer.8 wikiView
+on menu_StopServers wikiView
    if wikiServer_NodeIsRunning() then
       wikiServer_StopNode
-   else
+   end if
+   
+   if wikiServer_IsRunning() then
       wikiServer_Stop
    end if
-   --
-   _RefreshMenu wikiView
-end menu_StopServer.8
+end menu_StopServers
 
 private on _
 end _
@@ -107,14 +110,10 @@ on menu_Port wikiView, sPort
    --
    -- wiki_SetPort sPort
    set the listen_Port of mGroup to sPort
-   --
-   _RefreshMenu wikiView
 end menu_Port
 
 on menu_SecurityType wikiView, securityType
    wikiServer_SetSecurityType securityType
-   --
-   _RefreshMenu wikiView
 end menu_SecurityType
 
 private on __
@@ -136,16 +135,24 @@ on menu_SetLogging wsView
       put the name of stack "behavior_DaemonLog" into bObject
       set the behavior of stack "behavior_WikiRouter" to bObject
    end if
-   --
-   _RefreshMenu wikiView
 end menu_SetLogging
 
-private on ___
-end ___
+private on ____
+end ____
 
-on submenu_ServerTools
+on menu_AddOwnerJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   if wikiServer_OwnerExists (wikiDomain) then
+      display_WikiOwner wikiDomain
+   else
+      wikiServer_SetFriendlyData wikiDomain
+   end if
+end menu_AddOwnerJson
+
+on submenu_ServerData
    return "Global | Wiki | Server | Menu"
-end submenu_ServerTools
+end submenu_ServerData
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | Server | Menu")

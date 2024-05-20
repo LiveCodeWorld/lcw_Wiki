@@ -7,7 +7,8 @@ name: lib_WikiServer
 type: library
 version: 0.1
 
-/*Some help*/
+/*
+*/
 
 
 --> Variables
@@ -24,14 +25,107 @@ command display_ServerData
    return dView
 end display_ServerData
 
+command wikiServer_SwitchIfGarden wikiDomain
+   put wikiGarden_Name (wikiDomain) into gardeName
+   if gardeName is empty then return empty
+   
+   wikiServer_StopNode
+   wikiServer_StartNodeGarden gardenName
+end wikiServer_SwitchIfGarden
+
+command wikiServer_StartNodeGarden gardenName
+   wikiServer_StopNode
+   --
+   switch gardenName
+      case "Farm"
+      case pFarmFolder is empty
+         put wikiFarm_GetFolder() into gardenFolder
+         break
+      default
+         put wikiGarden_ConstructFolder (gardenName) into gardenFolder
+   end switch
+   
+   wikiServer_StartNodeFarm gardenFolder
+   put the result into wikiProcessID
+   return wikiProcessID
+end wikiServer_StartNodeGarden
+
+command wikiServer_StartNodeFarm pFarmFolder
+   -- wrapper around "wikiServer_StartNode" which also does "wikiGarden_Init"
+   if pFarmFolder is empty then
+      put wikiFarm_GetFolder() into pFarmFolder
+   end if
+   
+   put wikiServer_ShellCommand ("friends", true, 80, pFarmFolder) into someShell
+   put shell (someShell) into shellResult
+   put word 2 of shellResult into wikiProcessID
+   
+   # Init gardens
+   wikiGarden_Init
+   
+   # Notify
+   put "Started node server using" && someShell into sComment
+   lcw_Notify sComment, "Node Server"
+   
+   # Indicate wiki starting up
+   return wikiProcessID
+end wikiServer_StartNodeFarm
+
+
+--> WikiServer | Node
+-
+command wikiServer_StartNode pSecurityType, pFarm, pPort, pDataFolder
+   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
+   --
+   put wikiServer_ListProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then return empty -- so we know already started
+   --
+   wiki_NormailzePort pPort
+   if pPort is empty then put 80 into pPort
+   --
+   put wikiServer_ShellCommand (pSecurityType, pFarm, pPort, pDataFolder) into someShell
+   put shell (someShell) into shellResult
+   put word 2 of shellResult into wikiProcessID
+   
+   # Notify
+   put "Started node server using" && someShell into sComment
+   lcw_Notify sComment, "Node Server"
+   
+   # Indicate wiki starting up
+   return wikiProcessID
+end wikiServer_StartNode
+
+command wikiServer_StopNode pIDs
+   if the platform = "MacOS" then
+      if pIDs is not a number then
+         put wikiServer_ListProcessIds() into pIDs
+      end if
+      --
+      repeat for each item pID in pIDs
+         kill process pID
+      end repeat
+      
+      # Notify
+      lcw_Notify "Closed node server!", "Node Server"
+   else
+      breakpoint
+      close process wiki
+   end if
+end wikiServer_StopNode
+
+function wikiServer_NodeIsRunning
+   return wikiServer_ListProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wikiServer_NodeIsRunning
+
+
+--> WikiServer | Files
+-
 function wikiServer_OwnerExists wikiDomain
    put wikiFile_ConstructOwner (wikiDomain) into ownerFile
    return there is a file ownerFile
 end wikiServer_OwnerExists
 
-
---> WikiServer | Files
--
 command display_WikiOwner wikiDomain, pDisplayView
    put wikiServer_GetOwnerData (wikiDomain) into ownerData
    display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
@@ -171,11 +265,6 @@ function wikiServer_IsRunning
    return isRunning
 end wikiServer_IsRunning
 
-function wikiServer_NodeIsRunning
-   return wikiServer_ListProcessIds() is not empty
-   -- return "wiki" is among the lines of the openprocesses
-end wikiServer_NodeIsRunning
-
 
 --> WikiServer | Start
 -
@@ -247,48 +336,6 @@ command wikiServer_Stop pWikiServers, pCloseAll
    return pWikiServer
 end wikiServer_Stop
 
-
---> Wiki | Start | Node
--
-command wikiServer_StartNode pSecurityType, pFarm, pPort
-   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
-   --
-   put wikiServer_ListProcessIds() into wikiProcessIDs
-   if wikiProcessIDs is not empty then return empty -- so we know already started
-   --
-   wiki_NormailzePort pPort
-   if pPort is empty then put 80 into pPort
-   --
-   put wikiServer_ShellCommand (pSecurityType, pFarm, pPort) into someShell
-   put shell (someShell) into shellResult
-   put word 2 of shellResult into wikiProcessID
-   
-   # Notify
-   put "Started node server using" && someShell into sComment
-   lcw_Notify sComment, "Node Server"
-   
-   # Indicate wiki starting up
-   return wikiProcessID
-end wikiServer_StartNode
-
-command wikiServer_StopNode pIDs
-   if the platform = "MacOS" then
-      if pIDs is not a number then
-         put wikiServer_ListProcessIds() into pIDs
-      end if
-      --
-      repeat for each item pID in pIDs
-         kill process pID
-      end repeat
-      
-      # Notify
-      lcw_Notify "Closed node server!", "Node Server"
-   else
-      breakpoint
-      close process wiki
-   end if
-end wikiServer_StopNode
-
 command wikiServer_Restart pNotify, pNotifyText
    if pNotify is not false then
       if pNotifyText is empty then put "Restarted wiki server!" into pNotifyText
@@ -324,8 +371,8 @@ end wikiServer_CopyPageToDefault
 
 --> WikiServer | Shell
 -
-function wikiServer_ShellCommand pSecurityType, pFarm, pPort, pLog, pWithNvm
-   put wikiServer_StartNodeCommand (pSecurityType, pFarm, pLog, pPort, pWithNvm) into someShell
+function wikiServer_ShellCommand pSecurityType, pFarm, pPort, pDataFolder, pLog, pWithNvm
+   put wikiServer_StartNodeCommand (pSecurityType, pFarm, pLog, pPort, pDataFolder, pWithNvm) into someShell
    put "/usr/bin/nohup" & space before someShell
    
    # Add redirect output bit (log if needed)
@@ -338,14 +385,21 @@ function wikiServer_ShellCommand pSecurityType, pFarm, pPort, pLog, pWithNvm
    return someShell
 end wikiServer_ShellCommand
 
-function wikiServer_StartNodeCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
+private function _NodeShell pWithNvm
    if pWithNvm is true then
-      put nvm_GetBin() into wikiBinFile
+      return nvm_GetBin()
    else
-      put "wiki" into wikiBinFile
+      return "wiki"
    end if
-   put wikiBinFile into someShell
-   
+end _NodeShell
+
+private command _AddDataFolder @someShell, pDataFolder
+   if pDataFolder is not empty then
+      put space & "--data" && kwote (pDataFolder) after someShell
+   end if
+end _AddDataFolder
+
+private command _AddSecurityType @someShell, pSecurityType
    # Add authentication
    switch pSecurityType
       case "legacy"
@@ -363,15 +417,34 @@ function wikiServer_StartNodeCommand pSecurityType, pFarm, pLog, pPort, pWithNvm
       default
          put " --security_type" && pSecurityType after someShell
    end switch
-   
+end _AddSecurityType
+
+private command _AddAdmin @someShell
    put space & "--admin" && "david.bovill@gmail.com" after someShell
-   --
-   if pFarm is not false then put space & "--farm" after someShell
+end _AddAdmin
+
+private command _AddFarm @someShell, pFarm
+   if pFarm is not false then
+      put space & "--farm" after someShell
+   end if
+end _AddFarm
+
+private command _AddPort @someShell, pPort
    if pPort is empty then
       put space & "--port 80" after someShell
    else
       put space & "--port" && pPort after someShell
    end if
+end _AddPort
+
+function wikiServer_StartNodeCommand pSecurityType, pFarm, pLog, pPort, pDataFolder, pWithNvm
+   put _NodeShell (pWithNvm) into someShell
+   
+   _AddSecurityType someShell, pSecurityType
+   _AddAdmin someShell
+   _AddFarm someShell, pFarm
+   _AddPort someShell, pPort
+   _AddDataFolder someShell, pDataFolder
    --
    return someShell
 end wikiServer_StartNodeCommand

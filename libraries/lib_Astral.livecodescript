@@ -42,7 +42,7 @@ function astral_SubFromDomains aDomains, pDelim
 end astral_SubFromDomains
 
 function astral_FetchPeopleDomains
-   put wiki_FetchRefDomains ("people.astralship.wiki", "people") into peopleDomains
+   put roster_FromReferences ("people.astralship.wiki", "people") into peopleDomains
    return peopleDomains
 end astral_FetchPeopleDomains
 

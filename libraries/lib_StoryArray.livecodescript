@@ -5,25 +5,16 @@ copyright: David Bovill
 license: GPLv3
 name: lib_StoryArray
 type: library
-version: 0.1
+version: 0.2
 
 /*Some help*/
 
 
 --> Working on
 -
-function storyArray_GetLastPageFold storyArray
-   -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
-   put item 2 of the extents of storyArray into maxNum
-   repeat with itemNum = maxNum down to 1
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "pagefold" then
-         return itemNum
-      end if
-   end repeat
-   return 0
-end storyArray_GetLastPageFold
 
+--> PageArray | Story
+-
 command pageArray_AddStory @pageArray, moreStoryItemArray
    if moreStoryItemArray is not an array then return false
    -- add multiple new storyItemArrays from moreStoryItemArray to end of pageArray story
@@ -75,6 +66,33 @@ end pageArray_InsertStoryAfter
 
 --> StoryArray
 -
+function storyArray_GetBefore storyArray, startItemNum
+   repeat with itemNum = 1 to (startItemNum - 1)
+      put storyArray [itemNum] into beforeStoryArray [itemNum]
+   end repeat
+   return beforeStoryArray
+end storyArray_GetBefore
+
+function storyArray_GetAfter storyArray, endItemNum
+   put 1 into afterItemNum
+   repeat with itemNum = (endItemNum+1) to item 2 of the extents of storyArray
+      put pageArray [story][itemNum] into afterStoryArray [afterItemNum]
+   end repeat
+   return afterStoryArray
+end storyArray_GetAfter
+
+function storyArray_GetLastPageFold storyArray
+   -- was "fedwiki_FindLastStoryArrayDivider" then "storyArray_GetLastPageFold"
+   put item 2 of the extents of storyArray into maxNum
+   repeat with itemNum = maxNum down to 1
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "pagefold" then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end storyArray_GetLastPageFold
+
 command storyArray_AddGraphviz @storyArray, graphText, pDot, pSVG, pItemID
    put itemArray_ConstructGraphviz (graphText, pDot, pSVG, pItemID) into itemArray
    itemArray_AddToEnd itemArray, storyArray
@@ -109,13 +127,13 @@ end storyArray_InsertAfter
 command storyArray_InsertInto @storyArray, intoNum, itemArray
    put item 2 of the extents of storyArray into maxItem
    
-   -- move items below intoNum down 1
+   # Move items below intoNum down 1
    repeat with itemNumToMove = maxItem down to intoNum
       put itemNumToMove + 1 into itemNumDestination
       put storyArray [itemNumToMove] into storyArray [itemNumDestination]
    end repeat
    
-   -- now insert itemArray into item intoNum of storyArray
+   # Insert itemArray into item intoNum of storyArray
    put itemArray into storyArray [intoNum]
 end storyArray_InsertInto
 

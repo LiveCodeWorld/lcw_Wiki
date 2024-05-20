@@ -6,38 +6,49 @@ name: lib_DisplayWiki
 type: library
 version: 0.3
 
+/*
+command display_WikiDomain wikiDomain, pDisplayView, pPalette
+   set the cursor to watch
+   -- atopia_DeleteWikiSitemap wikiDomain
+   --
+   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
+   put fedwiki_ConstructSitePageArray (sitemapArray) into sitePageArray
+   --
+   display_Data sitePageArray, wikiDomain, "Wiki", pDisplayView, pPalette
+   put the result into displayView
+   --
+   display_SetInteractions displayView, "Wiki | Pages", "mDoubleUp_DisplayPage"
+   --
+   return displayView
+end display_WikiDomain
+*/
+
 
 --> Working on
 -
-
---> Display | WikiGarden
--
-on mDoubleUp_WikiEco displayView, wikiFolder
-   put someLine &CR& the title_Text of displayView
-end mDoubleUp_WikiEco
-
-command display_WikiEcoData pEcoData
-   if pEcoData is not an array then
-      put wikiGarden_GetModel() into pEcoData
-   end if
-   
-   display_Tools pEcoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
-   return the result
-end display_WikiEcoData
-
-command display_RouterFolderArray
-   put wikiRouter_FolderArray() into routerFolderArray
-   
-   display_Data routerFolderArray, "WikiRouter_FolderArray", "Wiki"
-   return the result
-end display_RouterFolderArray
+function display_ListWikiBrowsers pWikiDomain
+   return display_List ("View|Wiki|Browser", pWikiDomain)
+end display_ListWikiBrowsers
 
 
 --> Display | Wiki
 -
+command display_WikiDomain wikiDomain
+   put display_ListWikiBrowsers (wikiDomain) into dViews
+   if dViews is empty then
+      wikiServer_SwitchIfGarden wikiDomain
+      display_Wiki wikiDomain
+   else
+      repeat for each line dView in dViews
+         put the stack_Name of dView into stackName
+         topLevel stack stackName
+      end repeat
+   end if
+end display_WikiDomain
+
 command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
    -- display_LocalWiki
-   -- _NormalizeWikiBrowser pBrowserView
+   _NormalizeWikiBrowser pBrowserView
    
    if pStackLabel is empty then put wikiDomain into pStackLabel
    put wiki_ConstructUrl (wikiDomain) into wikiURL
