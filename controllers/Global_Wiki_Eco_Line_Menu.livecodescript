@@ -31,16 +31,15 @@ end menu_CheckTarget
 --> Global | Wiki | Eco | Line | Menu
 -
 on menu_WikiEcoLine dView
-   put the params
+   put the selected_Value of dView
 end menu_WikiEcoLine
 
 private on _
 end _
 
-on menu_Behavior dView
-   put the behavior of dView into bObject
-   edit the script of bObject
-end menu_Behavior
+on menu_DisplayWikiPreferences dView
+  display_WikiPage "localhost", "local-preference"
+end menu_DisplayWikiPreferences
 
 on menu_ModuleTools dView
    put the view_Name of dView into viewName

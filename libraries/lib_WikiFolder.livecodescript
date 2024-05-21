@@ -11,6 +11,20 @@ version: 0.1
 */
 
 
+--> Working on
+-
+function wikiFolder_ConstructFromFarm wikiDomain
+   put wikiFarm_GetFolder() into wikiFarm
+   if there is not a folder wikiFarm then
+      --
+      put wikiFarm_GetDefaultFolder() into wikiFarm
+   end if
+   
+   put wikiFarm & wikiDomain & slash into wikiFolder
+   return wikiFolder
+end wikiFolder_ConstructFromFarm
+
+
 --> Move
 -
 command platform_DeleteEmptyWikis browserView
@@ -50,8 +64,15 @@ command wiki_TrashEmpty pEmptyLocalDomains, pDisplayView
    end repeat
 end wiki_TrashEmpty
 
+function wikiFarm_ListEmptyFolders pListShort
+   put wikiFarm_GetFolder() into farmFolder
+   put _NotThese into notThese
+   put wikiFolder_ListEmpty (farmFolder, pListShort, notThese) into wikiFolders
+   return wikiFolders
+end wikiFarm_ListEmptyFolders
 
---> Working on
+
+--> WikiFolder
 -
 function wikiFolder_HasNoPages wikiFolder, pNum
    if pNum is not a number then put 1 into pNum
@@ -73,16 +94,6 @@ function wikiFolder_NumberOfPages wikiFolder, pUseSymLinked
    end if
    return numOfPages
 end wikiFolder_NumberOfPages
-
-
---> List | Empty
--
-function wikiFarm_ListEmptyFolders pListShort
-   put wikiFarm_GetFolder() into farmFolder
-   put _NotThese into notThese
-   put wikiFolder_ListEmpty (farmFolder, pListShort, notThese) into wikiFolders
-   return wikiFolders
-end wikiFarm_ListEmptyFolders
 
 
 --> WikiFolder | Fast | WikiRouter
@@ -109,11 +120,6 @@ function wikiFolder_Get wikiDomain
       return empty
    end if
 end wikiFolder_Get
-
-function wikiFolder_ConstructFromFarm wikiDomain
-   put wikiFarm_GetFolder() & wikiDomain & slash into wikiFolder
-   return wikiFolder
-end wikiFolder_ConstructFromFarm
 
 function wikiFolder_ListEmpty pFarmFolder, pListShort, pNotTheseShortFolders
    if pFarmFolder is empty then put wikiFarm_GetFolder() into pFarmFolder

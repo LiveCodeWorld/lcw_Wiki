@@ -90,7 +90,7 @@ function wikiGarden_GetDomainArray wikiDomain
 end wikiGarden_GetDomainArray
 
 function wikiGarden_ConstructFolder gardenName, pEcoName
-   put wikiGarden_GetEcoFolder (pEcoName) into ecoFolder
+   put ecoData_GetEcoFolder (pEcoName) into ecoFolder
    if ecoFolder is empty then return empty
    --
    put ecoFolder & gardenName & slash into gardenFolder
@@ -98,7 +98,7 @@ function wikiGarden_ConstructFolder gardenName, pEcoName
 end wikiGarden_ConstructFolder
 
 command wikiGarden_Close
-   wikiGarden_SetEcoData empty
+   ecoData_Set empty
    wikiFarm_SetDomains empty
    wikiRouter_SetArray empty
    wikiGarden_SetDomainData empty

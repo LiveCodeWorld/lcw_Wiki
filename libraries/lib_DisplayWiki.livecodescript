@@ -30,6 +30,31 @@ function display_ListWikiBrowsers pWikiDomain
    return display_List ("View|Wiki|Browser", pWikiDomain)
 end display_ListWikiBrowsers
 
+command display_WikiPage wikiDomain, pSlug
+   put line 1 of display_ListWikiBrowsers (wikiDomain) into wikiView
+   if exists (wikiView) is false then
+      display_Wiki wikiDomain
+      put the result into wikiView
+   end if
+   
+   set the page_Slug of wikiView to pSlug
+   -- set the tool_MenuBit of displayView to "Wiki | Page"
+   return displayView
+end display_WikiPage
+
+private command _DisplayWikiPage wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   --
+   _DisplayPageArray pageArray, pSlug, wikiDomain
+   put the result into displayView
+   --
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pSlug
+   --
+   set the tool_MenuBit of displayView to "Wiki | Page"
+   return displayView
+end _DisplayWikiPage
+
 
 --> Display | Wiki
 -
@@ -105,19 +130,6 @@ end _NormalizeWikiBrowser
 
 --> Display | Wiki | Page
 -
-command display_WikiPage wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   --
-   _DisplayPageArray pageArray, pSlug, wikiDomain
-   put the result into displayView
-   --
-   set the wiki_Domain of displayView to wikiDomain
-   set the page_Slug of displayView to pSlug
-   --
-   set the tool_MenuBit of displayView to "Wiki | Page"
-   return displayView
-end display_WikiPage
-
 command display_PageArray pageArray, pPageTitle
    _DisplayPageArray pageArray, pPageTitle, "PageArray"
    put the result into displayView

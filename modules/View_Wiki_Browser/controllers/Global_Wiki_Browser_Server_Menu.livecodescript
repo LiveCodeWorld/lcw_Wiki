@@ -137,6 +137,34 @@ on menu_SetLogging wsView
    end if
 end menu_SetLogging
 
+private on ___
+end ___
+
+on menu_SetWikiFarmFolder
+   put wikiFarm_EarthFolder() into rootFolder
+   answer folder "Choose a default folder for wiki..." with rootFolder as sheet
+   if it is empty then exit to top
+   put it into newFarmFolder
+   
+   wikiFarm_SetFolder newFarmFolder
+   wikiGarden_StoreCachedEcoData
+   --
+   display_GardenEcodata
+   finder_Reveal newFarmFolder
+end menu_SetWikiFarmFolder
+
+on menu_AddGardenEcoFolder
+   put wikiFarm_EarthFolder() into rootFolder
+   answer folder "Choose a Garden eco-folder for your Gardens..." with rootFolder as sheet
+   if it is empty then exit to top
+   put it into ecoFolder
+   
+   wikiGarden_AddEcoFolder ecoFolder
+   --
+   display_GardenEcodata
+   finder_Reveal ecoFolder
+end menu_AddGardenEcoFolder
+
 private on ____
 end ____
 
@@ -149,6 +177,12 @@ on menu_AddOwnerJson wikiView
       wikiServer_SetFriendlyData wikiDomain
    end if
 end menu_AddOwnerJson
+
+on menu_DisplayOwnerJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   display_WikiOwner wikiDomain
+end menu_DisplayOwnerJson
 
 on submenu_ServerData
    return "Global | Wiki | Server | Menu"

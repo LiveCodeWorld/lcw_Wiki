@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: lib_PageSection
 type: library
-version: 0.1
+version: 0.2
 
 /* A "section" is a set of wiki page-items bounded by markdown titles.
 
@@ -15,6 +15,34 @@ You can refer to sections by index or title.
 
 
 --> Working on
+-
+function pageArray_GetFirstCode pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "code" then
+         put storyArray [itemNum]["text"] into itemText
+         return itemText
+      end if
+   end repeat
+   return empty
+end pageArray_GetFirstCode
+
+command pageArray_SetFirstCode @pageArray, codeText
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "code" then
+         put storyArray [itemNum]["text"] into oldCodeText
+         put codeText into pageArray ["story"][itemNum]["text"]
+         return oldCodeText
+      end if
+   end repeat
+   return empty
+end pageArray_SetFirstCode
+
+
+--> PageArray | BulletIndex
 -
 command pageArray_SetSectionBulletIndex @pageArray, sectionTitle, bulletIndex, pIntroText
    put markdown_LinkedBullets (bulletIndex) into sMarkdown
@@ -99,18 +127,6 @@ function pageArray_GetSectionText pageArray
    end repeat
    return word 1 to -1 of sectionText
 end pageArray_GetSectionText
-
-function pageArray_GetFirstCode pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
-      if itemArray ["type"] = "code" then
-         put storyArray [itemNum]["text"] into itemText
-         return itemText
-      end if
-   end repeat
-   return empty
-end pageArray_GetFirstCode
 
 
 --> PageArray | PageFold

@@ -108,7 +108,7 @@ on menu_BackToFarm wikiView, gardenName
       end switch
    end repeat
    
-   wikiGarden_UpdateEcoData
+   wikiGarden_Update
    wikiGarden_Init
 end menu_BackToFarm
 

@@ -99,7 +99,7 @@ end menu_DraftWelcomeVisitors
 
 on menu_DraftLocalActivity wikiView
    # First update the index from folders
-   wikiGarden_UpdateEcoData
+   wikiGarden_Update
    
    # Construct Activity from all non-empty folders
    put wikiPage_LocalActivity() into pageArray

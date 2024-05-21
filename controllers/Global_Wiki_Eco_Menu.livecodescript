@@ -30,24 +30,16 @@ end menu_CheckTarget
 
 --> Global | Wiki | Eco | Menu
 -
-on menu_DisplayRouterFolderArray
-   display_RouterFolderArray
-end menu_DisplayRouterFolderArray
+on menu_Eco
+   
+end menu_Eco
 
-private on _
+private command _
 end _
 
-on menu_InitWikiGarden dView
-   wikiGarden_Init
-end menu_InitWikiGarden
-
-private on __
-end __
-
-on menu_ConstructRouterFolderArray dView
-   put wikiGarden_ConstructRouterArray() into routerArray
-   display_Data routerArray, "routerArray"
-end menu_ConstructRouterFolderArray
+on insert_Data
+   return "Global | Wiki | Server | Data | Menu"
+end insert_Data
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Eco | Menu")

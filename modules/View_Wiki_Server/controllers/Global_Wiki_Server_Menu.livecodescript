@@ -17,12 +17,6 @@ local LocalArray
 
 --> Menu | Props
 -
-getprop menu_Target [tObject]
-   -- put display_MenuTarget (tObject) into wsView
-   put the display_View of tObject into wsView
-   return wsView
-end menu_Target
-
 getprop menu_CheckTarget [wsView]
    return exists (wsView)
 end menu_CheckTarget
@@ -45,78 +39,13 @@ getprop checked_StartWiki [wikiView]
 end checked_StartWiki
 
 getprop disabled_DisplayLoadedWikiEcoData
-   put wikiGarden_GetEcoData() into ecoData
+   put ecoData_Get() into ecoData
    return ecoData is not an array
 end disabled_DisplayLoadedWikiEcoData
 
 
 --> Global | Wiki | Server | Menu
 -
-on menu_SetWikiFarmFolder
-   put wikiFarm_EarthFolder() into rootFolder
-   answer folder "Choose a default folder for wiki..." with rootFolder as sheet
-   if it is empty then exit to top
-   put it into newFarmFolder
-   
-   wikiFarm_SetFolder newFarmFolder
-   wikiGarden_StoreCachedEcoData
-   --
-   display_GardenEcodata
-   finder_Reveal newRootFolder
-end menu_SetWikiFarmFolder
-
-on menu_AddGardenEcoFolder
-   put wikiFarm_EarthFolder() into rootFolder
-   answer folder "Choose a Garden eco-folder for your Gardens..." with rootFolder as sheet
-   if it is empty then exit to top
-   put it into ecoFolder
-   
-   wikiGarden_AddEcoFolder ecoFolder
-   --
-   display_GardenEcodata
-   finder_Reveal ecoFolder
-end menu_AddGardenEcoFolder
-
-private on _
-end _
-
-on menu_UpdateGardenEcoData
-   wikiGarden_UpdateEcoData
-   --
-   display_GardenEcodata
-end menu_UpdateGardenEcoData
-
-on menu_ReloadWikiEcoData
-   wikiGarden_Init
-   --
-   menu_DisplayLoadedWikiEcoData
-end menu_ReloadWikiEcoData
-
-on menu_DisplayGardenEcoData
-   display_GardenEcodata
-end menu_DisplayGardenEcoData
-
-on menu_DisplayLoadedWikiEcoData
-   put wikiGarden_GetEcoData() into ecoData
-   display_GardenEcodata ecoData
-end menu_DisplayLoadedWikiEcoData
-
-private on __
-end __
-
-on menu_DisplayWikiRouterArray
-   display_WikiRouterArray
-end menu_DisplayWikiRouterArray
-
-on menu_DisplayGardenDomainData
-   put wikiGarden_GetDomainData() into gardenDomainData
-   --
-   display_Data gardenDomainData, "wikiGarden_GetDomainData()", "Wiki Garden"
-end menu_DisplayGardenDomainData
-
-private on ___
-end ___
-
 on menu_ReloadPluginRouteData wsView
    dispatch "daemon_ClearPluginRouteData" to wsView
    dispatch "daemon_LoadPluginRouteData" to wsView
@@ -133,6 +62,13 @@ end menu_DisplaySocketData
 
 private on ____
 end ____
+
+on insert_Data
+   return "Global | Wiki | Server | Data | Menu"
+end insert_Data
+
+private on ___
+end ___
 
 on menu_LaunchEtcHosts
    launch_EtcHosts

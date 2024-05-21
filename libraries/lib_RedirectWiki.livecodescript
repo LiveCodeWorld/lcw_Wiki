@@ -21,26 +21,49 @@ local Router_Array
 
 --> Working on
 -
+command display_WikiOwner wikiDomain, pDisplayView
+   -- display_OwnerJson
+   put wikiServer_GetOwnerData (wikiDomain) into ownerData
+   display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
+   put the result into dView
+   return dVIEW
+end display_WikiOwner
+
+
+--> Display
+-
 command display_WikiRouterArray
    put wikiRouter_GetArray() into routerArray
    --
    display_Data routerArray, "wikiRouter_GetArray()", "Wiki Router"
 end display_WikiRouterArray
 
-function wikiFarm_GetFolder
-   put wikiGarden_GetEcoData() into ecoData
-   return ecoData ["Farm"]["folder"]
-end wikiFarm_GetFolder
+on mDoubleUp_WikiEco displayView, wikiFolder
+   put someLine &CR& the title_Text of displayView
+end mDoubleUp_WikiEco
 
-command wikiFarm_SetFolder pFarmFolder
-   if pFarmFolder is empty then put node_DefaultFarmFolder() into pFarmFolder
-   text_AddTrailing pFarmFolder, slash
+command display_ServerData
+   put wikiServer_GetData() into wsData
+   display_Array wsData, "WikiServer_Data", "Wiki"
+   put the result into dView
+   return dView
+end display_ServerData
+
+command display_GardenEcodata pEcoData
+   if pEcoData is not an array then
+      put wikiGarden_GetModel() into pEcoData
+   end if
    
-   put wikiGarden_GetEcoData() into ecoData
-   put pFarmFolder into ecoData ["Farm"]["folder"]
-   wikiGarden_SetEcoData ecoData
-   return ecoData
-end wikiFarm_SetFolder
+   display_Tools pEcoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
+   return the result
+end display_GardenEcodata
+
+command display_RouterFolderArray
+   put wikiRouter_FolderArray() into routerFolderArray
+   
+   display_Data routerFolderArray, "WikiRouter_FolderArray", "Wiki"
+   return the result
+end display_RouterFolderArray
 
 
 --> WikiRouter | Model | Local

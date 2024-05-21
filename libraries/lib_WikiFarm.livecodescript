@@ -18,28 +18,42 @@ local Farm_Domains
 
 --> Working on
 -
+function wikiFarm_GetFolder
+   put ecoData_Get() into ecoData
+   return ecoData ["Farm"]["folder"]
+end wikiFarm_GetFolder
 
---> Display
--
-on mDoubleUp_WikiEco displayView, wikiFolder
-   put someLine &CR& the title_Text of displayView
-end mDoubleUp_WikiEco
-
-command display_GardenEcodata pEcoData
-   if pEcoData is not an array then
-      put wikiGarden_GetModel() into pEcoData
+command wikiFarm_SetFolder pFarmFolder, pSaveEcoData
+   if there is not a folder pFarmFolder then
+      put _AskFarmFolder() into pFarmFolder
+   end if
+   text_AddTrailing pFarmFolder, slash
+   
+   put pFarmFolder & "localhost/" into localHostFolder
+   if there is not a folder localHostFolder then
+      return "Error, there si not a localhost folder in the farm folder:" && localHostFolder
    end if
    
-   display_Tools pEcoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
-   return the result
-end display_GardenEcodata
-
-command display_RouterFolderArray
-   put wikiRouter_FolderArray() into routerFolderArray
+   # Set EcoData 
+   put ecoData_Get() into ecoData
+   ecoData_SetFarmFolder ecoData, pFarmFolder
+   ecoData_Set ecoData
    
-   display_Data routerFolderArray, "WikiRouter_FolderArray", "Wiki"
-   return the result
-end display_RouterFolderArray
+   # Optionally save
+   if pSaveEcoData is true then
+      wikiGarden_SetModel ecoData
+   end if
+   return ecoData
+end wikiFarm_SetFolder
+
+private function _AskFarmFolder
+   put node_DefaultFarmFolder() into farmFolder
+   answer folder "Where is the farm folder containing localhost?" with farmFolder as sheet
+   if it is empty then exit to top
+   put it into farmFolder
+   text_AddTrailing farmFolder, slash
+   return farmFolder
+end _AskFarmFolder
 
 
 --> WikiFarm
@@ -60,6 +74,22 @@ function wikiFarm_GardenName
 end wikiFarm_GardenName
 
 
+--> WikiFarm | Domains
+-
+function wikiFarm_DomainsFromFolder farmFolder, pFilterDomain, pSimple
+   # List Farm
+   put folder_ListShort (farmFolder) into shortWikiFolders 
+   
+   # Tidy
+   wikiFolder_TidyList shortWikiFolders
+   url_FilterDomains shortWikiFolders, pFilterDomain, pSimple
+   
+   # Sort
+   url_SortDomainIndex shortWikiFolders
+   return shortWikiFolders
+end wikiFarm_DomainsFromFolder
+
+
 --> FarmDomains | Model | Local
 -
 function wikiFarm_GetDomains
@@ -73,17 +103,19 @@ command wikiFarm_SetDomains farmDomains
 end wikiFarm_SetDomains
 
 
---> WikiFarm | Domains
+--> WikiFarm | Model
 -
-function wikiFarm_DomainsFromFolder farmFolder, pFilterDomain, pSimple
-   # List Farm
-   put folder_ListShortAll (farmFolder) into shortWikiFolders 
-   
-   # Tidy
-   wikiFolder_TidyList shortWikiFolders
-   url_FilterDomains shortWikiFolders, pFilterDomain, pSimple
-   
-   # Sort
-   url_SortDomainIndex shortWikiFolders
-   return shortWikiFolders
-end wikiFarm_DomainsFromFolder
+function wikiFarm_GetDefaultFolder
+   put wikiPreference_Get ("Farm Folder") into farmFolder
+   return farmFolder
+end wikiFarm_GetDefaultFolder
+
+command wikiFarm_SetDefaultFolder farmFolder
+   if there is not a folder farmFolder then
+      return "Error, farm folder does not exist:" && farmFolder
+   end if
+   file_SetHome farmFolder
+   wikiPreference_Set "Farm Folder", farmFolder
+   put the result into prefArray
+   return prefArray
+end wikiFarm_SetDefaultFolder

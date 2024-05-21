@@ -10,6 +10,62 @@ version: 0.1
 
 --> Working On
 -
+command display_WikiPrefArray
+   put wikiPreference_GetArray() into prefArray
+   display_Tool prefArray, "prefArray", "Localhost"
+   return the result
+end display_WikiPrefArray
+
+
+--> WikiPreference | Model
+-
+function wikiPreference_Get sKey
+   put wikiPreference_GetArray() into prefArray
+   return prefArray [sKey]
+end wikiPreference_Get
+
+command wikiPreference_Set sKey, sValue
+   put wikiPreference_GetArray() into prefArray
+   put sValue into prefArray [sKey]
+   wikiPreference_SetArray prefArray
+   return prefArray
+end wikiPreference_Set
+
+command wikiPreference_Delete sKey
+   put wikiPreference_GetArray() into prefArray
+   delete variable prefArray [sKey]
+   wikiPreference_SetArray prefArray
+   return prefArray
+end wikiPreference_Delete
+
+function wikiPreference_ConstructPageArray prefArray
+   put _DeconstructArray (prefArray, true) into codeText
+   put wikiPreference_GetPageArray() into pageArray
+   pageArray_SetFirstCode pageArray, codeText
+   return pageArray
+end wikiPreference_ConstructPageArray
+
+function wikiPreference_GetArray
+   put wikiPreference_GetPageArray() into pageArray
+   put pageArray_GetFirstCode (pageArray) into codeText
+   --
+   set the itemdelimiter to ":"
+   repeat for each line someLine in codeText
+      if the number of items of someLine = 2 then
+         put word 1 to -1 of item 1 of someLine into someKey
+         put word 1 to -1 of item 2 of someLine into someValue
+         put someValue into prefArray [someKey]
+      end if
+   end repeat
+   return prefArray
+end wikiPreference_GetArray
+
+command wikiPreference_SetArray prefArray
+   put wikiPreference_ConstructPageArray (prefArray) into pageArray
+   wikiPreference_SetPageArray pageArray
+   return pageArray
+end wikiPreference_SetArray
+
 function wikiPage_LocalPreference pGardenNames
    if pGardenNames is empty then
       put wikiGarden_ListUniqueNames() into pGardenNames
@@ -65,3 +121,20 @@ command wikiPreference_SetPageArray pageArray
    pageArray_Set "localhost", "local-preference", pageArray
    return the result
 end wikiPreference_SetPageArray
+
+
+--> Private
+-
+private function _DeconstructArray prefArray, pPretty
+   if pPretty is false then
+      combine prefArray using CR and ":"
+      return prefArray
+   else
+      repeat for each key someKey in prefArray
+         put prefArray [someKey] into someValue
+         put someKey & ":" && someValue & CR after codeText
+      end repeat
+      delete char -1 of codeText
+      return codeText
+   end if
+end _DeconstructArray

@@ -8,6 +8,8 @@ type: library
 version: 0.1
 
 /*
+This library is for starting and stoping the wiki-server.
+There are currently two versions the node-server and the live-server.
 */
 
 
@@ -18,12 +20,33 @@ local WikiServer_SecurityType
 
 --> Working on
 -
-command display_ServerData
-   put wikiServer_GetData() into wsData
-   display_Array wsData, "WikiServer_Data", "Wiki"
-   put the result into dView
-   return dView
-end display_ServerData
+--> WikiServer | Create
+-
+command wikiServer_Create wikiDomain
+   # Create folders in wikiFolder of default farm
+   put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
+   --
+   repeat for each item shortFolder in "pages,recycle,status"
+      put wikiFolder & shortFolder & slash into sFolder
+      folder_CreateNested sFolder
+   end repeat
+   
+   # Create Image and Assets folders
+   put wikiFolder & "assets/plugins/image" & slash into sFolder
+   folder_CreateNested sFolder
+   
+   # Add domain to /etc/hosts
+   put system_GetAdminPassword() into systemPassword
+   hosts_Add wikiDomain, systemPassword
+   
+   # Create files
+   put "welcome-visitors" into pageSlug
+   put wikiServer_GetPageJson (pageSlug) into pageJSON
+   pageJson_Set wikiDomain, pageSlug, pageJSON
+   
+   put wikiServer_GetFavicon() into pngData
+   wikiServer_SetFavicon wikiDomain, pngData
+end wikiServer_Create
 
 command wikiServer_SwitchIfGarden wikiDomain
    put wikiGarden_Name (wikiDomain) into gardeName
@@ -34,17 +57,30 @@ command wikiServer_SwitchIfGarden wikiDomain
 end wikiServer_SwitchIfGarden
 
 command wikiServer_StartNodeGarden gardenName
-   wikiServer_StopNode
+   put wikiFarm_GetFolder() into farmFolder
    --
    switch gardenName
       case "Farm"
-      case pFarmFolder is empty
-         put wikiFarm_GetFolder() into gardenFolder
+         put wikiFarm_GetDefaultFolder() into gardenFolder
          break
       default
          put wikiGarden_ConstructFolder (gardenName) into gardenFolder
    end switch
    
+   if gardenFarmFolder = farmFolder then
+      return empty
+   end if
+   
+   # Stop Node Server
+   wikiServer_StopNode
+   
+   # Move Localhost from old farm to gardenFarmFolder
+   put gardenFolder & "localhost/" into newLocalhostFolder
+   put farmFolder & "localhost/" into oldLocalhostFolder
+   revMoveFolder oldLocalhostFolder, newLocalhostFolder
+   wikiFarm_SetFolder gardenFarmFolder, true
+   
+   # Start node folder with Garden folder as root
    wikiServer_StartNodeFarm gardenFolder
    put the result into wikiProcessID
    return wikiProcessID
@@ -119,19 +155,12 @@ function wikiServer_NodeIsRunning
 end wikiServer_NodeIsRunning
 
 
---> WikiServer | Files
+--> WikiServer | Files (see lib_AtopiaDomainOwnership)
 -
 function wikiServer_OwnerExists wikiDomain
    put wikiFile_ConstructOwner (wikiDomain) into ownerFile
    return there is a file ownerFile
 end wikiServer_OwnerExists
-
-command display_WikiOwner wikiDomain, pDisplayView
-   put wikiServer_GetOwnerData (wikiDomain) into ownerData
-   display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
-   put the result into dView
-   return dVIEW
-end display_WikiOwner
 
 command wikiServer_SetFriendlyData wikiDomain, pUserName, pSecret
    put wikiServer_FriendlyOwnerData (pUserName, pSecret) into ownerData
@@ -226,35 +255,6 @@ function wikiServer_ListSecurityTypes pPrettyMenu
       return "legacy,cookie,passport,friends"
    end if
 end wikiServer_ListSecurityTypes
-
-
---> WikiServer | Create
--
-command wikiServer_Create wikiDomain
-   # Create folders in wikiFolder of default farm
-   put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
-   --
-   repeat for each item shortFolder in "pages,recycle,status"
-      put wikiFolder & shortFolder & slash into sFolder
-      folder_CreateNested sFolder
-   end repeat
-   
-   # Create Image and Assets folders
-   put wikiFolder & "assets/plugins/image" & slash into sFolder
-   folder_CreateNested sFolder
-   
-   # Add domain to /etc/hosts
-   put system_GetAdminPassword() into systemPassword
-   hosts_Add wikiDomain, systemPassword
-   
-   # Create files
-   put "welcome-visitors" into pageSlug
-   put wikiServer_GetPageJson (pageSlug) into pageJSON
-   pageJson_Set wikiDomain, pageSlug, pageJSON
-   
-   put wikiServer_GetFavicon() into pngData
-   wikiServer_SetFavicon wikiDomain, pngData
-end wikiServer_Create
 
 
 --> WikiServer | Running
@@ -395,6 +395,7 @@ end _NodeShell
 
 private command _AddDataFolder @someShell, pDataFolder
    if pDataFolder is not empty then
+      replace "~/" with ($HOME & slash) in pDataFolder
       put space & "--data" && kwote (pDataFolder) after someShell
    end if
 end _AddDataFolder
