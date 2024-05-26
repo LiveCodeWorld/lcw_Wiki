@@ -46,9 +46,14 @@ on menu_WikiGardenInit
    menu_DisplayLoadedWikiEcoData
 end menu_WikiGardenInit
 
-on menu_DisplayGardenEcoData
+on menu_DisplayStoredEcoData
    display_GardenEcodata
-end menu_DisplayGardenEcoData
+end menu_DisplayStoredEcoData
+
+getprop disabled_DisplayLoadedWikiEcoData
+   put ecoData_Get() into ecoData
+   return ecoData is not an array
+end disabled_DisplayLoadedWikiEcoData
 
 on menu_DisplayLoadedWikiEcoData
    put ecoData_Get() into ecoData
@@ -58,8 +63,8 @@ end menu_DisplayLoadedWikiEcoData
 private on __
 end __
 
-on menu_DisplayWikiRouterArray
-   display_WikiRouterArray
+-- on menu_DisplayWikiRouterArray
+display_WikiRouterArray -- no longer using Router_Array we use wikiGarden_GetDomainData() now
 end menu_DisplayWikiRouterArray
 
 on menu_DisplayGardenDomainData
