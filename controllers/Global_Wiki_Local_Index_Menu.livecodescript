@@ -125,7 +125,7 @@ end menu_RecreateEtcHosts
 
 on menu_InitialiseGit dView
    breakpoint
-   put wikiFarm_GetFolder() into gitRootFolder
+   put ecoData_GetFarmFolder() into gitRootFolder
    git_InitFolder gitRootFolder
 end menu_InitialiseGit
 

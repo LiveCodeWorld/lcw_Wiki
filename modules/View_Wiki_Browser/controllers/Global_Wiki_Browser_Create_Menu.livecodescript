@@ -55,10 +55,6 @@ on menu_CreateNewWiki wikiView
    set the ghost_PageArray of wikiView to pageArray
 end menu_CreateNewWiki
 
-on menu_CreateBrowserMenu wikiView
-   ask_CreateModuleMenu "View|Wiki|Browser", wikiView, "Global | Wiki | Browser | Garden | Menu"
-end menu_CreateBrowserMenu
-
 on _
 end _
 
@@ -107,8 +103,18 @@ on menu_DraftLocalActivity wikiView
    set the ghost_PageArray of wikiView to pageArray
 end menu_DraftLocalActivity
 
+on menu_DraftEmptySites wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   put wikiPage_EmptyDomains (wikiDomain) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftEmptySites
+
 private on ___
 end ___
+
+on menu_CreateMenu wikiView
+   ask_CreateModuleMenu "View|Wiki|Browser", wikiView, "Global | Wiki | Browser | Garden | Menu"
+end menu_CreateMenu
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | Create | Menu")

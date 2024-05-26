@@ -44,7 +44,7 @@ private on _
 end _
 
 on menu_RevealFarmFolder
-   put wikiFarm_GetFolder() into wikiFolder
+   put ecoData_GetFarmFolder() into wikiFolder
    finder_Reveal wikiFolder
 end menu_RevealFarmFolder
 

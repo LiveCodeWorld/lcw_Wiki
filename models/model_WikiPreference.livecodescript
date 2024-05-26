@@ -10,11 +10,34 @@ version: 0.1
 
 --> Working On
 -
-command display_WikiPrefArray
-   put wikiPreference_GetArray() into prefArray
-   display_Tool prefArray, "prefArray", "Localhost"
-   return the result
-end display_WikiPrefArray
+
+--> WikiPreference | EcoFolder | Model
+-
+function wikiPreference_GetDefaultEcoFolder
+   put wikiPreference_Get ("Eco Folder") into ecoFolder
+   return ecoFolder
+end wikiPreference_GetDefaultEcoFolder
+
+command wikiPreference_SetDefaultEcoFolder ecoFolder
+   if there is not a folder ecoFolder then
+      put wikiPreference_GetDefaultEcoFolder() into ecoFolder
+      answer folder "Where is the eco-folder you keep your wiki farms?" with ecoFolder as sheet
+      if it is empty then
+         exit to top
+         -- return "Error, eco folder does not exist:" && ecoFolder
+      end if
+      put it into ecoFolder
+   end if
+   
+   # Tidy
+   text_AddTrailing ecoFolder, slash
+   file_StripHome ecoFolder
+   
+   # Set wiki-pageArray
+   wikiPreference_Set "Eco Folder", ecoFolder
+   --
+   return ecoFolder
+end wikiPreference_SetDefaultEcoFolder
 
 
 --> WikiPreference | Model
@@ -113,7 +136,10 @@ command wikiPreference_SetGardenList pGardenNames
 end wikiPreference_SetGardenList
 
 function wikiPreference_GetPageArray
-   put pageArray_Get ("localhost", "local-preference") into pageArray
+   -- put pageArray_Get ("localhost", "local-preference") into pageArray -- depends on local arrays
+   put wikiFile_ConstructLocalHost ("local-preference") into wikiFile
+   if wikiFile is empty then return empty
+   put jsonArray_FromFile (wikiFile) into pageArray
    return pageArray
 end wikiPreference_GetPageArray
 

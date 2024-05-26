@@ -18,26 +18,115 @@ local Farm_Domains
 
 --> Working on
 -
-function wikiFarm_GetFolder
-   put ecoData_Get() into ecoData
-   return ecoData ["Farm"]["folder"]
-end wikiFarm_GetFolder
+function wikiFarm_ListSubdomains wikiDomain
+   put wikiFarm_GetDomains() into subDomains
+   url_FilterDomains subDomains, wikiDomain
+   line_Delete wikiDomain, subDomains
+   return subDomains
+end wikiFarm_ListSubdomains
 
-command wikiFarm_SetFolder pFarmFolder, pSaveEcoData
-   if there is not a folder pFarmFolder then
-      put _AskFarmFolder() into pFarmFolder
+function wikiFarm_ListDomains
+   put ecoData_GetFarmFolder() into farmFolder
+   put wikiFolder_ListDomains (farmFolder) into wikiDomains
+   return wikiDomains
+end wikiFarm_ListDomains
+
+function wikiFarm_ListTopDomains pStripEmpty
+   put wikiFarm_GetDomains() into farmDomains
+   put wikiFarm_ListEmptyFolders(pListShort)
+   repeat for each line wikiDomain in farmDomains
+      put url_GetTLD (wikiDomain) into tldDomain
+      put empty into tldArray [tldDomain][someDomain]
+   end repeat
+   put keys (tldArray) into topDomains
+   url_SortDomainIndex topDomains
+   return topDomains
+end wikiFarm_ListTopDomains
+
+function wikiFarm_HasLocalHost
+   put wikiFarm_Found() into foundFarmFolder
+   put ecoData_GetFarmFolder() into ecoFarmFolder
+   --
+   put foundFarmFolder = ecoFarmFolder into isFound
+   return isFound
+end wikiFarm_HasLocalHost
+
+function wikiFarm_Found
+   put wikiFarm_FoundLocalhost() into foundLocalHost
+   set the itemdelimiter to slash
+   delete item -1 of foundLocalHost
+   return foundLocalHost
+end wikiFarm_Found
+
+function wikiFarm_FoundLocalhost
+   put ecoData_GetEcoFolder() into ecoFolder
+   put ecoData_GetFarmFolder() into farmFolder
+   --
+   put wikiFolder_FindLocalHost (ecoFolder, farmFolder) into foundLocalHost
+   return foundLocalHost
+end wikiFarm_FoundLocalhost
+
+command wikiFarm_MoveAndRestart gardenName
+   wikiFarm_Move gardenName
+   put the result into newFarmFolder
+   if item 1 of newFarmFolder = "Error" then
+      put newFarmFolder
+      breakpoint
+      return empty
    end if
-   text_AddTrailing pFarmFolder, slash
    
-   put pFarmFolder & "localhost/" into localHostFolder
-   if there is not a folder localHostFolder then
-      return "Error, there si not a localhost folder in the farm folder:" && localHostFolder
+   wikiGarden_StartNodeServer gardenName
+   put the result into wikiProcessID
+   return wikiProcessID
+end wikiFarm_MoveAndRestart
+
+command wikiFarm_Move gardenName
+   put ecoData_GetFarmFolder() into oldFarmFolder
+   switch gardenName
+      case "Farm"
+         put wikiFarm_GetDefaultFolder() into newFarmFolder
+         break
+      default
+         put wikiGarden_ConstructFolder (gardenName) into newFarmFolder
+   end switch
+   text_AddTrailing newFarmFolder, slash
+   text_AddTrailing oldFarmFolder, slash
+   if newFarmFolder = oldFarmFolder then return empty
+   
+   put oldFarmFolder & "localhost/" into oldLocalhostFolder
+   if there is not a folder oldLocalhostFolder then
+      return "Error, cannot locate old localhost folder in garden:" && gardenName
    end if
+   
+   put newFarmFolder & "localhost/" into newLocalhostFolder
+   if there is a folder newLocalhostFolder then
+      return "Error, new localhost folder already exists:" && newLocalhostFolder
+   end if
+   
+   # Move Localhost from old farm to gardenFarmFolder
+   revMoveFolder oldLocalhostFolder, newLocalhostFolder
+   put the result into moveResult
+   --
+   if moveResult is not empty then
+      breakpoint
+      return "Error, moving localhost folder:" && moveResult
+   else
+      # Set Farm Folder in EcoData
+      ecoData_SetFarmFolder newFarmFolder
+      return newFarmFolder
+   end if
+end wikiFarm_Move
+
+command wikiFarm_SetFolder farmFolder, pSaveEcoData
+   if there is not a folder farmFolder then
+      return "Error, farm folder does not exist:" && farmFolder
+   end if
+   text_AddTrailing farmFolder, slash
    
    # Set EcoData 
-   put ecoData_Get() into ecoData
-   ecoData_SetFarmFolder ecoData, pFarmFolder
-   ecoData_Set ecoData
+   ecoData_SetFarmFolder farmFolder
+   put the result into ecoData
+   wikiGarden_Init ecoData
    
    # Optionally save
    if pSaveEcoData is true then
@@ -45,15 +134,6 @@ command wikiFarm_SetFolder pFarmFolder, pSaveEcoData
    end if
    return ecoData
 end wikiFarm_SetFolder
-
-private function _AskFarmFolder
-   put node_DefaultFarmFolder() into farmFolder
-   answer folder "Where is the farm folder containing localhost?" with farmFolder as sheet
-   if it is empty then exit to top
-   put it into farmFolder
-   text_AddTrailing farmFolder, slash
-   return farmFolder
-end _AskFarmFolder
 
 
 --> WikiFarm
@@ -67,7 +147,7 @@ function wikiFarm_EarthFolder
 end wikiFarm_EarthFolder
 
 function wikiFarm_GardenName
-   put wikiFarm_GetFolder() into farmFolder
+   put ecoData_GetFarmFolder() into farmFolder
    set the itemdelimiter to slash
    put item -1 of farmFolder into farmGardenName
    return farmGardenName
@@ -103,10 +183,16 @@ command wikiFarm_SetDomains farmDomains
 end wikiFarm_SetDomains
 
 
---> WikiFarm | Model
+--> WikiFarm | Default | Model
 -
+/* This is the fallback for restarting and reconstituting the routing table. Saved in the ecodata project array.*/
+
 function wikiFarm_GetDefaultFolder
-   put wikiPreference_Get ("Farm Folder") into farmFolder
+   -- wee "ecoData_GetFarmFolder"
+   put wikiGarden_GetModel() into ecoData
+   put ecoData ["Farm"]["folder"] into farmFolder
+   --
+   file_AddHome farmFolder
    return farmFolder
 end wikiFarm_GetDefaultFolder
 
@@ -114,8 +200,12 @@ command wikiFarm_SetDefaultFolder farmFolder
    if there is not a folder farmFolder then
       return "Error, farm folder does not exist:" && farmFolder
    end if
-   file_SetHome farmFolder
-   wikiPreference_Set "Farm Folder", farmFolder
-   put the result into prefArray
-   return prefArray
+   file_StripHome farmFolder
+   -- wikiPreference_Set "Farm Folder", farmFolder -- recursive
+   
+   put wikiGarden_GetModel() into ecoData
+   put farmFolder into ecoData ["Farm"]["folder"]
+   wikiGarden_SetModel ecoData
+   --
+   return ecoData
 end wikiFarm_SetDefaultFolder

@@ -153,6 +153,11 @@ on menu_SetWikiFarmFolder
    finder_Reveal newFarmFolder
 end menu_SetWikiFarmFolder
 
+on menu_SetEcofolder
+   wikiPreference_SetDefaultEcoFolder
+   put the result into ecoFolder
+end menu_SetEcofolder
+
 on menu_AddGardenEcoFolder
    put wikiFarm_EarthFolder() into rootFolder
    answer folder "Choose a Garden eco-folder for your Gardens..." with rootFolder as sheet

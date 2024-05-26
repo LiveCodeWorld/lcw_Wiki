@@ -18,161 +18,165 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_CheckTarget [wikiView]
-   put wikiGarden_ListUniqueNames() into LocalArray ["gardenNames"]
+   put wikiGarden_ListUniqueNames() into gardenNames
+   -- put ecoData_GetFarmName() & CR  before gardenNames
+   put gardenNames into LocalArray ["gardenNames"]
+   --
+   repeat for each line gardenName in gardenNames
+      if wikiGarden_ListFolders (gardenName) is empty then
+         put gardenName & CR after emptyGardenNames
+      else
+         put gardenName & CR after fullGardenNames
+      end if
+   end repeat
+   delete char -1 of emptyGardenNames
+   delete char -1 of fullGardenNames
+   --
+   put emptyGardenNames into LocalArray ["emptyGardenNames"]
+   put fullGardenNames into LocalArray ["fullGardenNames"]
+   --
    return exists (wikiView)
 end menu_CheckTarget
 
-getprop startNodeGarden_Param [wikiView]
+getprop moveAndRestart_Param [wikiView]
    return wikiFarm_GardenName()
-end startNodeGarden_Param
+end moveAndRestart_Param
 
-getprop startNodeGarden_Params
-   return "Farm,-" &CR& LocalArray ["gardenNames"]
-end startNodeGarden_Params
-
-getprop moveToGarden_Params
-   return LocalArray ["gardenNames"]
-end moveToGarden_Params
-
-getprop moveSubDomains_Params
-   return LocalArray ["gardenNames"]
-end moveSubDomains_Params
-
-getprop createGardenPage_Params
-   return wikiGarden_ListUniqueNames()
-end createGardenPage_Params
-
-getprop backToFarm_Params
-   return wikiGarden_ListUniqueNames()
-end backToFarm_Params
+getprop moveAndRestart_Params
+   return "Farm,-" &CR& LocalArray ["fullGardenNames"]
+end moveAndRestart_Params
 
 getprop restoreGarden_Params
-   return wikiGarden_ListUniqueNames()
+   return LocalArray ["emptyGardenNames"]
 end restoreGarden_Params
 
-getprop disabled_RestoreGarden   
-   return true
+getprop disabled_RestoreGarden
+   return LocalArray ["emptyGardenNames"] is empty
 end disabled_RestoreGarden
+
+getprop backToFarm_Params
+   return LocalArray ["fullGardenNames"]
+end backToFarm_Params
+
+getprop disabled_BackToFarm
+   return LocalArray ["fullGardenNames"] is empty
+end disabled_BackToFarm
+
+getprop draftGardenActivity_Params
+   return LocalArray ["gardenNames"]
+end draftGardenActivity_Params
+
+getprop draftGardenIndex_Params
+   return LocalArray ["gardenNames"]
+end draftGardenIndex_Params
+
+getprop draftGardenPage_Params
+   return LocalArray ["gardenNames"]
+end draftGardenPage_Params
+
+getprop checked_FixLocalhost
+   return wikiFarm_HasLocalHost()
+end checked_FixLocalhost
+
+getprop disabled_FixLocalhost
+   return wikiFarm_HasLocalHost()
+end disabled_FixLocalhost
+
+getprop revealGarden_Params
+   return "Farm,-" &CR& LocalArray ["gardenNames"]
+end revealGarden_Params
 
 
 --> Global | Wiki | Browser | Garden | Menu
 -
-on menu_StartNodeGarden wikiView, gardenName
-   wikiServer_StartNodeGarden gardenName
-end menu_StartNodeGarden
-
-on menu_BackToFarm wikiView, gardenName
-   put wikiGarden_ListShortFolders (gardenName) into shortWikiFolders
-   --
-   put wikiFarm_GetFolder() into farmFolder
-   if there is not a folder farmFolder then
-      put farmFolder
-      lcw_AnswerWarning "Cannot locate farm folder!", wikiView
-   end if
-   --
-   repeat for each line wikiDomain in shortWikiFolders
-      set the cursor to busy
-      put wikiFolder_FromRouter (wikiDomain) into gardenWikiFolder
-      --
-      switch
-         case gardenWikiFolder = farmFolder
-         case there is not a folder gardenWikiFolder
-            next repeat
-         default
-            # Check Garden Folder
-            put wikiFolder_HasNoPages (gardenWikiFolder, 0) into gardenEmpty
-            if gardenEmpty is true then
-               put wikiFolder_HasNoPages (gardenWikiFolder, 0) into gardenEmpty
-               revDeleteFolder gardenWikiFolder                     
-               next repeat
-            end if
-            
-            # Check destination farmFolder
-            put farmFolder & wikiDomain & slash into farmWikiFolder
-            if there is a folder farmWikiFolder then
-               put wikiFolder_HasNoPages (farmWikiFolder, 0) into farmEmpty
-               --
-               if farmEmpty is true then
-                  revDeleteFolder farmWikiFolder                     
-                  revMoveFolder gardenWikiFolder, farmWikiFolder
-               else
-                  lcw_Answer "Garden and Farm both have pages!"
-                  finder_Reveal gardenWikiFolder
-                  finder_Reveal farmWikiFolder
-                  --
-                  next repeat
-               end if
-            else
-               revMoveFolder gardenWikiFolder, farmWikiFolder
-            end if
-      end switch
-   end repeat
-   
-   wikiGarden_Update
-   wikiGarden_Init
-end menu_BackToFarm
-
-on menu_RestoreGarden wikiView, gardenName
-   put wikiPreference_ListGardenDomains (gardenName) into sGardenDomains
-   --
-end menu_RestoreGarden
+on menu_MoveAndRestart wikiView, gardenName
+   wikiFarm_MoveAndRestart gardenName
+end menu_MoveAndRestart
 
 private on _
 end _
 
-on menu_DraftGardenPreferencePage wikiView
-   put wikiPage_LocalPreference() into pageArray
-   set the ghost_PageArray of wikiView to pageArray
-end menu_DraftGardenPreferencePage
+on menu_RestoreGarden wikiView, gardenName
+   wikiFarm_RestoreToGarden gardenName
+   --
+   lcw_Notify "Restored garden [[var]]", "Wiki Garden", gardenName
+end menu_RestoreGarden
 
-on menu_DraftGardenPage wikiView, gardenName
-   put the wiki_Domain of wikiView into wikiDomain
+on menu_BackToFarm wikiView, gardenName
+   wikiFarm_MoveGardenBack gardenName
    --
-   put wikiPage_GardenActivity (gardenName, wikiDomain) into pageArray
-   --
-   set the ghost_PageArray of wikiView to pageArray
-end menu_DraftGardenPage
+   lcw_Notify "Moved to garden [[var]]", "Wiki Garden", gardenName
+end menu_BackToFarm
 
 private on __
 end __
 
-on menu_MoveToGarden browserView, gardenName
-   put the wiki_Domain of browserView into wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into oldWikiFolder
-   put wikiGarden_FindGardenFolder (gardenName) into newGardenFolder
-   
-   # Old Wiki Folder
-   put newGardenFolder & wikiDomain & slash into newWikiFolder
-   
-   # Move
-   revMoveFolder oldWikiFolder, newWikiFolder
-   wikiGarden_Init true
-end menu_MoveToGarden
+on menu_RevealDefaultFarm
+   put wikiFarm_GetDefaultFolder() into farmFolder
+   finder_Reveal farmFolder
+end menu_RevealDefaultFarm
 
-on menu_MoveSubDomains wikiView, gardenName
-   # Domains to Move
-   put the wiki_Domain of wikiView into wikiDomain
-   put url_GetTLD (wikiDomain) into tldDomain
+on menu_RevealGarden wikiView, gardenName
+   put wikiGarden_Folder (gardenName) into gardenFolder
    --
-   put lcw_Ask ("Move all domains and subdomains to garden '[[var]]", tldDomain, wikiView, gardenName) into tldDomain
-   
-   breakpoint
-   put wikiGarden_ListAllDomains (tldDomain) into domainsToMove
-   put wikiGarden_FindGardenFolder (gardenName) into toGarden
-   repeat for each line wikiDomain in domainsToMove
-      put toGarden & wikiDomain & slash into toFolder
-      put wikiFolder_FromRouter (wikiDomain) into fromFolder
-      --
-      if there is not a folder fromFolder then next repeat
-      if fromFolder = toFolder then next repeat
-      if there is a folder toFolder then next repeat
-      
-      revMoveFolder fromFolder, toFolder
-   end repeat
-   
-   wikiGarden_Init true
-end menu_MoveSubDomains
+   finder_Reveal gardenFolder
+end menu_RevealGarden
 
-on submenu_Dev
-   return menu_DevTitle ("Global | Wiki | Browser | Garden | Menu")
-end submenu_Dev
+on menu_FixLocalhost
+   if wikiFarm_HasLocalHost() is false then
+      put wikiFarm_Found() into foundFarmFolder
+      if there is a folder foundFarmFolder then
+         wikiFarm_SetFolder foundFarmFolder, true
+         --
+         lcw_Notify "Set farm folder!"
+         put ecoData_Get() into ecoData
+         display_GardenEcodata ecoData
+      else
+         breakpoint
+      end if
+   end if
+end menu_FixLocalhost
+
+on menu_SetDefaultFarmFolder
+   answer_SetDefaultFarm
+end menu_SetDefaultFarmFolder
+
+private on ___
+end ___
+
+on menu_DraftGardenPage wikiView, gardenName
+   put the wiki_Domain of wikiView into wikiDomain
+   put wikiPage_GardenSites (gardenName, wikiDomain) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftGardenPage
+
+on menu_DraftGardenActivity wikiView, gardenName
+   put the wiki_Domain of wikiView into wikiDomain
+   put wikiPage_GardenActivity (gardenName, wikiDomain) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftGardenActivity
+
+on menu_DraftGardenIndex wikiView, gardenName
+   put the wiki_Domain of wikiView into wikiDomain
+   put wikiPage_GardenIndex (gardenName, wikiDomain) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftGardenIndex
+
+private on ____
+end ____
+
+on menu_DraftLocalPreferencePage wikiView
+   put wikiPage_LocalPreference() into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftLocalPreferencePage
+
+on menu_EmptyFarmWikis
+   display_EmptyWikiFolders
+end menu_EmptyFarmWikis
+
+private on _____
+end _____
+
+on submenu_WorkInProgress
+   return "Global | Wiki | Browser | Garden | Dev | Menu"
+end submenu_WorkInProgress

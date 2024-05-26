@@ -26,6 +26,9 @@ end display_WikiDomain
 
 --> Working on
 -
+
+--> Display | Wiki | list
+-
 function display_ListWikiBrowsers pWikiDomain
    return display_List ("View|Wiki|Browser", pWikiDomain)
 end display_ListWikiBrowsers
@@ -54,6 +57,46 @@ private command _DisplayWikiPage wikiDomain, pSlug
    set the tool_MenuBit of displayView to "Wiki | Page"
    return displayView
 end _DisplayWikiPage
+
+
+command display_WikiPrefArray
+   put wikiPreference_GetArray() into prefArray
+   display_Tool prefArray, "prefArray", "Localhost"
+   return the result
+end display_WikiPrefArray
+
+command display_WikiOwner wikiDomain, pDisplayView
+   -- display_OwnerJson
+   put wikiServer_GetOwnerData (wikiDomain) into ownerData
+   display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
+   put the result into dView
+   return dVIEW
+end display_WikiOwner
+
+
+--> Display
+-
+command display_WikiRouterArray
+   put wikiRouter_GetArray() into routerArray
+   --
+   display_Data routerArray, "wikiRouter_GetArray()", "Wiki Router"
+end display_WikiRouterArray
+
+command display_ServerData
+   put wikiServer_GetData() into wsData
+   display_Array wsData, "WikiServer_Data", "Wiki"
+   put the result into dView
+   return dView
+end display_ServerData
+
+command display_GardenEcodata pEcoData
+   if pEcoData is not an array then
+      put wikiGarden_GetModel() into pEcoData
+   end if
+   
+   display_Tools pEcoData, "Eco Data", "Wiki | Eco", "Wiki", "lcw_Wiki"
+   return the result
+end display_GardenEcodata
 
 
 --> Display | Wiki
@@ -261,10 +304,6 @@ on mDoubleUp_WikiPhotos displayView, shortFile
    display_Data imageListdata, "Found Images", wikiDomain
 end mDoubleUp_WikiPhotos
 
-on mDoubleUp_WikiLocal displayView, shortFolder
-   mDoubleUp_WikiLocalIndex displayView, shortFolder
-end mDoubleUp_WikiLocal
-
 on mDoubleUp_WikiLocalIndex dView, wikiDomain
    if the optionKey is "down" then breakpoint
    --
@@ -392,7 +431,7 @@ command display_NonSymLinked pDisplayView, pFilter, pTitle
    breakpoint
    if pTitle is empty then put "Non-symlinked" into pTitle
    --
-   put wikiFarm_GetFolder() into wikiFolder
+   put ecoData_GetFarmFolder() into wikiFolder
    put folder_ListShortNonSymLinked (wikiFolder) into wikiFolders
    url_SortDomainIndex wikiFolders
    --
@@ -419,43 +458,13 @@ end display_LocalAstralWikis
 command display_LocalSymWikis pDisplayView, pFilter, pTitle
    if pTitle is empty then put "Symlinked Wikis" into pTitle
    --
-   put wikiFarm_GetFolder() into wikiFolder
+   put ecoData_GetFarmFolder() into wikiFolder
    put folder_ListShortSymLinked (wikiFolder) into wikiFolders
    --
    display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
    put the result into dView
    return dView
 end display_LocalSymWikis
-
-command display_WikiFolders wikiFolders, menuBit, pDisplayView, pWikiFilter, pTitle, pStackLabel
-   if pStackLabel is empty then put "Wiki" into pStackLabel
-   if exists (pDisplayView) is false then
-      put display_FindIndexView ("Wiki", "Git Folders") into pDisplayView
-   end if
-   --
-   if exists (pDisplayView) is true then
-      if pWikiFilter is "none" then
-         put empty into pWikiFilter
-      else if pWikiFilter is empty then
-         put the wiki_Filter of pDisplayView into pWikiFilter
-      end if
-   end if
-   --
-   if pWikiFilter is not empty then
-      filter wikiFolders with pWikiFilter
-   end if
-   --
-   lock screen
-   display_Data wikiFolders, pTitle, pStackLabel, pDisplayView
-   put the result into dView
-   -- set the coloured_lines ["red"] of dView to dynadot_ListEarthWikis()
-   unlock screen
-   --
-   set the wiki_Filter of dView to pWikiFilter
-   --
-   display_SetToolMenus menuBit, dView, "lcw_Wiki"
-   return dView
-end display_WikiFolders
 
 
 --> Working on
@@ -502,19 +511,8 @@ command display_EtcHosts pSystemPassword
    return the result
 end display_EtcHosts
 
-command display_EmptyLocalWikis pDisplayView, pFilter, pTitle
-   if pTitle is empty then put "Empty Local Wikis" into pTitle
-   put "Wiki | Local" into menuBit -- was "Wiki | Git"
-   
-   put wiki_ListEmptyLocalFolders (true) into emptyFolders
-   --
-   display_WikiFolders emptyFolders, menuBit, pDisplayView, pFilter, pTitle, "Local Wikis"
-   put the result into dView
-   return dView
-end display_EmptyLocalWikis dView, pFilter
-
 command display_LocalWithoutAstral dView, pFilter
-   put wikiFarm_GetFolder() into wikiFolder
+   put ecoData_GetFarmFolder() into wikiFolder
    put folder_ListShortAll (wikiFolder) into wikiFolders
    --
    put wikiFolders into localhostFolders

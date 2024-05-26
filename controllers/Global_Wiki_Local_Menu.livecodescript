@@ -29,6 +29,10 @@ end menu_CheckTarget
 
 --> Global | Wiki | Local | Menu
 -
+on menu_DisplayEmptyWikis dView
+   display_EmptyWikiFolders
+end menu_DisplayEmptyWikis
+
 on submenu_LocalWiki
    return "Global | Wiki | Local | Index | Menu"
 end submenu_LocalWiki

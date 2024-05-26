@@ -46,7 +46,7 @@ end ___
 
 on menu_DisplayNumbers dView
    put the displayed_Index of dView into localhostDomains
-   put wikiFarm_GetFolder() into wikiRootFolder
+   put ecoData_GetFarmFolder() into wikiRootFolder
    --
    repeat for each line localhostDomain in localhostDomains
       display_Spin localhostDomain, dView, "red"
@@ -99,7 +99,7 @@ end menu_DisplayNumbers
 
 on menu_FixGitFolders dView
    put the displayed_Index of dView into localhostDomains
-   put wikiFarm_GetFolder() into rootFolder
+   put ecoData_GetFarmFolder() into rootFolder
    --
    breakpoint
    repeat for each line localhostDomain in localhostDomains
@@ -111,7 +111,7 @@ end menu_FixGitFolders
 
 on menu_RemoveSymLinks dView
    put the displayed_Index of dView into wikiDomains
-   put wikiFarm_GetFolder() into rootFolder
+   put ecoData_GetFarmFolder() into rootFolder
    --
    repeat for each line wikiDomain in wikiDomains
       display_Spin wikiDomain, dView, "red"
@@ -132,7 +132,7 @@ end menu_DisplayTwo
 on menu_LocalWithoutAstral dView
    put empty into sFilter
    --
-   put wikiFarm_GetFolder() into wikiFolder
+   put ecoData_GetFarmFolder() into wikiFolder
    put folder_ListShortAll (wikiFolder) into wikiFolders
    --
    put wikiFolders into localhostFolders

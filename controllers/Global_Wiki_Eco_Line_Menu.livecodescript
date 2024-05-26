@@ -27,12 +27,38 @@ getprop menu_CheckTarget [dView]
    return exists (dView)
 end menu_CheckTarget
 
+on mDoubleUp_WikiEco dView, sValue
+   put the selected_Path of dView into sPath
+   switch 
+      case item -1 of sPath = "folder"
+         put sValue into wikiFolder
+         file_AddHome wikiFolder
+         if there is a folder wikiFolder then
+            finder_Reveal wikiFolder
+         else
+            wikiGarden_Update
+            put the result into ecoData
+            --
+            breakpoint
+            finder_Reveal wikiFolder
+         end if
+         break
+      default
+         breakpoint
+   end switch
+end mDoubleUp_WikiEco
+
 
 --> Global | Wiki | Eco | Line | Menu
 -
-on menu_WikiEcoLine dView
-   put the selected_Value of dView
-end menu_WikiEcoLine
+on menu_RevealGarden dView
+   -- Eco,Thought Gardens,Gardens,Legal,legalcommons.org
+   put the selected_Path of dView into sPath
+   if sPath begins with "Eco,Thought Gardens,Gardens," then
+      put item 4 of sPath into gardenName
+      put wikiGarden_Folder (gardenName)
+   end if
+end menu_RevealGarden
 
 private on _
 end _

@@ -17,17 +17,12 @@ local LocalArray
 
 --> Menu | Props
 -
-getprop menu_Target [tObject]
-   put the browser_View of tObject into browserView
-   if exists (browserView) then
-      put the footer_IsVisible of browserView into LocalArray ["footer_IsVisible"]
-      return browserView
-   else
-      put line 1 of display_List ("View|Wiki|Browser") into browserView
-      if exists (browserView) then return browserView
-      return empty
-   end if
-end menu_Target
+getprop menu_CheckTarget [wikiView]
+   -- put the footer_IsVisible of wikiView into LocalArray ["footer_IsVisible"]
+   put the lineup_Titles of wikiView into pageTitles
+   put pageTitles into LocalArray ["pageTitles"]
+   return true
+end menu_CheckTarget
 
 
 --> Global | Wiki | Browser | Edit | Menu
@@ -52,6 +47,30 @@ end insert_Edit
 
 private on __
 end __
+
+getprop fixText_Params [wikiView]
+   return LocalArray ["pageTitles"]
+end fixText_Params
+
+on menu_FixText wikiView, pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put the wiki_Domain [pageTitle] of wikiView into wikiDomain
+   --
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum]["text"] into itemText
+      wikipedia_FixText itemText
+      put itemText into storyArray [itemNum]["text"]
+   end repeat
+   put storyArray into pageArray ["story"]
+   
+   -- put the page_Text [pageTitle] of wikiView into pageText
+   -- wikipedia_FixText pageText
+   -- display_Text pageText
+   
+   set the ghost_PageArray of wikiView to pageArray
+end menu_FixText
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | Edit | Menu")

@@ -27,12 +27,39 @@ getprop menu_CheckTarget [dView]
    return exists (dView)
 end menu_CheckTarget
 
+getprop disabled_FixFarm
+   put wikiFarm_GetDefaultFolder() into farmFolder
+   return there is not a folder farmFolder
+end disabled_FixFarm
+
 
 --> Global | Wiki | Eco | Menu
 -
-on menu_Eco
+on menu_FixFarm dView
+   put "Find localhost folder in eco-garden folder and set temporary farm ecodata?" into sQuestion
+   put wikiPreference_GetDefaultEcoFolder() into defaultEcoFolder
+   if there is not a folder defaultEcoFolder then
+      put wikiFarm_GetDefaultFolder() into defaultEcoFolder 
+   end if
+   answer folder sQuestion with defaultEcoFolder as sheet
+   if it is empty then exit to top
+   --
+   # ecoFolder
+   put it into ecoFolder
+   text_AddTrailing ecoFolder, slash
+   file_AddHome ecoFolder
    
-end menu_Eco
+   put wikiFolder_FindLocalHost (ecoFolder) into localhostFolder
+   put localhostFolder into farmFolder
+   set the itemDelimiter to slash
+   delete item -1 of farmFolder
+   --
+   if there is a folder farmFolder then
+      # Fix and reload
+      ecoData_SetFarmFolder farmFolder
+      wikiGarden_SimpleRefresh farmFolder
+   end if
+end menu_FixFarm
 
 private command _
 end _

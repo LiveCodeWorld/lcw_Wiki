@@ -20,10 +20,41 @@ local LocalArray
 
 --> Working on
 -
+on mDoubleUp_WikiLocal displayView, shortFolder
+   if the optionKey is "down" then breakpoint
+   --
+   put wikiFolder_Get (shortFolder) into wikiFolder
+   if wikiFolder_HasNoPages (wikiFolder) then
+      lcw_Answer "Delete empty wiki '[[var]]'?", displayView, shortFolder
+      
+      put wikiFolder_Get (shortFolder) into wikiFolder
+      wikiFolder_TrashEmpty wikiFolder
+      if the result is true then
+         set the deleted_Line of displayView to shortFolder
+         lcw_Notify "Trashed wiki '[[var]]'.", "Great!", shortFolder
+      else
+         lcw_AnswerWarning "Problem deleting wiki'[[var]]'?", displayView, shortFolder
+      end if
+      exit to top
+   end if
+   
+   put wiki_Browser() into browserView
+   if the shiftKey is "down" then
+      if exists (browserView) then
+         set the page_Title [wikiDomain] of browserView to "welcome-visitors"
+      else
+         put wikiFolder_Get (wikiDomain) into wikiFolder
+         finder_Reveal wikiFolder
+         launch_LocalhostWiki wikiDomain
+      end if
+   else
+      display_Wiki wikiDomain, browserView
+   end if
+end mDoubleUp_WikiLocal
+
 private function _LocalWikiFolder dView
    put the selected_Line of dView into wikiDomain
    --
-   breakpoint
    put wikiFolder_ConstructFromFarm (wikiDomain) into symLinkedFolder
    return symLinkedFolder
 end _LocalWikiFolder

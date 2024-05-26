@@ -10,13 +10,45 @@ version: 0.1
 /*
 */
 
-
 --> Working on
 -
+command wikipedia_FixText @sText
+   replace "‚Äî" with "-" in sText
+   replace "‚Äô" with "'" in sText
+   replace "‚Äú" with quote in sText
+   replace "‚Äù" with quote in sText
+   replace "''" with empty in sText
+   replace ":__" with "- **" in sText
+   replace "__" with "**" in sText
+   
+   if char 1 of sText = ":" then
+      put "- " into char 1 of sText
+   end if
+end wikipedia_FixText
+
+
+--> WikiFolder | Fast | WikiRouter
+-
+function wikiFolder_FromRouter wikiDomain
+   put wikiGarden_GetDomainData() into gardenDomainData
+   put gardenDomainData [wikiDomain]["folder"] into gardenWikiFolder
+   
+   -- put wikiRouter_GetArray() into routerFolderArray
+   -- put routerFolderArray [wikiDomain] into gardenWikiFolder
+   
+   if gardenWikiFolder is empty then -- defaults to farm
+      put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
+      return wikiFolder
+   else
+      return gardenWikiFolder
+   end if
+end wikiFolder_FromRouter
+
 function wikiFolder_ConstructFromFarm wikiDomain
-   put wikiFarm_GetFolder() into wikiFarm
+   put ecoData_GetFarmFolder() into wikiFarm
    if there is not a folder wikiFarm then
-      --
+      -- this check slows things (consider removing)
+      breakpoint
       put wikiFarm_GetDefaultFolder() into wikiFarm
    end if
    
@@ -25,62 +57,64 @@ function wikiFolder_ConstructFromFarm wikiDomain
 end wikiFolder_ConstructFromFarm
 
 
---> Move
+--> WikiFolder
 -
-command platform_DeleteEmptyWikis browserView
-   lcw_Answer "Are you sure you want to delete these empty wiki folders?", browserView
-   --
-   wiki_TrashEmpty
-end platform_DeleteEmptyWikis
-
-command platform_RefreshEmptyWikis browserView
-   put wikiPage_EmptyLocalFolders() into pageArray
-   set the ghost_PageArray of browserView to pageArray
-   return pageArray
-end platform_RefreshEmptyWikis
-
-command wiki_TrashEmpty pEmptyLocalDomains, pDisplayView
-   if pEmptyLocalDomains is empty then
-      put wikiFarm_ListEmptyFolders (true) into pEmptyLocalDomains
-   end if
-   --
-   repeat for each line wikiDomain in pEmptyLocalDomains
-      display_Spin wikiDomain, pDisplayView, "red"
-      put the result into lineNum
-      --
-      put wikiFolder_Get (wikiDomain) into wikiFolder
-      if there is a folder wikiFolder then
-         if wikiFolder_NumberOfPages (wikiFolder) < 1 then
-            revDeleteFolder wikiFolder
-            if exists (pDisplayView) then
-               set the deleted_Line of pDisplayView to lineNum
-            end if
-         else
-            breakpoint
-         end if
-      else
-         breakpoint
+function wikiFolder_FindLocalHost ecoFolder, farmFolder
+   -- from folders (assume arrays are broken)
+   -- simply check for existance of "localhost" folder
+   if there is not a folder ecoFolder then return "Error, ecofolder does not exist:" && ecoFolder
+   
+   # farmFolder
+   put wikiFarm_GetDefaultFolder() into farmFolder
+   if there is not a folder farmFolder then return "Error, farmFolder does not exist:" && farmFolder
+   text_AddTrailing farmFolder, slash
+   file_AddHome farmFolder
+   
+   put farmFolder & "localhost/" into localHostFolder
+   if there is a folder localHostFolder then return localHostFolder
+   
+   put folder_ListShort (ecoFolder) into gardenNames
+   repeat for each line gardenName in gardenNames
+      put ecoFolder & gardenName & slash into testFarmFolder
+      put testFarmFolder & "localhost/" into localHostFolder
+      if there is a folder localHostFolder then
+         return localHostFolder
       end if
    end repeat
-end wiki_TrashEmpty
+   return empty
+end wikiFolder_FindLocalHost
 
-function wikiFarm_ListEmptyFolders pListShort
-   put wikiFarm_GetFolder() into farmFolder
-   put _NotThese into notThese
-   put wikiFolder_ListEmpty (farmFolder, pListShort, notThese) into wikiFolders
-   return wikiFolders
-end wikiFarm_ListEmptyFolders
+
+--> WikiFolder | List
+-
+function wikiFolder_ListDomains farmFolder, pNum
+   -- see also "wikiFolder_ListNotEmpty"
+   text_AddTrailing farmFolder, slash
+   put folder_ListShort (farmFolder) into shortWikiFolders
+   repeat for each line shortFolder in shortWikiFolders
+      set the cursor to busy
+      put farmFolder & shortFolder & slash into wikiFolder
+      
+      switch shortFolder
+         case "commons"
+            -- put wikiFolder_HasNoPages (wikiFolder, pNum) = empty
+            next repeat
+            break
+         default
+            # Skip if no pages
+            put wikiFolder_HasNoPages (wikiFolder, pNum) into noPages
+            if noPages is true then next repeat
+            put shortFolder & CR after wikiDomains
+      end switch
+   end repeat
+   delete char -1 of wikiDomains
+   url_SortDomainIndex wikiDomains
+   return wikiDomains
+end wikiFolder_ListDomains
 
 
 --> WikiFolder
 -
-function wikiFolder_HasNoPages wikiFolder, pNum
-   if pNum is not a number then put 1 into pNum
-   put wikiFolder_NumberOfPages (wikiFolder) into numOfPages
-   if numOfPages is empty then return empty -- not a wiki
-   return numOfPages <= pNum
-end wikiFolder_HasNoPages
-
 function wikiFolder_NumberOfPages wikiFolder, pUseSymLinked
    if pUseSymLinked is true then
       put symlink_Destination (wikiFolder) into destFolder
@@ -96,20 +130,6 @@ function wikiFolder_NumberOfPages wikiFolder, pUseSymLinked
 end wikiFolder_NumberOfPages
 
 
---> WikiFolder | Fast | WikiRouter
--
-function wikiFolder_FromRouter wikiDomain
-   put wikiRouter_GetArray() into routerFolderArray
-   put routerFolderArray [wikiDomain] into gardenWikiFolder
-   if gardenWikiFolder is empty then -- defaults to farm
-      put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
-      return wikiFolder
-   else
-      return gardenWikiFolder
-   end if
-end wikiFolder_FromRouter
-
-
 --> WikiFolder | Model | Local
 -
 function wikiFolder_Get wikiDomain
@@ -121,53 +141,22 @@ function wikiFolder_Get wikiDomain
    end if
 end wikiFolder_Get
 
-function wikiFolder_ListEmpty pFarmFolder, pListShort, pNotTheseShortFolders
-   if pFarmFolder is empty then put wikiFarm_GetFolder() into pFarmFolder
-   put folder_ShortList (pFarmFolder) into notSymLinkedFolderNames
-   --
-   put _TidyNotThese (pNotTheseShortFolders) into cleanNotTheseShortFolders
-   repeat for each line shortWikiFolder in notSymLinkedFolderNames
-      set the cursor to busy
-      if shortWikiFolder is among the lines of cleanNotTheseShortFolders then
-         next repeat
-      end if
-      --
-      put pFarmFolder & shortWikiFolder & slash into wikiFolder
-      --
-      put wikiFolder_HasNoPages (wikiFolder) into noPages -- symlinked version
-      --
-      if noPages is true then
-         put wikiFolder & CR after emptyFolders
-         put shortWikiFolder & CR after emptyShortFolders
-      else
-         next repeat
-      end if
-   end repeat
-   delete char -1 of emptyShortFolders
-   delete char -1 of emptyFolders
-   
-   if pListShort is true then
-      url_SortDomainIndex emptyShortFolders
-      return emptyShortFolders
-   else
-      return emptyFolders
-   end if
-end wikiFolder_ListEmpty
 
-function wikiFolder_ListTopLevel
-   put wikiGarden_ListAllDomains() into wikiDomains
-   
+--> WikiFolder | List
+-
+function wikiFolder_ListTopLevel   
    # List Toplevel
+   put wikiGarden_ListAllDomains() into wikiDomains
    put url_ListTopLevelDomains (wikiDomains) into toplevelDomains
    
    # Strip notThese
-   put _NotThese() into notThese
+   put wikiFolder_NotThese() into notThese
    put _StripNotThese (toplevelDomains, notThese) into goodShortFolders
    return goodShortFolders
 end wikiFolder_ListTopLevel
 
-function wiki_ListShortFolders pRootFolder, pNotTheseShortFolders
-   if pRootFolder is empty then put wikiFarm_GetFolder() into pRootFolder
+function wikiFolder_ListShort pRootFolder, pNotTheseShortFolders
+   if pRootFolder is empty then put ecoData_GetFarmFolder() into pRootFolder
    if pNotTheseShortFolders is empty then put "commons" into pNotTheseShortFolders
    --
    put folder_ListShort (pRootFolder) into shortWikiFolders
@@ -175,36 +164,17 @@ function wiki_ListShortFolders pRootFolder, pNotTheseShortFolders
    --
    url_SortDomainIndex goodShortFolders
    return goodShortFolders
-end wiki_ListShortFolders
-
-
---> WikiFolder | Tidy
--
-command wikiFolder_CleanIndex @wikiFolders
-   put the number of lines of wikiFolders into maxNum
-   repeat with lineNum = maxNum down to 1
-      set the cursor to busy
-      put line lineNum of wikiFolders into wikiFolder
-      
-      put wikiFolder_HasNoPages (wikiFolder) into noPages      
-      if noPages is true then
-         delete line lineNum of wikiFolders
-         put wikiFolder & CR after emptyFolders
-      end if
-   end repeat
-   delete char -1 of emptyFolders
-   return emptyFolders
-end wikiFolder_CleanIndex
+end wikiFolder_ListShort
 
 command wikiFolder_TidyList @shortWikiFolders
-   put _NotThese() into notThese
+   put wikiFolder_NotThese() into notThese
    put _StripNotThese (shortWikiFolders, notThese) into shortWikiFolders
 end wikiFolder_TidyList
 
 
 --> Private
 -
-private function _TidyNotThese pNotTheseShortFolders
+function wikiFolder_TidyNotThese pNotTheseShortFolders
    replace comma with CR in pNotTheseShortFolders
    repeat for each line notThisShortFolder in pNotTheseShortFolders
       put word 1 to -1 of notThisShortFolder into notThisShortFolder
@@ -213,11 +183,15 @@ private function _TidyNotThese pNotTheseShortFolders
    end repeat
    delete char -1 of cleanNotTheseShortFolders
    return cleanNotTheseShortFolders
-end _TidyNotThese
+end wikiFolder_TidyNotThese
+
+function wikiFolder_NotThese
+   return "commons,assets"
+end wikiFolder_NotThese
 
 private function _StripNotThese longOrShortFolders, pNotTheseShortFolders
    # Not these
-   put _TidyNotThese (pNotTheseShortFolders) into cleanNotTheseShortFolders
+   put wikiFolder_TidyNotThese (pNotTheseShortFolders) into cleanNotTheseShortFolders
    
    set the itemdelimiter to slash
    repeat for each line longOrShortFolder in longOrShortFolders
@@ -234,10 +208,6 @@ private function _StripNotThese longOrShortFolders, pNotTheseShortFolders
    delete char -1 of goodLongOrShortFolders
    return goodLongOrShortFolders
 end _StripNotThese
-
-function _NotThese
-   return "commons,assets"
-end _NotThese
 
 private function _NumberOfpages wikiFolder
    if there is not a folder wikiFolder then return empty

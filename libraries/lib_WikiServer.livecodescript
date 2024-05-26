@@ -49,47 +49,19 @@ command wikiServer_Create wikiDomain
 end wikiServer_Create
 
 command wikiServer_SwitchIfGarden wikiDomain
-   put wikiGarden_Name (wikiDomain) into gardeName
-   if gardeName is empty then return empty
+   put wikiGarden_Name (wikiDomain) into gardenName
+   if gardenName is empty then return empty
    
    wikiServer_StopNode
-   wikiServer_StartNodeGarden gardenName
-end wikiServer_SwitchIfGarden
-
-command wikiServer_StartNodeGarden gardenName
-   put wikiFarm_GetFolder() into farmFolder
-   --
-   switch gardenName
-      case "Farm"
-         put wikiFarm_GetDefaultFolder() into gardenFolder
-         break
-      default
-         put wikiGarden_ConstructFolder (gardenName) into gardenFolder
-   end switch
-   
-   if gardenFarmFolder = farmFolder then
-      return empty
-   end if
-   
-   # Stop Node Server
-   wikiServer_StopNode
-   
-   # Move Localhost from old farm to gardenFarmFolder
-   put gardenFolder & "localhost/" into newLocalhostFolder
-   put farmFolder & "localhost/" into oldLocalhostFolder
-   revMoveFolder oldLocalhostFolder, newLocalhostFolder
-   wikiFarm_SetFolder gardenFarmFolder, true
-   
-   # Start node folder with Garden folder as root
-   wikiServer_StartNodeFarm gardenFolder
+   wikiGarden_StartNodeServer gardenName
    put the result into wikiProcessID
    return wikiProcessID
-end wikiServer_StartNodeGarden
+end wikiServer_SwitchIfGarden
 
 command wikiServer_StartNodeFarm pFarmFolder
    -- wrapper around "wikiServer_StartNode" which also does "wikiGarden_Init"
    if pFarmFolder is empty then
-      put wikiFarm_GetFolder() into pFarmFolder
+      put ecoData_GetFarmFolder() into pFarmFolder
    end if
    
    put wikiServer_ShellCommand ("friends", true, 80, pFarmFolder) into someShell

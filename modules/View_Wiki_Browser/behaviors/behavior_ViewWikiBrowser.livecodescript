@@ -19,6 +19,92 @@ local LocalArray
 
 --> Working on
 -
+getprop wiki_Domain [pageTitle]
+   if pageTitle is empty then
+      return _WikiDomain()
+   else
+      put fedwiki_ConstructSlug (pageTitle) into pageSlug
+      put _SlugArray() into slugArray
+      put slugArray [pageSlug]["wikiDomain"] into wikiDomain
+      return wikiDomain
+   end if
+end wiki_Domain
+
+private function _SlugArray
+   put the browser_URL of me into browserURL
+   --
+   set the itemdelimiter to slash
+   put item 3 of browserURL into ownerDomain
+   
+   put _LineUpJson() into lineupJson
+   replace comma with CR in lineupJson
+   replace quote with empty in lineupJson
+   
+   repeat for each line sLink in lineupJson
+      set the itemdelimiter to slash
+      if char 1 to 2 of sLink = "//" then
+         put item 3 of sLink into sDomain
+         put item 4 of sLink into pageSlug
+      else
+         put ownerDomain into sDomain
+         put item -1 of sLink into pageSlug
+      end if
+      
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      
+      put sDomain into slugArray [pageSlug]["wikiDomain"]
+   end repeat
+   return slugArray
+end _SlugArray
+
+private function _WikiDomain
+   set the itemdelimiter to slash
+   --
+   put the browser_URL of me into someURL
+   put item 3 of someURL into wikiDomain
+   --
+   set the itemdelimiter to "."
+   if item 1 of wikiDomain = "www" then delete item 1 of wikiDomain
+   return wikiDomain
+end _WikiDomain
+
+getprop page_Text [titleOrNum]
+   put the page_Array [titleOrNum] of me into pageArray
+   put pageArray_Text (pageArray) into pageText
+   return pageText
+end page_Text
+
+function pageArray_Text pageArray, pIncludeNotes, pBreak
+   if pBreak is empty then put CR&CR into pBreak
+   --
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      put itemArray ["text"] into itemText
+      switch itemArray ["type"]
+         case "pageFold"
+            if pIncludeNotes is not false then
+               exit repeat
+            end if
+         case "paragraph"
+         case "markdown"
+            if itemText = "# See also" and pIncludeNotes is not false then
+               exit repeat
+            end if
+            
+            -- pageArray_CleanText itemText
+            put markdown_ToText (itemText) into sText
+            put sText & pBreak after pageText
+         case "html"
+            break
+         default
+            next repeat
+      end switch
+   end repeat
+   return word 1 to -1 of pageText
+end pageArray_Text
+
 getprop menu_Target [tObject]
    -- used but menus of "View|Wiki|Browser"
    if exists (tObject) is false then
@@ -313,25 +399,41 @@ getprop lineUp_URL [slugOrNum]
    put the browser_URL of me into browserURL
    put _LineUpUrls (browserURL) into lineUpURLs
    
-   # If slugOrNum is a number
-   if slugOrNum is a number then
-      put line slugOrNum of lineUpURLs into lineUpURL
-      return lineUpURL
-   end if
-   
-   # Find Slug
-   repeat for each line lineUpURL in lineupUrls      
-      # Extract Test Slug
-      set the itemdelimiter to slash
-      get item -1 of lineupUrl
-      set the itemdelimiter to "."
-      put item 1 of it into testSlug
-      
-      if testSlug = slugOrNum then
-         return lineupUrl
-      end if
-   end repeat
-   return empty
+   switch
+      case slugOrNum is empty
+         put the wiki_Domain of me into wikiDomain
+         
+         set the itemdelimiter to slash
+         replace ".json" with empty in lineUpURLs
+         put line 1 of lineUpURLs & slash into lineUpURL
+         put "view/" before item 4 of lineUpURL
+         
+         replace (slash & wikiDomain & slash) with (slash & "view" & slash)  in lineUpURLs
+         --
+         delete line 1 of lineUpURLs
+         replace "http://" with empty in lineUpURLs
+         repeat for each line newBit in lineupUrls 
+            put newBit & slash after lineUpURL
+         end repeat
+         return lineUpURL
+      case slugOrNum is a number
+         put line slugOrNum of lineUpURLs into lineUpURL
+         return lineUpURL
+      default
+         # Find Slug
+         repeat for each line lineUpURL in lineupUrls      
+            # Extract Test Slug
+            set the itemdelimiter to slash
+            get item -1 of lineupUrl
+            set the itemdelimiter to "."
+            put item 1 of it into testSlug
+            
+            if testSlug = slugOrNum then
+               return lineupUrl
+            end if
+         end repeat
+         return empty
+   end switch
 end lineUp_URL
 
 getprop lineup_Data
@@ -587,21 +689,6 @@ getprop wiki_Garden
    put wikiGarden_Name (wikiDomain) into gardenName
    return gardenName
 end wiki_Garden
-
-getprop wiki_Domain
-   return _WikiDomain()
-end wiki_Domain
-
-private function _WikiDomain
-   set the itemdelimiter to slash
-   --
-   put the browser_URL of me into someURL
-   put item 3 of someURL into wikiDomain
-   --
-   set the itemdelimiter to "."
-   if item 1 of wikiDomain = "www" then delete item 1 of wikiDomain
-   return wikiDomain
-end _WikiDomain
 
 setprop wiki_Domain domainOrURL
    put _BrowserWidget() into browserWidget
@@ -996,7 +1083,6 @@ private function _PageArray lineupUrl
    put json_ToArray (pageJson) into pageArray
    return pageArray
 end _PageArray
-
 
 command _DisplayToolsPage pageTitle, wikiDomain, urlPath
    # Open tools

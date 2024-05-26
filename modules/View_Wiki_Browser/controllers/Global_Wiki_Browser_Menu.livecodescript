@@ -30,18 +30,11 @@ getprop menu_Target [tObject]
    put the wiki_Domain of wikiView into wikiDomain
    put wikiDomain into LocalArray ["wikiDomain"]
    --
-   put _ListSubdomains(wikiDomain) into LocalArray ["subDomains"]
+   put wikiServer_NodeIsRunning() into nodeIsRunning
+   put nodeIsRunning into LocalArray ["nodeIsRunning"]
+   --
    return wikiView
 end menu_Target
-
-private function _ListSubdomains wikiDomain
-   put wikiGarden_ListAllDomains (wikiDomain) into wikiDomains
-   --
-   put url_GetTLD (wikiDomain) into tldDomain
-   line_Delete tldDomain, wikiDomains
-   --
-   return wikiDomains
-end _ListSubdomains
 
 getprop displayDomain_Param [wikiView]
    put the browser_Domain of wikiView into wikiDomain
@@ -49,13 +42,13 @@ getprop displayDomain_Param [wikiView]
 end displayDomain_Param
 
 getprop displayDomain_Params
-   put wikiFolder_ListTopLevel() into wikiDomains
-   --
-   if wikiDomains is empty then
-      return "ChatGPT,Localhost,-,Ask"
+   if LocalArray ["nodeIsRunning"] then
+      put wikiFarm_ListDomains() into wikiDomains
+      put url_ListTopLevelDomains (wikiDomains) into wikiDomains
    else
-      return "Ask,-" &CR& wikiDomains &CR& "-,ChatGPT"
+      put wikiFolder_ListTopLevel() into wikiDomains
    end if
+   return "Ask,-" &CR& wikiDomains &CR& "-,ChatGPT"
 end displayDomain_Params
 
 getprop subdomain_Params [wikiView]
@@ -64,14 +57,22 @@ end subdomain_Params
 
 getprop disabled_Subdomain [wikiView] 
    put LocalArray ["wikiDomain"] into wikiDomain
-   
    switch
       case wikiDomain = "localhost"
          return "delete"
-      case LocalArray ["subDomains"] is empty
-         return "delete"
       default
-         return false
+         if LocalArray ["nodeIsRunning"] then
+            put wikiFarm_ListSubdomains (wikiDomain) into subDomains
+         else
+            put wikiDomain_ListTop() into subDomains
+            url_FilterDomains subDomains, wikiDomain
+         end if
+         put subDomains into LocalArray ["subDomains"]
+         if subDomains is empty then
+            return "delete"
+         else
+            return false
+         end if
    end switch
 end disabled_Subdomain
 
@@ -85,7 +86,7 @@ on menu_DisplayDomain wikiView, wikiDomain
          put the wiki_Domain of wikiView into wikiDomain
          put lcw_Ask ("Display wiki '[[var]]'...", wikiDomain, wikiView, wikiDomain) into wikiDomain
          --
-         put wikiGarden_Folder (wikiDomain) into gardenFolder
+         put wikiFolder_FromDomain (wikiDomain) into gardenFolder
          if gardenFolder is not empty then
             put wikiGarden_Name (wikiDomain) into gardenName
             wikiServer_StartNodeGarden gardenName
@@ -113,23 +114,29 @@ private on _
 end _
 
 on menu_Fedwiki.1 wikiView
-   display_WikiDomain "fedwiki.org"
+   display_Wiki "fedwiki.org", wikiView
 end menu_Fedwiki.1
 
 on menu_Livecode.2 wikiView
-   -- set the page_Title ["livecode.world"] of wikiView to "Welcome Visitors"
-   display_WikiDomain "livecode.world"
+   display_Wiki "livecode.world", wikiView
 end menu_Livecode.2
 
 on menu_Thought.3 wikiView
-   set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
+   -- set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
+   display_Wiki "thought.garden", wikiView
 end menu_Thought.3
 
 private on __
 end __
 
+on menu_ViewInBrowser.8 wikiView
+   put the lineUp_URL of wikiView into lineUpURL
+   --
+   launch url lineUpURL
+end menu_ViewInBrowser.8
+
 on menu_Localhost.9 wikiView
-   display_WikiBrowser "localhost", wikiView
+   display_Wiki "localhost", wikiView
 end menu_Localhost.9
 
 on menu_ResetDomain.0 wikiView

@@ -129,7 +129,7 @@ on menu_FixTwo dView
       end if
       --
       if folder_IsSymLink (twoFolder) then
-         put wikiFarm_GetFolder() into rootFolder
+         put ecoData_GetFarmFolder() into rootFolder
          set the defaultfolder to rootFolder
          -- put merge ("mv '[[twoFolder]]' '[[fixedFolder]]'") into someShell
          put merge ("mv '[[localhostDomain]]' '[[fixedName]]'") into someShell
@@ -157,7 +157,7 @@ end menu_FixGitSymlink
 
 on menu_MakeAstralSymLink dView
    put the selected_Line of dView into localhostDomain
-   put wikiFarm_GetFolder() into rootFolder
+   put ecoData_GetFarmFolder() into rootFolder
    put rootFolder & localhostDomain into symLinkedFolder 
    --
    put wiki_AstralFromLocalhost (localhostDomain) into astralDomain

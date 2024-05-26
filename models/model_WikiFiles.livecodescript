@@ -26,6 +26,37 @@ end wikiUrl_Asset
 
 --> Working on
 -
+function wikiFile_ConstructLocalHost pSlug
+   put wikiFolder_ConstructLocalPages() into localPagesFolder
+   if there is not a folder localPagesFolder then return empty
+   
+   put localPagesFolder & pSlug into pageJsonFile
+   return pageJsonFile
+end wikiFile_ConstructLocalHost
+
+function wikiFolder_ConstructLocalPages
+   put wikiFolder_ConstructLocalHost() into localhostFolder
+   return localhostFolder & "pages/"
+end wikiFolder_ConstructLocalPages
+
+function wikiFolder_LocalHost
+   put wikiFolder_ConstructLocalHost() into localhostFolder
+   if there is a localhostFolder then
+      return localhostFolder
+   else
+      return empty
+   end if
+end wikiFolder_LocalHost
+
+function wikiFolder_ConstructLocalHost
+   put wikiFarm_GetDefaultFolder() into farmFolder
+   put farmFolder & "localhost/" into localHostFolder
+   return localHostFolder
+end wikiFolder_ConstructLocalHost
+
+
+--> Wikifile | Owner
+-
 function wikiFile_ConstructOwner wikiDomain
    put wikiFolder_ConstructStatus (wikiDomain) into statusFolder
    put statusFolder & "owner.json" into faviconFile
@@ -264,7 +295,7 @@ function wikiFolder_ConstructClient
 end wikiFolder_ConstructClient
 
 function wikiFolder_ConstructCommons pWikiDomain
-   put wikiFarm_GetFolder (pWikiDomain) into wikiRoot
+   put ecoData_GetFarmFolder (pWikiDomain) into wikiRoot
    put wikiRoot & "commons/" into wikiCommonsFolder
    return wikiCommonsFolder
 end wikiFolder_ConstructCommons

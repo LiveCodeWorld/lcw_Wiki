@@ -25,20 +25,26 @@ end menu_Target
 
 --> Global | Wiki | Server | Data | Menu
 -
-on menu_UpdateGardenEcoData
+on menu_WikiGardenRefresh
+   wikiGarden_SimpleRefresh
+   --
+   display_GardenEcodata
+end menu_WikiGardenRefresh
+
+on menu_WikiGardenUpdate
    wikiGarden_Update
    --
    display_GardenEcodata
-end menu_UpdateGardenEcoData
-
-on menu_ReloadWikiEcoData
-   wikiGarden_Init
-   --
-   menu_DisplayLoadedWikiEcoData
-end menu_ReloadWikiEcoData
+end menu_WikiGardenUpdate
 
 private on _
 end _
+
+on menu_WikiGardenInit
+   wikiGarden_Init
+   --
+   menu_DisplayLoadedWikiEcoData
+end menu_WikiGardenInit
 
 on menu_DisplayGardenEcoData
    display_GardenEcodata
@@ -49,51 +55,8 @@ on menu_DisplayLoadedWikiEcoData
    display_GardenEcodata ecoData
 end menu_DisplayLoadedWikiEcoData
 
-on menu_StoreDisplayedEcoData wikiView
-   put the displaye_Data of wikiView into ecoData
-   wikiGarden_SetModel ecoData
-end menu_StoreDisplayedEcoData
-
-on menu_StoreEcoFolder
-   put ecoData_GetEcoFolder() into ecoFolder
-   file_SetHome ecoFolder
-   wikiPreference_Set "Eco Folder", ecoFolder
-   --
-   put wikiFarm_GetFolder() into farmFolder
-   file_SetHome ecoFolder
-   wikiPreference_Set "Farm Folder", farmFolder
-end menu_StoreEcoFolder
-
 private on __
 end __
-
-on menu_InitWikiGarden dView
-   wikiGarden_Init
-end menu_InitWikiGarden
-
-private on ___
-end ___
-
-on menu_DisplayRouterFolderArray
-   display_RouterFolderArray
-end menu_DisplayRouterFolderArray
-
-on menu_ConstructRouterFolderArray dView
-   put wikiGarden_ConstructRouterArray() into routerArray
-   display_Data routerArray, "routerArray"
-end menu_ConstructRouterFolderArray
-
-on menu_PrefArray wikiview
-   put "Hello" into prefArray ["World"]
-   put "One" into prefArray ["Key"]
-   put "Two" into prefArray ["Another Key"]
-   --
-   put wikiPreference_ConstructPageArray (prefArray) into pageArray
-   set the ghost_PageArray of wikiview to pageArray
-end menu_PrefArray
-
-private on ____
-end ____
 
 on menu_DisplayWikiRouterArray
    display_WikiRouterArray
@@ -105,8 +68,24 @@ on menu_DisplayGardenDomainData
    display_Data gardenDomainData, "wikiGarden_GetDomainData()", "Wiki Garden"
 end menu_DisplayGardenDomainData
 
-private on _____
-end _____
+private on ___
+end ___
+
+on menu_SetFarmFolder dView
+   answer_SetDefaultFarm
+end menu_SetFarmFolder
+
+on menu_FixLocalhost
+   put ecoData_GetFarmFolder() into farmFolder
+   --
+   put farmFolder & "localhost/" into localHostFolder
+   if there is not a folder localHostFolder then
+      put "Error, there is not a localhost folder in the farm folder:" && localHostFolder into someQuestion
+      lcw_AnswerWarning someQuestion, dView
+   else
+      breakpoint
+   end if
+end menu_FixLocalhost
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Server | Data | Menu")

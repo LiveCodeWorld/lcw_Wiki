@@ -15,10 +15,17 @@ Full help text should be provided on the linked wiki.*/
 -
 local LocalArray
 
+
 --> Menu | Props
 -
+getprop menu_CheckTarget [wikiView]
+   put the lineup_Titles of wikiView into pageTitles
+   put pageTitles into LocalArray ["pageTitles"]
+   return true
+end menu_CheckTarget
+
 getprop checked_FlagEvent [wikiView]
-   get the flag_Handler of wikiView
+    get the flag_Handler of wikiView
    if it = "default" then
       return true
    else
@@ -27,8 +34,7 @@ getprop checked_FlagEvent [wikiView]
 end checked_FlagEvent
 
 getprop compactRefs_Params [wikiView]
-   put the lineup_Titles of wikiView into pageTitles
-   return pageTitles
+   return LocalArray ["pageTitles"]
 end compactRefs_Params
 
 getprop checked_ScriptDebugMode
@@ -69,6 +75,14 @@ on menu_CompactRefs wikiView, pageTitle
    --
    set the ghost_PageArray of wikiView to pageArray
 end menu_CompactRefs
+
+getprop cleanJournal_Params [wikiView]
+   return LocalArray ["pageTitles"]
+end cleanJournal_Params
+
+on menu_CleanJournal wikiView, pageTitle
+   
+end menu_CleanJournal
 
 private on _
 end _

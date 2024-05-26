@@ -37,10 +37,9 @@ end menu_DisplayFrinedlyDefault
 
 on menu_SetFriendlyDefault dView
    put the title_Text of dView into wikiDomain
+   lcw_Answer "Set owner.json for [[var]]", dView, wikiDomain
    --
    wikiServer_SetFriendlyData wikiDomain
-   --
-   lcw_Answer "Set owner.json", dView, pQVar
 end menu_SetFriendlyDefault
 
 private on _

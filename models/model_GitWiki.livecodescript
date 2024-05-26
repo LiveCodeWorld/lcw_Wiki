@@ -49,7 +49,7 @@ command gitwiki_CopyToLocal wikiDomain, pAddTohosts, pNewName
       return "Error, folder" && localFolder && "already exists."
    else
       if pNewName is empty then
-         put wikiFarm_GetFolder() into wikiRootFolder
+         put ecoData_GetFarmFolder() into wikiRootFolder
          revCopyFolder gitWikiFolder, wikiRootFolder
       else
          put the tempname & slash into tempFolder
@@ -220,7 +220,7 @@ function gitwiki_ListFolders pListshort
    put _NotTheseWikiFolders() into notThese
    --
    if pListshort is true then
-      put wiki_ListShortFolders (rootFolder, notThese) into gitWikiFolders
+      put wikiFolder_ListShort (rootFolder, notThese) into gitWikiFolders
    else
       put wiki_ListFolders (rootFolder, notThese) into gitWikiFolders
    end if
@@ -229,7 +229,7 @@ end gitwiki_ListFolders
 
 function gitwiki_ListEmptyFolders pListShort
    put gitwiki_RootFolder() into rootFolder
-   put wikiFolder_ListEmpty (rootFolder, pListShort, ".git,fedwiki_owners,dead.anarchive.earth") into emptyFolders
+   put wikiFarm_ListEmptyFolders (rootFolder, pListShort, ".git,fedwiki_owners,dead.anarchive.earth") into emptyFolders
    return emptyFolders
 end gitwiki_ListEmptyFolders
 

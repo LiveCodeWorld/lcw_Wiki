@@ -15,7 +15,52 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
-function wikiPage_GardenActivity gardenName, wikiDomain
+function wikiPage_EmptyDomains wikiDomain
+   put "Empty Domains" into pageTitle
+   put "Empty wiki-folder for domain" && wikiDomain into someMarkdown
+   put wikiDomain_ListEmptyFolders (wikiDomain, true) into emptyDomains
+   --
+   put _SitesIndex (emptyDomains, pageTitle, wikiDomain, pageTitle, someMarkdown) into pageArray
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_EmptyDomains
+
+function wikiPage_GardenIndex gardenName, wikiDomain, pSinceWhen
+   put gardenName && "Garden Index" into pageTitle
+   put "This [[garden]] contains the following domains:" into someMarkdown
+   --
+   put pageTitle into rosterTitle
+   put "Sites" into word -1 of rosterTitle
+   --
+   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
+   put CR & "SORT titles" after moreActivityText
+   --
+   put _Activity (pageTitle, rosterTitle, wikiDomain, pSinceWhen, moreActivityText, someMarkdown) into pageArray
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_GardenIndex
+
+function wikiPage_GardenActivity gardenName, wikiDomain, pSinceWhen
+   put gardenName && "Garden Activity" into pageTitle
+   put "This [[garden]] contains the following domains:" into someMarkdown
+   --
+   put pageTitle into rosterTitle
+   put "Sites" into word -1 of rosterTitle
+   --
+   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
+   --
+   put _Activity (pageTitle, rosterTitle, wikiDomain, pSinceWhen, moreActivityText, someMarkdown) into pageArray
+   
+   # Clean and Return
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_GardenActivity
+
+function wikiPage_GardenSites gardenName, wikiDomain
    put gardenName && "Garden Sites" into pageTitle
    -- put "This [[garden]] contains the following domains:" into someMarkdown
    put empty into someMarkdown
@@ -26,7 +71,7 @@ function wikiPage_GardenActivity gardenName, wikiDomain
    # Clean and Return
    pageArray_StripJournal pageArray
    return pageArray
-end wikiPage_GardenActivity
+end wikiPage_GardenSites
 
 function wikiPage_LocalActivity
    -- put wikiGarden_ListAllDomains() into wikiDomains
@@ -71,38 +116,6 @@ function wikiPage_LocalActivity
    pageArray_StripJournal pageArray
    return pageArray
 end wikiPage_LocalActivity
-
-private function _SitesIndex wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara
-   # Construct PageArray
-   if pFirstPara is empty then
-      put pageTitle into shortTitle
-      delete word -1 of shortTitle
-      put "Here we list sites related to [[{{shortTitle}} Activity]]. See [[{{shortTitle}} Index]] for a chronological view of all contributions." into pFirstPara
-      curly_ReplaceText pFirstPara, "shortTitle", shortTitle
-   end if
-   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
-   
-   # Roster
-   pageArray_AddMarkdown pageArray, "# Roster"
-   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
-   pageArray_AddRoster pageArray, rosterText
-   
-   # Activity
-   pageArray_AddMarkdown pageArray, "# Activity"
-   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
-   pageArray_AddActivity pageArray, pageTitle, "1 week", moreActivityText
-   
-   # Reference Links
-   pageArray_AddMarkdown pageArray, "# Reference Links"
-   pageArray_AddReferenceIndex pageArray, wikiDomains
-   
-   # Domain List
-   pageArray_AddMarkdown pageArray, "# Domains"
-   put markdown_LinkedBullets (wikiDomains) into mdDomains
-   pageArray_AddMarkdown pageArray, mdDomains
-   
-   return pageArray
-end _SitesIndex
 
 function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
    set the itemdelimiter to "."
@@ -701,6 +714,38 @@ private command _AddRefreshEmpty @pageArray
    return sMarkdown
 end _AddRefreshEmpty
 
+private function _SitesIndex wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara
+   # Construct PageArray
+   if pFirstPara is empty then
+      put pageTitle into shortTitle
+      delete word -1 of shortTitle
+      put "Here we list sites related to [[{{shortTitle}} Activity]]. See [[{{shortTitle}} Index]] for a chronological view of all contributions." into pFirstPara
+      curly_ReplaceText pFirstPara, "shortTitle", shortTitle
+   end if
+   put pageArray_Construct (pageTitle, pFirstPara) into pageArray
+   
+   # Roster
+   pageArray_AddMarkdown pageArray, "# Roster"
+   put roster_ConstructReferenceText (tldDomain, sitesTitle) into rosterText
+   pageArray_AddRoster pageArray, rosterText
+   
+   # Activity
+   pageArray_AddMarkdown pageArray, "# Activity"
+   put "NEIGHBORHOOD no" &CR& "CONVERSATION" into moreActivityText
+   pageArray_AddActivity pageArray, pageTitle, "1 week", moreActivityText
+   
+   # Reference Links
+   pageArray_AddMarkdown pageArray, "# Reference Links"
+   pageArray_AddReferenceIndex pageArray, wikiDomains
+   
+   # Domain List
+   pageArray_AddMarkdown pageArray, "# Domains"
+   put markdown_LinkedBullets (wikiDomains) into mdDomains
+   pageArray_AddMarkdown pageArray, mdDomains
+   
+   return pageArray
+end _SitesIndex
+
 private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinceWhen, pPageTitle, pFirstPara
    if pPageTitle is empty then
       put wikiPage_DomainTitle (tldDomain, titleWord) into pPageTitle
@@ -708,6 +753,11 @@ private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinc
    put pPageTitle into pageTitle
    put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
    
+   put _Activity (pageTitle, sitesTitle, tldDomain, sinceWhen, moreActivityText, pFirstPara) into  pageArray
+   return pageArray
+end _ActivityPageArray
+
+private function _Activity pageTitle, sitesTitle, tldDomain, sinceWhen, moreActivityText, pFirstPara
    # Construct PageArray
    if pFirstPara is empty then
       put "View all activity from [[{{sitesTitle}}]] listed in the roster below:" into pFirstPara
@@ -727,7 +777,7 @@ private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinc
    # Clean and Return
    pageArray_StripJournal pageArray
    return pageArray
-end _ActivityPageArray
+end _Activity
 
 private command _AddMissingSites wikiDomains, @pageArray
    put wikiGarden_ListAllDomains() into existingDomains
