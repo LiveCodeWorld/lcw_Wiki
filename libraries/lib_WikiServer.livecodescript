@@ -59,7 +59,15 @@ command wikiServer_SwitchIfGarden wikiDomain
 end wikiServer_SwitchIfGarden
 
 command wikiServer_StartNodeFarm pFarmFolder
-   -- wrapper around "wikiServer_StartNode" which also does "wikiGarden_Init"
+   put wikiServer_ListProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then
+      return wikiProcessIDs
+   end if
+   
+   # Init gardens
+   wikiGarden_Update false -- does wikiGarden_INit
+   put the result into ecoData
+   
    if pFarmFolder is empty then
       put ecoData_GetFarmFolder() into pFarmFolder
    end if
@@ -68,9 +76,6 @@ command wikiServer_StartNodeFarm pFarmFolder
    put shell (someShell) into shellResult
    put word 2 of shellResult into wikiProcessID
    
-   # Init gardens
-   wikiGarden_Init
-   
    # Notify
    put "Started node server using" && someShell into sComment
    lcw_Notify sComment, "Node Server"
@@ -78,6 +83,11 @@ command wikiServer_StartNodeFarm pFarmFolder
    # Indicate wiki starting up
    return wikiProcessID
 end wikiServer_StartNodeFarm
+
+function wikiServer_NodeIsRunning
+   return wikiServer_ListProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wikiServer_NodeIsRunning
 
 
 --> WikiServer | Node
@@ -120,11 +130,6 @@ command wikiServer_StopNode pIDs
       close process wiki
    end if
 end wikiServer_StopNode
-
-function wikiServer_NodeIsRunning
-   return wikiServer_ListProcessIds() is not empty
-   -- return "wiki" is among the lines of the openprocesses
-end wikiServer_NodeIsRunning
 
 
 --> WikiServer | Files (see lib_AtopiaDomainOwnership)
