@@ -33,12 +33,14 @@ getprop menu_Target [tObject]
    put wikiServer_NodeIsRunning() into nodeIsRunning
    put nodeIsRunning into LocalArray ["nodeIsRunning"]
    --
+   put url_GetTLD (wikiDomain) into tldDomain
+   put tldDomain into LocalArray ["tldDomain"]
+   --
    return wikiView
 end menu_Target
 
 getprop displayDomain_Param [wikiView]
-   put the browser_Domain of wikiView into wikiDomain
-   return wikiDomain
+   return LocalArray ["tldDomain"]
 end displayDomain_Param
 
 getprop displayDomain_Params
@@ -62,7 +64,8 @@ getprop disabled_Subdomain [wikiView]
          return "delete"
       default
          if LocalArray ["nodeIsRunning"] then
-            put wikiFarm_ListSubdomains (wikiDomain) into subDomains
+            put LocalArray ["tldDomain"] into tldDomain
+            put wikiFarm_ListSubdomains (tldDomain) into subDomains
          else
             put wikiDomain_ListTop() into subDomains
             url_FilterDomains subDomains, wikiDomain

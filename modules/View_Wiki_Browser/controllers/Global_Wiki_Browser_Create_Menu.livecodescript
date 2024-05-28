@@ -45,12 +45,19 @@ end _IsLocalHost
 -
 on menu_CreateNewWiki wikiView
    put the wiki_Domain of wikiView into wikiDomain
+   put lcw_Ask ("Create a new wiki...", wikiDomain, wikiView) into wikiDomain
    --
    wikiServer_Create wikiDomain
-   --
-   put merge ("Created new local wiki '[[wikiDomain]]'. Use these tools to create some initial content.") into sMarkdown
-   put pageArray_Construct ("Site Construction", sMarkdown) into pageArray
-   pageArray_AddReferenceIndex pageArray, wikiDomain
+   if item 1 of the result is "Error" then
+      put the result into sMarkdown
+      put pageArray_Construct ("Error", sMarkdown) into pageArray
+   else
+      put the result into wikiFolder
+      --
+      put merge ("Created new local wiki '[[wikiDomain]]'. Use these tools to create some initial content.") into sMarkdown
+      put pageArray_Construct ("Site Construction", sMarkdown) into pageArray
+      pageArray_AddReferenceIndex pageArray, wikiDomain
+   end if
    --
    set the ghost_PageArray of wikiView to pageArray
 end menu_CreateNewWiki
@@ -81,15 +88,7 @@ end __
 
 on menu_DraftWelcomeVisitors wikiView
    put the wiki_Domain of wikiView into wikiDomain
-   --
-   put url_GetTLD (wikiDomain) into tldDomain
-   put tldDomain into pageTitle
-   replace "." with space in pageTitle
-   put text_InitialCaps (pageTitle) into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   --
-   put wikiDialogue_Get (pageSlug, tldDomain, "welcome-visitors-dialogue", "Welcome Visitors") into pageArray
-   --
+   put wikiPage_WelcomeVisitors (wikiDomain) into pageArray
    set the ghost_PageArray of wikiView to pageArray
 end menu_DraftWelcomeVisitors
 

@@ -21,6 +21,53 @@ local Garden_EcoData
 --> Working on
 -
 
+--> WikiDomain
+-
+function wikiDomain_GardenFolder wikiDomain
+   put wikiDomain_Folder (wikiDomain) into wikiFolder
+   set the itemdelimiter to slash
+   delete item -1 of wikiFolder
+   return wikiFolder
+end wikiDomain_GardenFolder
+
+function wikiDomain_List pFilterDomain
+   put wikiGarden_GetDomainData() into gardenDomainData
+   put keys (gardenDomainData) into wikiDomains
+   
+   url_FilterDomains wikiDomains, pFilterDomain
+   url_SortDomainIndex wikiDomains
+   return wikiDomains
+end wikiDomain_List
+
+function wikiDomain_Folder wikiDomain
+   put wikiGarden_GetDomainData() into gardenDomainData
+   put gardenDomainData [wikiDomain]["folder"] into wikiFolder
+   file_AddHome wikiFolder
+   return wikiFolder
+end wikiDomain_Folder
+
+function wikiDomain_ListTop pFilterEmpty
+   put wikiGarden_GetDomainData() into gardenDomainData
+   repeat for each key wikiDomain in gardenDomainData
+      switch
+         case wikiDomain = "commons"
+            next repeat
+         case pFilterEmpty is true
+            put gardenDomainData [wikiDomain]["folder"] into wikiFolder
+            if wikiFolder_HasNoPages (wikiFolder) is true then
+               next repeat
+            end if
+         default
+            put url_GetTLD (wikiDomain) into tldDomain
+            put empty into tldArray [tldDomain][someDomain]
+      end switch
+   end repeat
+   put keys (tldArray) into topDomains
+   url_SortDomainIndex topDomains
+   return topDomains
+end wikiDomain_ListTop
+
+
 --> WikiGarden | List
 -
 function wikiGarden_ListUniqueNames pReIndex
@@ -107,44 +154,6 @@ function wikiGarden_FindEcoFolder ecoName
 end wikiGarden_FindEcoFolder
 
 
---> WikiDomain
--
-function wikiDomain_GardenFolder wikiDomain
-   put wikiDomain_Folder (wikiDomain) into wikiFolder
-   set the itemdelimiter to slash
-   delete item -1 of wikiFolder
-   return wikiFolder
-end wikiDomain_GardenFolder
-
-function wikiDomain_Folder wikiDomain
-   put wikiGarden_GetDomainData() into gardenDomainData
-   put gardenDomainData [wikiDomain]["folder"] into wikiFolder
-   file_AddHome wikiFolder
-   return wikiFolder
-end wikiDomain_Folder
-
-function wikiDomain_ListTop pFilterEmpty
-   put wikiGarden_GetDomainData() into gardenDomainData
-   repeat for each key wikiDomain in gardenDomainData
-      switch
-         case wikiDomain = "commons"
-            next repeat
-         case pFilterEmpty is true
-            put gardenDomainData [wikiDomain]["folder"] into wikiFolder
-            if wikiFolder_HasNoPages (wikiFolder) is true then
-               next repeat
-            end if
-         default
-            put url_GetTLD (wikiDomain) into tldDomain
-            put empty into tldArray [tldDomain][someDomain]
-      end switch
-   end repeat
-   put keys (tldArray) into topDomains
-   url_SortDomainIndex topDomains
-   return topDomains
-end wikiDomain_ListTop
-
-
 --> Ecodata
 -
 function ecoData_ListGardenNames ecoData
@@ -220,29 +229,6 @@ end ecoData_Get
 command ecoData_Set ecoData
    put ecoData into Garden_EcoData
 end ecoData_Set
-
-
---> WikiGarden | Stuff
--
-command wikiGarden_StoreCachedEcoData
-   put ecoData_Get() into ecoData
-   wikiGarden_SetModel ecoData
-   return ecoData
-end wikiGarden_StoreCachedEcoData
-
-function wikiGarden_ConstructRouterArray ecoData
-   repeat for each key ecoName in ecoData ["Eco"]
-      put ecoData ["Eco"][ecoName]["Gardens"] into gardenData
-      repeat for each key gardenName in gardenData
-         put gardenData [gardenName] into gardenArray
-         repeat for each key wikiDomain in gardenArray
-            put gardenArray [wikiDomain]["folder"] into wikiFolder
-            put wikiFolder into routerArray [wikiDomain]
-         end repeat
-      end repeat
-   end repeat
-   return routerArray
-end wikiGarden_ConstructRouterArray
 
 
 --> WikiGarden | Model

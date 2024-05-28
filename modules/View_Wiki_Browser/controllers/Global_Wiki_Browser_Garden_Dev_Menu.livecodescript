@@ -45,7 +45,7 @@ on menu_MoveToGarden wikiView, gardenName
    
    # Move
    revMoveFolder oldWikiFolder, newWikiFolder
-   wikiGarden_Init true
+   ecoData_SetFarmAndGardens true
 end menu_MoveToGarden
 
 on menu_MoveSubDomains wikiView, gardenName
@@ -56,7 +56,7 @@ on menu_MoveSubDomains wikiView, gardenName
    put lcw_Ask ("Move all domains and subdomains to garden '[[var]]", tldDomain, wikiView, gardenName) into tldDomain
    
    breakpoint
-   put wikiGarden_ListAllDomains (tldDomain) into domainsToMove
+   put wikiDomain_List (tldDomain) into domainsToMove
    put wikiGarden_FindGardenFolder (gardenName) into toGarden
    repeat for each line wikiDomain in domainsToMove
       put toGarden & wikiDomain & slash into toFolder
@@ -69,7 +69,7 @@ on menu_MoveSubDomains wikiView, gardenName
       revMoveFolder fromFolder, toFolder
    end repeat
    
-   wikiGarden_Init true
+   ecoData_SetFarmAndGardens true
 end menu_MoveSubDomains
 
 private on _

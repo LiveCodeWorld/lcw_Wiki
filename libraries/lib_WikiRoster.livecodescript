@@ -487,7 +487,7 @@ private command _AddMissingDomains @refItemStoryArray, missingDomainArray
    put item 2 of the extents of refItemStoryArray into newItemNum
    repeat for each key missingDomain in missingDomainArray
       add 1 to newItemNum
-      put storyArray_ConstructReference ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
+      put itemArray_ConstructReference ("welcome-visitors", missingDomain, missingDomain, "Welcome Visitors") into itemArray
       put itemArray into refItemStoryArray [newItemNum]
    end repeat
 end _AddMissingDomains

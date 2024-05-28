@@ -18,6 +18,116 @@ local Farm_Domains
 
 --> Working on
 -
+--> WikiFarm | Move
+-
+command wikiFarm_RestoreToGarden gardenName
+   put wikiGarden_ConstructFolder (gardenName) into gardenFolder
+   text_AddTrailing gardenFolder, slash
+   
+   put ecoData_GetFarmFolder() into farmFolder
+   -- put wikiFarm_GetDefaultFolder() into farmFolder
+   text_AddTrailing farmFolder, slash
+   --
+   put wikiPreference_ListGardenDomains (gardenName) into sGardenDomains
+   
+   repeat for each line farmDomain in sGardenDomains
+      set the cursor to busy
+      --
+      put farmFolder & farmDomain & slash into farmWikiFolder
+      if there is not a folder farmWikiFolder then
+         breakpoint
+         next repeat
+      end if
+      
+      put gardenFolder & farmDomain & slash into gardenWikiFolder
+      if there is a folder gardenWikiFolder then
+         breakpoint
+         _DeleteEmptyFolder gardenWikiFolder
+      end if
+      
+      revMoveFolder farmWikiFolder, gardenWikiFolder
+      if the result is not empty then
+         breakpoint
+      end if
+   end repeat
+end wikiFarm_RestoreToGarden
+
+command wikiFarm_MoveGardenBack gardenName
+   -- put wikiGarden_ListShortFolders (gardenName) into shortWikiFolders
+   put wikiGarden_ListFolders (gardenName) into wikiFolders
+   --
+   put ecoData_GetFarmFolder() into farmFolder
+   if there is not a folder farmFolder then
+      put farmFolder
+      lcw_AnswerWarning "Cannot locate farm folder!", wikiView
+   end if
+   --
+   set the itemdelimiter to slash
+   repeat for each line gardenWikiFolder in wikiFolders
+      set the cursor to busy
+      --
+      put item -1 of gardenWikiFolder into wikiDomain
+      -- put wikiFolder_FromRouter (wikiDomain) into gardenWikiFolder
+      --
+      switch
+         case wikiDomain = "commons"
+            put farmFolder & wikiDomain & slash into farmCommonsFolder
+            if there is a folder farmCommonsFolder then
+               lcw_Answer "There is a commons folder that remains unmerged!"
+            else
+               revMoveFolder gardenWikiFolder, farmCommonsFolder
+            end if
+            break
+         case gardenWikiFolder = farmFolder
+         case there is not a folder gardenWikiFolder
+            next repeat
+         default
+            # Check Garden Folder
+            put wikiFolder_HasNoPages (gardenWikiFolder, 0) into gardenEmpty
+            if gardenEmpty is true then
+               put wikiFolder_HasNoPages (gardenWikiFolder, 0) into gardenEmpty
+               revDeleteFolder gardenWikiFolder                     
+               if the result is not empty then
+                  breakpoint
+               end if
+               next repeat
+            end if
+            
+            # Check destination farmFolder
+            put farmFolder & wikiDomain & slash into farmWikiFolder
+            if there is a folder farmWikiFolder then
+               put wikiFolder_HasNoPages (farmWikiFolder, 0) into farmEmpty
+               --
+               if farmEmpty is true then
+                  revDeleteFolder farmWikiFolder                     
+                  if the result is not empty then
+                     breakpoint
+                  end if
+                  
+                  revMoveFolder gardenWikiFolder, farmWikiFolder
+                  if the result is not empty then
+                     breakpoint
+                  end if
+               else
+                  lcw_Answer "Garden and Farm both have pages!"
+                  finder_Reveal gardenWikiFolder
+                  finder_Reveal farmWikiFolder
+                  --
+                  next repeat
+               end if
+            else
+               revMoveFolder gardenWikiFolder, farmWikiFolder
+               if the result is not empty then
+                  breakpoint
+               end if
+            end if
+      end switch
+   end repeat
+   
+   wikiGarden_Update
+   ecoData_SetFarmAndGardens
+end wikiFarm_MoveGardenBack
+
 function wikiFarm_ListSubdomains wikiDomain
    put wikiFarm_GetDomains() into subDomains
    url_FilterDomains subDomains, wikiDomain
@@ -126,7 +236,7 @@ command wikiFarm_SetFolder farmFolder, pSaveEcoData
    # Set EcoData 
    ecoData_SetFarmFolder farmFolder
    put the result into ecoData
-   wikiGarden_Init ecoData
+   ecoData_SetFarmAndGardens ecoData
    
    # Optionally save
    if pSaveEcoData is true then

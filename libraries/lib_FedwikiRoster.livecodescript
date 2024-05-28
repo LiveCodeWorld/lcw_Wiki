@@ -45,7 +45,7 @@ end roster_Clean
 command atopia_ReturnRoster wikiDomains, pTitle, pRosterTitle
    switch the environment
       case "development"
-         put wikiGarden_ListAllDomains ("thought.garden") into localFolders
+         put wikiDomain_List ("thought.garden") into localFolders
          repeat for each line wikiDomain in localFolders
             put wikiDomain & ":3000" & CR after filteredLocalDomains
          end repeat

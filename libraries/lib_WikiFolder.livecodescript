@@ -5,13 +5,40 @@ copyright: David Bovill
 license: GPLv3
 name: lib_WikiFolder
 type: library
-version: 0.1
+version: 0.2
 
 /*
 */
 
 --> Working on
 -
+function ecoData_WikiFolder wikiDomain
+   -- renamed "wikiFolder_ConstructFromFarm" ???
+   
+   put ecoData_GetFarmFolder() into wikiFarm
+   if there is not a folder wikiFarm then
+      -- this check slows things (consider removing)
+      breakpoint
+      wikiGarden_Update
+      put ecoData_GetFarmFolder() into wikiFarm
+   end if
+   
+   put wikiFarm & wikiDomain & slash into wikiFolder
+   return wikiFolder
+end ecoData_WikiFolder
+
+function wikiFolder_ConstructFromFarm wikiDomain
+   put ecoData_GetFarmFolder() into wikiFarm
+   if there is not a folder wikiFarm then
+      -- this check slows things (consider removing)
+      breakpoint
+      put wikiFarm_GetDefaultFolder() into wikiFarm
+   end if
+   
+   put wikiFarm & wikiDomain & slash into wikiFolder
+   return wikiFolder
+end wikiFolder_ConstructFromFarm
+
 command wikipedia_FixText @sText
    replace "‚Äî" with "-" in sText
    replace "‚Äô" with "'" in sText
@@ -32,10 +59,7 @@ end wikipedia_FixText
 function wikiFolder_FromRouter wikiDomain
    put wikiGarden_GetDomainData() into gardenDomainData
    put gardenDomainData [wikiDomain]["folder"] into gardenWikiFolder
-   
-   -- put wikiRouter_GetArray() into routerFolderArray
-   -- put routerFolderArray [wikiDomain] into gardenWikiFolder
-   
+     
    if gardenWikiFolder is empty then -- defaults to farm
       put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
       return wikiFolder
@@ -43,18 +67,6 @@ function wikiFolder_FromRouter wikiDomain
       return gardenWikiFolder
    end if
 end wikiFolder_FromRouter
-
-function wikiFolder_ConstructFromFarm wikiDomain
-   put ecoData_GetFarmFolder() into wikiFarm
-   if there is not a folder wikiFarm then
-      -- this check slows things (consider removing)
-      breakpoint
-      put wikiFarm_GetDefaultFolder() into wikiFarm
-   end if
-   
-   put wikiFarm & wikiDomain & slash into wikiFolder
-   return wikiFolder
-end wikiFolder_ConstructFromFarm
 
 
 --> WikiFolder
@@ -146,7 +158,7 @@ end wikiFolder_Get
 -
 function wikiFolder_ListTopLevel   
    # List Toplevel
-   put wikiGarden_ListAllDomains() into wikiDomains
+   put wikiDomain_List() into wikiDomains
    put url_ListTopLevelDomains (wikiDomains) into toplevelDomains
    
    # Strip notThese

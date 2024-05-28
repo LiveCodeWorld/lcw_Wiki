@@ -20,11 +20,16 @@ local WikiServer_SecurityType
 
 --> Working on
 -
+
+
 --> WikiServer | Create
 -
 command wikiServer_Create wikiDomain
    # Create folders in wikiFolder of default farm
    put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
+   if there is a folder wikiFolder then
+      return "Error, a folder for this domain already exists:" && wikiFolder
+   end if
    --
    repeat for each item shortFolder in "pages,recycle,status"
       put wikiFolder & shortFolder & slash into sFolder
@@ -40,12 +45,17 @@ command wikiServer_Create wikiDomain
    hosts_Add wikiDomain, systemPassword
    
    # Create files
-   put "welcome-visitors" into pageSlug
-   put wikiServer_GetPageJson (pageSlug) into pageJSON
-   pageJson_Set wikiDomain, pageSlug, pageJSON
+   put wikiPage_WelcomeVisitors (wikiDomain) into pageArray
+   pageArray_Set wikiDomain, "welcome-visitors", pageArray
    
+   # Set Favicon
    put wikiServer_GetFavicon() into pngData
    wikiServer_SetFavicon wikiDomain, pngData
+   
+   # Add owner.json
+   wikiServer_SetFriendlyData wikiDomain
+   --
+   return wikiFolder
 end wikiServer_Create
 
 command wikiServer_SwitchIfGarden wikiDomain
@@ -58,21 +68,45 @@ command wikiServer_SwitchIfGarden wikiDomain
    return wikiProcessID
 end wikiServer_SwitchIfGarden
 
-command wikiServer_StartNodeFarm pFarmFolder
-   put wikiServer_ListProcessIds() into wikiProcessIDs
-   if wikiProcessIDs is not empty then
-      return wikiProcessIDs
+function wikiServer_NodeIsRunning
+   return wikiServer_ListProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wikiServer_NodeIsRunning
+
+
+--> WikiServer | Node
+-
+command wikiServer_RestartNode pNotify, pNotifyText
+   if pNotify is not false then
+      if pNotifyText is empty then put "Restarted node wiki-server!" into pNotifyText
+      lcw_Notify pNotifyText
    end if
    
-   # Init gardens
-   wikiGarden_Update false -- does wikiGarden_INit
+   put ecoData_GetFarmFolder() into farmFolder
+   --
+   wikiServer_StopNode
+   resetAll
+   wikiServer_StartNode farmFolder
+   return serverObject
+end wikiServer_RestartNode
+
+command wikiServer_StartNodeFarm
+   put wikiServer_ListProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then return wikiProcessIDs
+   
+   # Must have farmFolder properly set
+   put wikiFarm_GetDefaultFolder() into farmFolder
+   
+   # Load ecodata from file
+   ecoData_ConstructLoadAndStore farmFolder
    put the result into ecoData
    
-   if pFarmFolder is empty then
-      put ecoData_GetFarmFolder() into pFarmFolder
+   # Quick Check
+   if ecoData_Get() is not ecoData then
+      breakpoint
    end if
    
-   put wikiServer_ShellCommand ("friends", true, 80, pFarmFolder) into someShell
+   put wikiServer_ShellCommand ("friends", true, 80, farmFolder) into someShell
    put shell (someShell) into shellResult
    put word 2 of shellResult into wikiProcessID
    
@@ -84,19 +118,11 @@ command wikiServer_StartNodeFarm pFarmFolder
    return wikiProcessID
 end wikiServer_StartNodeFarm
 
-function wikiServer_NodeIsRunning
-   return wikiServer_ListProcessIds() is not empty
-   -- return "wiki" is among the lines of the openprocesses
-end wikiServer_NodeIsRunning
-
-
---> WikiServer | Node
--
-command wikiServer_StartNode pSecurityType, pFarm, pPort, pDataFolder
-   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
-   --
+command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
    put wikiServer_ListProcessIds() into wikiProcessIDs
    if wikiProcessIDs is not empty then return empty -- so we know already started
+   --
+   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
    --
    wiki_NormailzePort pPort
    if pPort is empty then put 80 into pPort
@@ -266,7 +292,6 @@ command wikiServer_StartWithXterm pXtermBrowser, pLog
 end wikiServer_StartWithXterm
 
 command wikiServer_Start pPort, pWikiServer
-   -- wikiServer_StartNode
    -- tunnel_LaunchFromConfig
    if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
    
@@ -286,7 +311,7 @@ command wikiServer_Start pPort, pWikiServer
    set the daemon_IsRunning [pPort] of pWikiServer to true
    
    # Load Gardens
-   wikiGarden_Init
+   ecoData_SetFarmAndGardens
    
    return pWikiServer
 end wikiServer_Start

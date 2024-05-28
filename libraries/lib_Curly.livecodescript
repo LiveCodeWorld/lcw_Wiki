@@ -40,6 +40,16 @@ function wiki_Merge someText
    return mergedText
 end wiki_Merge
 
+function curly_GetAll curlyData, cKey
+   put curlyData ["all"][cKey] into cValue
+   return cValue
+end curly_GetAll
+
+command curly_SetAll @curlyData, cKey, cValue
+   put curlyData ["pageItem"][varName] into itemID
+   put cValue into curlyData ["all"][cKey]
+end curly_SetAll
+
 
 --> Curly | Merge
 -

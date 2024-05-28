@@ -22,38 +22,45 @@ getprop menu_Target [tObject]
    return dView
 end menu_Target
 
+getprop disabled_DisplayLoadedWikiEcoData
+   put ecoData_Get() into ecoData
+   return ecoData is not an array
+end disabled_DisplayLoadedWikiEcoData
+
+getprop disabled_DisplayGardenDomainData
+   put wikiGarden_GetDomainData() into gardenDomainData
+   return gardenDomainData is not an array
+end disabled_DisplayGardenDomainData
+
+getprop disabled_WikiGardenRefresh
+   put ecoData_GetFarmFolder() into farmFolder
+   return there is not a folder farmFolder
+end disabled_WikiGardenRefresh
+
 
 --> Global | Wiki | Server | Data | Menu
 -
-on menu_WikiGardenRefresh
-   wikiGarden_SimpleRefresh
-   --
-   display_GardenEcodata
-end menu_WikiGardenRefresh
-
 on menu_WikiGardenUpdate
    wikiGarden_Update
    --
    display_GardenEcodata
 end menu_WikiGardenUpdate
 
+on menu_ReconstructEcodata dView
+   ecoData_ConstructLoadAndStore
+   if item 1 of the result = "Error" then
+      lcw_AnswerWarning "Ecodata is not loaded properly", dView
+   end if
+   --
+   display_GardenEcodata
+end menu_ReconstructEcodata
+
 private on _
 end _
-
-on menu_WikiGardenInit
-   wikiGarden_Init
-   --
-   menu_DisplayLoadedWikiEcoData
-end menu_WikiGardenInit
 
 on menu_DisplayStoredEcoData
    display_GardenEcodata
 end menu_DisplayStoredEcoData
-
-getprop disabled_DisplayLoadedWikiEcoData
-   put ecoData_Get() into ecoData
-   return ecoData is not an array
-end disabled_DisplayLoadedWikiEcoData
 
 on menu_DisplayLoadedWikiEcoData
    put ecoData_Get() into ecoData
@@ -62,10 +69,6 @@ end menu_DisplayLoadedWikiEcoData
 
 private on __
 end __
-
--- on menu_DisplayWikiRouterArray
-display_WikiRouterArray -- no longer using Router_Array we use wikiGarden_GetDomainData() now
-end menu_DisplayWikiRouterArray
 
 on menu_DisplayGardenDomainData
    put wikiGarden_GetDomainData() into gardenDomainData

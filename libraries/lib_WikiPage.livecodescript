@@ -15,6 +15,26 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
+function wikiPage_WelcomeVisitors wikiDomain
+   put url_GetTLD (wikiDomain) into tldDomain
+   put tldDomain into pageTitle
+   replace "." with space in pageTitle
+   put text_InitialCaps (pageTitle) into pageTitle
+   
+   put url_GetTLD (wikiDomain) into tldDomain
+   put wikiPage_DomainStem (tldDomain) into pageTitle   
+   --
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put wikiDialogue_Get (pageSlug, tldDomain, "welcome-visitors-dialogue", "Welcome Visitors") into pageArray
+   
+   # Add Fork
+   put tldDomain &CR& "fedwiki.org" into tldDomains
+   pageArray_AddFork pageArray, tldDomains
+   --
+   delete variable pageArray ["plugin"]
+   return pageArray
+end wikiPage_WelcomeVisitors
+
 function wikiPage_EmptyDomains wikiDomain
    put "Empty Domains" into pageTitle
    put "Empty wiki-folder for domain" && wikiDomain into someMarkdown
@@ -74,7 +94,6 @@ function wikiPage_GardenSites gardenName, wikiDomain
 end wikiPage_GardenSites
 
 function wikiPage_LocalActivity
-   -- put wikiGarden_ListAllDomains() into wikiDomains
    put wikiGarden_GetDomainData() into gardenDomainData
    repeat for each key wikiDomain in gardenDomainData
       set the cursor to busy
@@ -137,7 +156,11 @@ end roster_ConstructActivityPage
 
 function wikiPage_DomainTitle wikidomain, pWord
    if pWord is empty then put "Sites" into pWord
-   
+   put wikiPage_DomainStem (wikidomain) && pWord into domainTitle
+   return domainTitle
+end wikiPage_DomainTitle
+
+function wikiPage_DomainStem wikidomain
    set the itemdelimiter to "."
    switch item -1 of wikidomain
       case "academy"
@@ -152,9 +175,9 @@ function wikiPage_DomainTitle wikidomain, pWord
    end switch
    replace "." with space in wikiDomain
    --
-   put text_InitialCaps (wikiDomain) && pWord into pageTitle
+   put text_InitialCaps (wikiDomain) into pageTitle
    return pageTitle
-end wikiPage_DomainTitle
+end wikiPage_DomainStem
 
 function wikiPage_FilteredDomainList tldDomain, pPageTitle, pFirstPara
    -- might be renamed / same as some other handler?
@@ -165,7 +188,7 @@ function wikiPage_FilteredDomainList tldDomain, pPageTitle, pFirstPara
    
    # WikiFolders
    put "*" & tldDomain & "*" into sFilter
-   put wikiGarden_ListAllDomains (sFilter) into wikiFolders
+   put wikiDomain_List (sFilter) into wikiFolders
    
    # Construct PageArray
    if pFirstPara is empty then
@@ -257,7 +280,7 @@ function wikiPage_SitesIndex someDomain, pPageTitle, pFirstPara
    put pPageTitle into pageTitle
    
    # WikiFolders
-   put wikiGarden_ListAllDomains (tldDomain) into wikiDomains
+   put wikiDomain_List (tldDomain) into wikiDomains
    put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
    
    put _SitesIndex (wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara) into pageArray
@@ -780,7 +803,7 @@ private function _Activity pageTitle, sitesTitle, tldDomain, sinceWhen, moreActi
 end _Activity
 
 private command _AddMissingSites wikiDomains, @pageArray
-   put wikiGarden_ListAllDomains() into existingDomains
+   put wikiDomain_List() into existingDomains
    set the wholematches to true
    put "http://rest.livecode.world/fedwiki/create_Wiki" into postURL
    repeat for each line wikiDomain in wikiDomains

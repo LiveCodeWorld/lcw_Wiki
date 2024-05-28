@@ -76,12 +76,6 @@ end display_WikiOwner
 
 --> Display
 -
-command display_WikiRouterArray
-   put wikiRouter_GetArray() into routerArray
-   --
-   display_Data routerArray, "wikiRouter_GetArray()", "Wiki Router"
-end display_WikiRouterArray
-
 command display_ServerData
    put wikiServer_GetData() into wsData
    display_Array wsData, "WikiServer_Data", "Wiki"
@@ -122,7 +116,7 @@ command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
    put wiki_ConstructUrl (wikiDomain) into wikiURL
    
    # Start server
-   -- wikiServer_Start -- wikiServer_StartNode
+   -- wikiServer_StartNode -- wikiServer_Start
    -- if the result is not empty then wait 20 ticks
    
    # Display Browser
@@ -420,7 +414,7 @@ end display_AstralMediaPhotos
 command display_LocalWikis pDisplayView, pTitle, pFilter
    if pTitle is empty then put "All" into pTitle
    --
-   put wikiGarden_ListAllDomains (pFilter) into wikiFolders
+   put wikiDomain_List (pFilter) into wikiFolders
    --
    display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
    put the result into dView
@@ -441,7 +435,7 @@ command display_NonSymLinked pDisplayView, pFilter, pTitle
 end display_NonSymLinked
 
 command display_LocalAstralWikis pDisplayView, pStripDynadot
-   put wikiGarden_ListAllDomains() into localAstralDomains
+   put wikiDomain_List() into localAstralDomains
    --
    if pStripDynadot is true then
       put dynadot_StripSubDomainNames (localAstralDomains, "astralship.wiki") into wikiFolders

@@ -147,7 +147,10 @@ on menu_SetWikiFarmFolder
    put it into newFarmFolder
    
    wikiFarm_SetFolder newFarmFolder
-   wikiGarden_StoreCachedEcoData
+   --
+   breakpoint
+   put ecoData_Get() into ecoData
+   wikiGarden_SetModel ecoData
    --
    display_GardenEcodata
    finder_Reveal newFarmFolder

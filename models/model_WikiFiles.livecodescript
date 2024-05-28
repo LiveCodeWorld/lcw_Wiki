@@ -64,7 +64,18 @@ function wikiFile_ConstructOwner wikiDomain
 end wikiFile_ConstructOwner
 
 function wikiFolder_Modules
-   if Wiki_ModulesFolder is empty then _InitWikiModulesFolder
+   if Wiki_ModulesFolder is empty then
+      -- it's inside the node modules /wiki/node-modules" folder
+      put node_GetModulesFolder() into nodeModulesFolder   
+      put nodeModulesFolder & "wiki/node_modules/" into wikiModulesFolder
+      --
+      put wikiModulesFolder into Wiki_ModulesFolder
+      --
+      if there is not a folder wikiModulesFolder then
+         return "Error, folder" && wikiModulesFolder && "does not exist"
+      end if
+   end if
+   
    return Wiki_ModulesFolder
 end wikiFolder_Modules
 
@@ -334,7 +345,24 @@ end wikiFolder_ConstructRecycled
 --> Nvm & Node | Paths
 -
 function node_GetModulesFolder pUseNpm
-   if Node_ModulesFolder is empty then _InitNodeModulesFolder
+   if Node_ModulesFolder is empty then
+      # Node version
+      if pUseNpm is true then
+         put line 1 of shell ("npm root -g") & "/" into nodeModulesFolder
+      else
+         # NVM version
+         set the itemdelimiter to slash
+         put nvm_GetBin() into nodeModulesFolder
+         put "lib/node_modules/" into item -1 of nodeModulesFolder
+      end if
+      --
+      put nodeModulesFolder into Node_ModulesFolder
+      --
+      if there is not a folder nodeModulesFolder then
+         return "Error, folder" && nodeModulesFolder && "does not exist"
+      end if
+   end if
+   
    return Node_ModulesFolder
 end node_GetModulesFolder
 
@@ -356,40 +384,3 @@ function nvm_GetBin
    get shell ("source ~/.zshrc; echo $NVM_BIN")
    return word 1 to -1 of line 1 of it
 end nvm_GetBin
-
-
---> Private | Cache
--
-private command _InitNodeModulesFolder pUseNpm
-   # Node version
-   if pUseNpm is true then
-      put line 1 of shell ("npm root -g") & "/" into nodeModulesFolder
-   else
-      # NVM version
-      set the itemdelimiter to slash
-      put nvm_GetBin() into nodeModulesFolder
-      put "lib/node_modules/" into item -1 of nodeModulesFolder
-   end if
-   --
-   put nodeModulesFolder into Node_ModulesFolder
-   --
-   if there is a folder nodeModulesFolder then
-      return empty
-   else
-      return "Error, folder" && nodeModulesFolder && "does not exist"
-   end if
-end _InitNodeModulesFolder
-
-private command _InitWikiModulesFolder
-   -- it's inside the node modules /wiki/node-modules" folder
-   put node_GetModulesFolder() into nodeModulesFolder   
-   put nodeModulesFolder & "wiki/node_modules/" into wikiModulesFolder
-   --
-   put wikiModulesFolder into Wiki_ModulesFolder
-   --
-   if there is a folder wikiModulesFolder then
-      return empty
-   else
-      return "Error, folder" && wikiModulesFolder && "does not exist"
-   end if
-end _InitWikiModulesFolder
