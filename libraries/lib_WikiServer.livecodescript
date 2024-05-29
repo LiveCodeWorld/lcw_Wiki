@@ -92,7 +92,16 @@ end wikiServer_RestartNode
 
 command wikiServer_StartNodeFarm
    put wikiServer_ListProcessIds() into wikiProcessIDs
-   if wikiProcessIDs is not empty then return wikiProcessIDs
+   if wikiProcessIDs is not empty then
+      ecoData_ConstructLoadAndStore
+      put the result into ecoData
+      
+      # Notify
+      put merge ("Node server already running [[wikiProcessIDs]]. Not starting another one.") into sComment
+      lcw_Notify sComment, "Node Server"
+      
+      return wikiProcessIDs
+   end if
    
    # Must have farmFolder properly set
    put wikiFarm_GetDefaultFolder() into farmFolder
@@ -100,6 +109,7 @@ command wikiServer_StartNodeFarm
    # Load ecodata from file
    ecoData_ConstructLoadAndStore farmFolder
    put the result into ecoData
+   if item 1 of ecoData = "Error" then return ecoData
    
    # Quick Check
    if ecoData_Get() is not ecoData then

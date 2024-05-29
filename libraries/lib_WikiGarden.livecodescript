@@ -18,9 +18,8 @@ local Router_Array
 --> Working on
 -
 command ecoData_ConstructLoadAndStore pFarmFolder
-   if pFarmFolder is empty then put ecoData_GetFarmFolder() into pFarmFolder
+   if pFarmFolder is empty then put wikiFarm_GetDefaultFolder() into pFarmFolder
    if there is not a folder pFarmFolder then
-      breakpoint
       return "Error, farm folder does not exist:" && pFarmFolder
    end if
    

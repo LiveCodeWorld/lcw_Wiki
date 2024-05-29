@@ -72,7 +72,7 @@ end wikiDomain_ListTop
 -
 function wikiGarden_ListUniqueNames pReIndex
    if pReIndex is true then
-      wikiGarden_Update
+      ecoData_ConstructLoadAndStore
       put the result into ecoData
    else
       put ecoData_Get() into ecoData

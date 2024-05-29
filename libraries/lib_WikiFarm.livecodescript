@@ -124,7 +124,7 @@ command wikiFarm_MoveGardenBack gardenName
       end switch
    end repeat
    
-   wikiGarden_Update
+   ecoData_ConstructLoadAndStore
    ecoData_SetFarmAndGardens
 end wikiFarm_MoveGardenBack
 

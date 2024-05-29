@@ -128,11 +128,12 @@ end pageJson_Delete
 private function _GetMergJsonArray sFile
    put url ("binfile:" & sFile) into binaryJSON
    if binaryJSON is empty then return empty
+   -- put textDecode (binaryJSON, "UTF-8") into binaryJSON
    
    try
       # Use binary and not textDecode with JSONToArray
-      put JSONToArray (binaryJSON) into jsonArray
-      -- put json_ToArray (binaryJSON) into jsonArray
+      -- put JSONToArray (binaryJSON) into jsonArray
+      put json_ToArray (binaryJSON) into jsonArray
       if jsonArray is an array then
          return jsonArray
       else
@@ -149,8 +150,8 @@ private command _SetMergJsonArray sFile, jsonArray, pCreateFolder
    
    try
       # Use binary and not textEncode with JSONToArray
-      put ArrayToJSON (jsonArray) into binaryJSON
-      -- put json_FromArray (jsonArray) into binaryJSON
+      -- put ArrayToJSON (jsonArray) into binaryJSON
+      put json_FromArray (jsonArray) into binaryJSON
       --
       put binaryJSON into url ("binfile:" & sFile)
       put the result into writeResult

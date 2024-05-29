@@ -19,6 +19,63 @@ local LocalArray
 
 --> Working on
 -
+setprop ghost_PageArray pageArray
+   put json_FromArray (pageArray) into pageJSON
+   put textEncode (pageJSON, "UTF-8") into pageJSON
+   -- put _JsonFromArray (pageArray) into pageJSON
+   --
+   if pageJSON is empty then
+      put "Error decoding array." into someMarkdown
+      put pageArray_Construct ("Error", someMarkdown, "markdown") into pageArray
+      put json_FromArray (pageArray) into pageJSON
+   end if
+   
+   put _ConstructJavascript (pageJSON) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return the result
+end ghost_PageArray
+
+function json_FromArray pArray, pForceRootType, pPretty
+   repeat for each key tKey in pArray
+      if pArray[tKey] is an array then
+         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
+      end if
+   end repeat
+   
+   try
+      -- put ArrayToJSON (pArray) into sJSON -- does not work reliably
+      put mergJSONEncode("pArray",pForceRootType,pPretty) into sJSON
+      return sJSON
+   catch e
+      -- lcw_Notify "Error encoding array"
+      put ArrayToJSON (pArray) into sJSON
+      return sJSON
+      
+      put pArray ["text"] into itemText
+      -- breakpoint
+      return empty
+   end try
+end json_FromArray
+
+function json_ToArray pJSON
+   local tArray,tKeys
+   if pJSON is empty then return false
+   -- put jsonImport (pJSON) into tArray -- not the same
+   
+   try -- as otherwise an error with non-json causes script to exit
+      if pJSON is empty then return empty
+      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+         put json_ToArray(tArray[tKey]) into tArray[tKey]
+      end repeat
+      return tArray
+   catch e
+      return empty
+   end try
+end json_ToArray
+
+
+--> Props
+-
 getprop wiki_Domain [pageTitle]
    if pageTitle is empty then
       return _WikiDomain()
@@ -713,13 +770,6 @@ end wiki_Domain
 
 --> Ghost
 -
-setprop ghost_PageArray pageArray
-   put _JsonFromArray (pageArray) into pageJSON
-   put _ConstructJavascript (pageJSON) into sJavascript
-   set the browser_Javascript of me to sJavascript
-   return the result
-end ghost_PageArray
-
 setprop ghost_JSON pageJSON
    put _ConstructJavascript (pageJSON) into sJavascript
    set the browser_Javascript of me to sJavascript
@@ -985,27 +1035,6 @@ private function _IsTicked
    return isTicked
 end _IsTicked
 
-private function _JsonFromArray pArray
-   try
-      put _JsonFromPageArray (pArray) into someJSON
-   catch sError
-      breakpoint
-      put jsonExport (pArray) into someJSON
-   end try
-   return someJSON
-end _JsonFromArray
-
-private function _JsonFromPageArray pArray
-   -- issues with international chars
-   repeat for each key tKey in pArray
-      get pArray [tKey]
-      if it is an array then
-         put "}" & _JsonFromPageArray (it) into pArray [tKey]
-      end if
-   end repeat
-   return mergJSONEncode ("pArray")
-end _JsonFromPageArray
-
 private function _SetPageRectJavascript sRect, pageSlug
    if pageSlug is empty then put "welcome-visitors" into pageSlug
    --
@@ -1159,28 +1188,3 @@ function url_GetDomain someURL
    
    return urlDomain
 end url_GetDomain
-
-function json_FromArray pArray, pForceRootType, pPretty
-   repeat for each key tKey in pArray
-      if pArray[tKey] is an array then
-         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
-      end if
-   end repeat
-   return (mergJSONEncode("pArray",pForceRootType,pPretty))
-end json_FromArray
-
-function json_ToArray pJSON
-   local tArray,tKeys
-   if pJSON is empty then return false
-   -- put jsonImport (pJSON) into tArray -- not the same
-   
-   try -- as otherwise an error with non-json causes script to exit
-      if pJSON is empty then return empty
-      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
-         put json_ToArray(tArray[tKey]) into tArray[tKey]
-      end repeat
-      return tArray
-   catch e
-      return empty
-   end try
-end json_ToArray

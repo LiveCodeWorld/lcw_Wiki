@@ -18,6 +18,27 @@ local LocalArray
 --> Working on
 -
 
+--> Ghost
+-
+setprop ghost_PageArray pageArray
+   put json_FromArray (pageArray) into pageJSON
+   put _ConstructJavascript (pageJSON) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return the result
+end ghost_PageArray
+
+setprop ghost_JSON pageJSON
+   put _ConstructJavascript (pageJSON) into sJavascript
+   set the browser_Javascript of me to sJavascript
+   return the result
+end ghost_JSON
+
+setprop ghost_PageJson pageJSON
+   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
+   return the result
+end ghost_PageJson
+
+
 --> Custom | Events
 -
 on flag_Event flagYaml   
@@ -571,48 +592,6 @@ setprop wiki_Domain domainOrURL
    set the browser_URL of browserWidget to someURL
    set the stack_Label of me to wikiDomain
 end wiki_Domain
-
-
---> Ghost
--
-setprop ghost_PageArray pageArray
-   put _JsonFromArray (pageArray) into pageJSON
-   put _ConstructJavascript (pageJSON) into sJavascript
-   set the browser_Javascript of me to sJavascript
-   return the result
-end ghost_PageArray
-
-setprop ghost_JSON pageJSON
-   put _ConstructJavascript (pageJSON) into sJavascript
-   set the browser_Javascript of me to sJavascript
-   return the result
-end ghost_JSON
-
-private function _JsonFromArray pArray
-   try
-      put _JsonFromPageArray (pArray) into someJSON
-   catch sError
-      breakpoint
-      put jsonExport (pArray) into someJSON
-   end try
-   return someJSON
-end _JsonFromArray
-   
-private function _JsonFromPageArray pArray
-   -- issues with international chars
-   repeat for each key tKey in pArray
-      get pArray [tKey]
-      if it is an array then
-         put "}" & _JsonFromPageArray (it) into pArray [tKey]
-      end if
-   end repeat
-   return mergJSONEncode ("pArray")
-end _JsonFromPageArray
-
-setprop ghost_PageJson pageJSON
-   set the browser_Javascript of me to _ConstructJavascript (pageJSON)
-   return the result
-end ghost_PageJson
 
 
 --> Page

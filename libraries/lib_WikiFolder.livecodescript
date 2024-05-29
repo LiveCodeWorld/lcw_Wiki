@@ -19,7 +19,7 @@ function ecoData_WikiFolder wikiDomain
    if there is not a folder wikiFarm then
       -- this check slows things (consider removing)
       breakpoint
-      wikiGarden_Update
+      ecoData_ConstructLoadAndStore
       put ecoData_GetFarmFolder() into wikiFarm
    end if
    

@@ -41,7 +41,7 @@ end disabled_WikiGardenRefresh
 --> Global | Wiki | Server | Data | Menu
 -
 on menu_WikiGardenUpdate
-   wikiGarden_Update
+   ecoData_ConstructLoadAndStore
    --
    display_GardenEcodata
 end menu_WikiGardenUpdate
