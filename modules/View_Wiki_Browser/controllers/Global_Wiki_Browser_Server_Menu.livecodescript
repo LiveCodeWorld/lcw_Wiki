@@ -19,18 +19,16 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_CheckTarget [wikiView]
-   -- put the wiki_Domain of wikiView into wikiDomain
-   -- put wikiDomain into LocalArray ["wikiDomain"]
    return exists (wikiView)
 end menu_CheckTarget
 
-getprop checked_StartServer
+getprop checked_StopLiveServer
    return wikiServer_IsRunning()
-end checked_StartServer
+end checked_StopLiveServer
 
-getprop checked_StartNodeServer
+getprop checked_StopNodeServer
    return wikiServer_NodeIsRunning()
-end checked_StartNodeServer
+end checked_StopNodeServer
 
 getprop port_Param [wsView]
    put the listen_Port of wsView into sPort
@@ -79,28 +77,29 @@ end disabled_AddOwnerJson
 
 --> Global | Wiki | Browser | Server | Menu
 -
-on menu_StartServer.5 wikiView
-   wikiServer_Toggle wikiView
-end menu_StartServer.5
+on menu_ToggleServer.5
+   switch
+      case wikiServer_NodeIsRunning()
+         -- wikiServer_Toggle wikiView
+         wikiServer_StopNode
+         wikiServer_Start
+         break
+      default
+         wikiServer_Stop
+         wikiServer_StartNodeFarm
+   end switch
+end menu_ToggleServer.5
 
-on menu_StartNodeServer.4 wikiView
-   if wikiServer_NodeIsRunning() then
-      wikiServer_StopNode
-   else
-      wikiServer_Stop
-      wikiServer_StartNodeFarm
-   end if
-end menu_StartNodeServer.4
+private on _____
+end _____
 
-on menu_StopServers wikiView
-   if wikiServer_NodeIsRunning() then
-      wikiServer_StopNode
-   end if
-   
-   if wikiServer_IsRunning() then
-      wikiServer_Stop
-   end if
-end menu_StopServers
+on menu_StopNodeServer wikiView
+   wikiServer_StopNode
+end menu_StopNodeServer
+
+on menu_StopLiveServer
+   wikiServer_Stop
+end menu_StopLiveServer
 
 private on _
 end _

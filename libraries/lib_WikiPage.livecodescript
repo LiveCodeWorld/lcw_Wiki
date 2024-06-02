@@ -139,7 +139,7 @@ end wikiPage_LocalActivity
 function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
    set the itemdelimiter to "."
    put text_InitialCaps (item 1 of wikiDomain) into rosterTitle   
-   put fedwiki_MarkdownIndex (rosterDomains) into curlyArray ["rosterIndex"]
+   put markdown_LinkedBullets (rosterDomains) into curlyArray ["rosterIndex"]
    
    put rosterTitle into curlyArray ["rosterTitle"]
    put wikiDomain into curlyArray ["wikiDomain"]

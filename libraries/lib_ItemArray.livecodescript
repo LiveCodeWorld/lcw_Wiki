@@ -13,9 +13,6 @@ version: 0.1
 --> Working on
 -
 command itemArray_AddToEnd itemArray, @indexArray
-   -- indexArray_AddToEnd indexArray, itemArray
-   -- put the result into indexNum
-   
    # Figure out what we just added it after
    put item 2 of the extents of indexArray into indexNum
    put indexArray [indexNum]["id"] into afterID

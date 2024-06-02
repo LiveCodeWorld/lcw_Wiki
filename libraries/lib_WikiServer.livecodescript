@@ -168,6 +168,70 @@ command wikiServer_StopNode pIDs
 end wikiServer_StopNode
 
 
+--> WikiServer | Start
+-
+command wikiServer_Start pPort, pWikiServer
+   -- tunnel_LaunchFromConfig
+   if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
+   
+   if wikiServer_IsRunning() then
+      put merge ("Live server already running. Not starting another one.") into sComment
+      lcw_Notify sComment, "Live Server"
+      return sComment
+   end if
+   
+   # Get Port
+   if pPort is empty then
+      -- put 80 into pPort
+      put the daemon_Port of pWikiServer into pPort
+   end if
+   
+   # Stop servers
+   if wikiServer_NodeIsRunning() then
+      wikiServer_StopNode
+   end if
+   
+   # Set Port and Start
+   -- dispatch "daemon_Start" to pWikiServer with pPort
+   set the daemon_IsRunning [pPort] of pWikiServer to true
+   
+   # Load Gardens
+   ecoData_SetFarmAndGardens
+   
+   # Notify
+   put merge ("Started Live Server on port [[pPort]] and loaded farm and gardens!") into sComment
+   lcw_Notify sComment, "Node Server"
+   
+   return pWikiServer
+end wikiServer_Start
+
+command wikiServer_Stop pWikiServers, pCloseAll
+   switch
+      case pWikiServers is empty
+      case pWikiServers = "All"
+         put wikiServer_ListObjects() into pWikiServers
+         break
+      case exists (pWikiServers) is false
+         put wikiServer_View() into pWikiServers
+         break
+   end switch
+   
+   repeat for each line pWikiServer in pWikiServers
+      set the daemon_IsRunning of pWikiServer to false
+   end repeat
+   
+   if pCloseAll is true then
+      socket_CloseOpen
+      resetAll
+   end if
+   
+   # Notify
+   lcw_Notify "Closed Live Server!", "Live Server"
+   
+   return pWikiServer
+end wikiServer_Stop
+
+
 --> WikiServer | Files (see lib_AtopiaDomainOwnership)
 -
 function wikiServer_OwnerExists wikiDomain
@@ -300,53 +364,6 @@ command wikiServer_StartWithXterm pXtermBrowser, pLog
    display_Xterm pXtermBrowser, someShell, "paste"
    return pXtermBrowser
 end wikiServer_StartWithXterm
-
-command wikiServer_Start pPort, pWikiServer
-   -- tunnel_LaunchFromConfig
-   if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
-   
-   # Get Port
-   if pPort is empty then
-      -- put 80 into pPort
-      put the daemon_Port of pWikiServer into pPort
-   end if
-   
-   # Stop servers
-   if wikiServer_NodeIsRunning() then
-      wikiServer_StopNode
-   end if
-   
-   # Set Port and Start
-   -- dispatch "daemon_Start" to pWikiServer with pPort
-   set the daemon_IsRunning [pPort] of pWikiServer to true
-   
-   # Load Gardens
-   ecoData_SetFarmAndGardens
-   
-   return pWikiServer
-end wikiServer_Start
-
-command wikiServer_Stop pWikiServers, pCloseAll
-   switch
-      case pWikiServers is empty
-      case pWikiServers = "All"
-         put wikiServer_ListObjects() into pWikiServers
-         break
-      case exists (pWikiServers) is false
-         put wikiServer_View() into pWikiServers
-         break
-   end switch
-   
-   repeat for each line pWikiServer in pWikiServers
-      set the daemon_IsRunning of pWikiServer to false
-   end repeat
-   
-   if pCloseAll is true then
-      socket_CloseOpen
-      resetAll
-   end if
-   return pWikiServer
-end wikiServer_Stop
 
 command wikiServer_Restart pNotify, pNotifyText
    if pNotify is not false then

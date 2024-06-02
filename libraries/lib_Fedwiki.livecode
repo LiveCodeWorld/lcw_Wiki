@@ -573,25 +573,6 @@ end fedwiki_ConstructPluginJsonUrl
 
 --> Fedwiki | Links
 -
-function fedwiki_MarkdownIndex someIndex, pExtraWords
-   -- was "fedwiki_ConstructMarkdownIndex"
-   replace comma with CR in someIndex
-   repeat for each line someLine in someIndex
-      put word 1 to -1 of someLine into domainName
-      if domainName is empty then next repeat
-      if pExtraWords is not empty then put space & pExtraWords after domainName
-      put "- [[" & domainName & "]]" & CR after markdownList
-   end repeat
-   delete char -1 of markdownList
-   return markdownList
-end fedwiki_MarkdownIndex
-
-function fedwiki_ConstructMarkdownLine someTitle, externalURL
-   fedwiki_AddExternalLink someTitle, externalURL
-   put "-" && someTitle into someMarkdown
-   return someMarkdown
-end fedwiki_ConstructMarkdownLine
-
 function fedwiki_FetchSiteText wikiDomain
    -- see also "azure_FetchAndConvertSitemap()"
    local docArray

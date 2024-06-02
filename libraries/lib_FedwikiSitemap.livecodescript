@@ -24,6 +24,17 @@ local localArray
 
 --> Working on
 -
+function fedwiki_JsonSiteMapUrl wikiDomain   
+   put "http://" & wikiDomain into sitemapURL
+   put "/system/sitemap.json" after sitemapURL
+   return sitemapURL
+end fedwiki_JsonSiteMapUrl
+
+function fedwiki_JsonExportUrl wikiDomain   
+   put "http://" & wikiDomain & "/system/export.json" into exportURL
+   return exportURL
+end fedwiki_JsonExportUrl
+
 function wiki_FetchExportData wikiDomain
    put fedwiki_JsonExportUrl (wikiDomain) into exportURL
    put url exportURL into someJson
@@ -33,11 +44,6 @@ function wiki_FetchExportData wikiDomain
    if exportData is false then return empty
    return exportData
 end wiki_FetchExportData
-
-function fedwiki_JsonExportUrl wikiDomain   
-   put "http://" & wikiDomain & "/system/export.json" into exportURL
-   return exportURL
-end fedwiki_JsonExportUrl
 
 
 --> Fedwiki | Sitemap | LastModified
@@ -77,12 +83,6 @@ function fedwiki_FetchSitemap wikiDomain
    put url sitemapURL into sitemapJSON
    return sitemapJSON
 end fedwiki_FetchSitemap
-
-function fedwiki_JsonSiteMapUrl wikiDomain   
-   put "http://" & wikiDomain into sitemapURL
-   put "/system/sitemap.json" after sitemapURL
-   return sitemapURL
-end fedwiki_JsonSiteMapUrl
 
 command fedwiki_UnloadSitemaps pWikiDomains
    if pWikiDomains is empty then

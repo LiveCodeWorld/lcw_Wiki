@@ -82,7 +82,24 @@ function markdown_LinkedBullets sIndex
    end repeat
    delete char -1 of sMarkdown
    return sMarkdown
+   
+   -- was "fedwiki_ConstructMarkdownIndex"
+   replace comma with CR in someIndex
+   repeat for each line someLine in someIndex
+      put word 1 to -1 of someLine into domainName
+      if domainName is empty then next repeat
+      if pExtraWords is not empty then put space & pExtraWords after domainName
+      put "- [[" & domainName & "]]" & CR after markdownList
+   end repeat
+   delete char -1 of markdownList
+   return markdownList
 end markdown_LinkedBullets
+
+function markdown_ExternalWikiBullets someTitle, externalURL
+   fedwiki_AddExternalLink someTitle, externalURL
+   put "-" && someTitle into someMarkdown
+   return someMarkdown
+end markdown_ExternalWikiBullets
 
 function md_Link someText
    put "[[" & word 1 to -1 of someText & "]]" into mdLinkText

@@ -45,7 +45,7 @@ on menu_MoveToGarden wikiView, gardenName
    
    # Move
    revMoveFolder oldWikiFolder, newWikiFolder
-   ecoData_SetFarmAndGardens true
+   ecoData_SetFarmAndGardens
 end menu_MoveToGarden
 
 on menu_MoveSubDomains wikiView, gardenName
@@ -69,7 +69,7 @@ on menu_MoveSubDomains wikiView, gardenName
       revMoveFolder fromFolder, toFolder
    end repeat
    
-   ecoData_SetFarmAndGardens true
+   ecoData_SetFarmAndGardens
 end menu_MoveSubDomains
 
 private on _

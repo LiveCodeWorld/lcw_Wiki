@@ -24,6 +24,10 @@ getprop menu_CheckTarget [wikiView]
    return true
 end menu_CheckTarget
 
+getprop fixText_Params [wikiView]
+   return LocalArray ["pageTitles"]
+end fixText_Params
+
 
 --> Global | Wiki | Browser | Edit | Menu
 -
@@ -47,10 +51,6 @@ end insert_Edit
 
 private on __
 end __
-
-getprop fixText_Params [wikiView]
-   return LocalArray ["pageTitles"]
-end fixText_Params
 
 on menu_FixText wikiView, pageTitle
    put fedwiki_ConstructSlug (pageTitle) into pageSlug

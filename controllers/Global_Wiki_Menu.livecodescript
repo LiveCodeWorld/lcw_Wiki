@@ -22,7 +22,7 @@ getprop menu_Target [tObject]
    end if
 end menu_Target
 
-getprop menu_CheckTarget [browserView]
+-- getprop menu_CheckTarget [browserView]
    try
       put wiki_NodeServerIsRunning() into LocalArray ["wikiStarted"]
       return exists (browserView)

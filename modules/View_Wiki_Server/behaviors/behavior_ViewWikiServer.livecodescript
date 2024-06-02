@@ -22,6 +22,25 @@ which will override the handler of the same name in the lib_DaemonServer stack.
 
 --> Working on
 -
+getprop daemon_Port
+   put the daemon_Port of me into daemonPort
+   if daemonPort is not a number then put 80 into daemonPort
+   return daemonPort
+end daemon_Port
+
+setprop daemon_Port sPort
+   put the daemon_IsRunning of me into wasRunning
+   if wasRunning is true then
+      set the daemon_IsRunning of me to false
+   end if
+   --
+   set the daemon_Port of me to sPort
+   --
+   if wasRunning is true then
+      set the daemon_IsRunning [sPort] of me to true
+   end if
+end daemon_Port
+
 getprop log_Text
    put _LogField() into logField
    put the text of logField into logText

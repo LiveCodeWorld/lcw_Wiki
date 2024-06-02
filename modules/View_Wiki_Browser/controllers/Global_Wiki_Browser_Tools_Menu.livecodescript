@@ -148,6 +148,13 @@ on menu_SaveStack wikiView
    save stack stackName
 end menu_SaveStack
 
+private on _____
+end _____
+
+on menu_EditPlatform
+   edit the script of stack "lib_Platform'"
+end menu_EditPlatform
+
 on menu_FixPageJson wikiView
    put the wiki_Domain of wikiView into wikiDomain
    put the last_PageSlug of wikiView into pSlug

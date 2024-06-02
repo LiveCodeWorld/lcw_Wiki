@@ -31,15 +31,16 @@ command ecoData_ConstructLoadAndStore pFarmFolder
    return ecoData
 end ecoData_ConstructLoadAndStore
 
-command ecoData_SetFarmAndGardens ecoData
+command ecoData_SetFarmAndGardens pEcoData
    local gardenDomainData
-   if ecoData is not an array then
-      -- put wikiGarden_GetModel() into ecoData
-      put ecoData_Get() into ecoData
+   
+   # Get Farm Folder
+   if pEcoData is not an array then
+      put wikiGarden_GetModel() into pEcoData
    end if
+   put pEcoData ["Farm"]["folder"] into farmFolder
    
    # Get default farm domains from folder
-   put ecoData ["Farm"]["folder"] into farmFolder
    put wikiFarm_DomainsFromFolder (farmFolder) into farmDomains
    wikiFarm_SetDomains farmDomains
    
@@ -51,7 +52,7 @@ command ecoData_SetFarmAndGardens ecoData
    end repeat   
    
    # Add Garden folders to gardenDomainData
-   put ecoData ["Eco"] into ecoFolderArray
+   put pEcoData ["Eco"] into ecoFolderArray
    repeat for each key ecoName in ecoFolderArray
       put ecoFolderArray [ecoName] into ecoNameArray
       put ecoNameArray ["Gardens"] into gardenNameArray
@@ -69,12 +70,9 @@ command ecoData_SetFarmAndGardens ecoData
    
    # Garden_DomainData (used by "wikiFolder_FromRouter" and "wikiDomain_List")
    wikiGarden_SetDomainData gardenDomainData
-   
-   # Construct and store routerFolderArray
-   -- put wikiGarden_ConstructRouterArray (ecoData) into routerFolderArray
-   
-   ecoData_Set ecoData
-   return ecoData
+    
+   ecoData_Set pEcoData
+   return pEcoData
 end ecoData_SetFarmAndGardens
 
 function ecoData_ConstructBasic farmFolder
