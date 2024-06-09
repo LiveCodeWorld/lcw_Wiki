@@ -154,9 +154,10 @@ end ___
 
 on menu_SaveStack wikiView
    put the stack_Name of wikiView into sName
-   save stack sName
-   --
-   lcw_Notify "Saved stack!", sName
+   ide_SaveStack sName
+   
+   -- save stack sName
+   -- lcw_Notify "Saved stack!", sName
 end menu_SaveStack
 
 on submenu_Dev

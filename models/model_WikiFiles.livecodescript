@@ -16,6 +16,30 @@ local Wiki_ModulesFolder
 
 --> WikiUrl
 -
+command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineUpNum
+   -- http://snack.thought.garden/view/welcome-visitors
+   if pLineUpNum is not a number then put 1 into pLineUpNum
+   --
+   set the itemdelimiter to slash
+   put item 3 of wikiURL into wikiDomain
+   
+   -- 1 => 1, 2 => 3, -1 => -1, -2 => -3
+   --
+   delete item 1 to 3 of wikiURL
+   if pLineUpNum > 0 then
+      put 2 * (pLineUpNum - 1) + 1 into slugDomainItemNum
+      put slugDomainItemNum + 1 into slugItemNum 
+   else
+      put 2 * pLineUpNum into slugDomainItemNum 
+      put slugDomainItemNum + 1 into slugItemNum 
+   end if
+   
+   put item slugDomainItemNum  of wikiURL into slugDomain
+   put item slugItemNum of wikiURL into pageSlug
+   if slugDomain = "view" then put wikiDomain into slugDomain
+   
+end wikiUrl_Deconstruct
+
 function wikiUrl_Asset relAssetPath, wikiDomain
    -- http://podcast.anarchive.earth/assets/audio/Astral%20Cinema.m4a
    put "http://" & wikiDomain & "/assets/" into assetsURL

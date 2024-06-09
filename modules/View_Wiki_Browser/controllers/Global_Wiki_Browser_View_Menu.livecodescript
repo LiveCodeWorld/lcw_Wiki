@@ -31,11 +31,6 @@ getprop disabled_EditMode
    end if
 end disabled_EditMode
 
-getprop checked_EditWiki [wikiView]
-   put the wiki_EditMode of wikiView into sBoolean
-   return sBoolean
-end checked_EditWiki
-
 getprop checked_Footer [wikiView]
    -- return LocalArray ["footer_IsVisible"]
    return the footer_IsVisible of wikiView
@@ -76,6 +71,11 @@ on menu_EditWiki wikiView
    put the wiki_EditMode of wikiView into sBoolean
    set the wiki_EditMode of wikiView to (sBoolean is false)
 end menu_EditWiki
+
+getprop checked_EditWiki [wikiView]
+   put the wiki_EditMode of wikiView into sBoolean
+   return sBoolean
+end checked_EditWiki
 
 on menu_Footer wikiView
    put the footer_IsVisible of wikiView into sBoolean

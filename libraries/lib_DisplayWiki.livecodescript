@@ -26,6 +26,26 @@ end display_WikiDomain
 
 --> Working on
 -
+command display_WikiGhost wikiDomain, pageArray
+   put pageArray ["title"] into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   
+   # Find Wiki Browser
+   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
+   if exists (wikiBrowser) is true then
+      object_GoTo wikiBrowser
+   else
+      display_Wiki wikiDomain
+      put the result into wikiBrowser
+      wait 40 ticks
+   end if
+   
+   # Display Ghost
+   set the ghost_PageArray of wikiBrowser to pageArray
+   --
+   return wikiBrowser
+end display_WikiGhost
+
 
 --> Display | Wiki | list
 -

@@ -17,6 +17,52 @@ This view is for a single wiki-browser view
 local LocalArray
 
 
+--> Events
+-
+on resizeControl
+   put the rect of me into viewRect
+   LayoutControl viewRect
+end resizeControl
+
+command LayoutControl pRect
+   if pRect is empty then put the rect of this cd into pRect
+   _RectIfMenuBar pRect
+   set the rect of me to pRect
+end LayoutControl
+
+command _RectIfMenuBar @sRect
+   put the menubar of the defaultstack into gName
+   if (gName is empty) then
+      put 20 into mHeight
+      --
+      put the menubar_View of me into mGroup
+      if exists (mGroup) is false then return false
+      add mHeight to item 2 of sRect
+      -- subtract mHeight from item 4 of sRect
+      return true
+   else
+      return false
+   end if
+end _RectIfMenuBar
+
+
+--> Init
+-
+on preOpenControl
+   -- LayoutCard
+   
+   send "wikiBrowser_Init" to me in 30 ticks
+   pass preOpenControl
+end preOpenControl
+
+on wikiBrowser_Init
+   set the flag_Handler of me to "default"
+   set the wiki_EditMode of me to true
+   --
+   -- set the show_Menu of _MenubarView() to true
+end wikiBrowser_Init
+
+
 --> Working on
 -
 setprop ghost_PageArray pageArray
@@ -302,13 +348,6 @@ end flag_Event
 
 --> Custom | Events | Flag
 -
-on wikiBrowser_Init
-   set the flag_Handler of me to "default"
-   set the wiki_EditMode of me to true
-   --
-   -- set the show_Menu of _MenubarView() to true
-end wikiBrowser_Init
-
 getprop flag_Event [pageSlug]
    put wikijs_ConstructSelector(".header h1", pageSlug, "outerHTML") into sJavascript
    put _GetJavascriptResult (sJavascript) into sResult
@@ -324,35 +363,6 @@ setprop flag_Handler flagHandler
    set the browser_Javascript of me to sJavascript -- causes error
    return sJavascript
 end flag_Handler
-
-
---> Events
--
-on preOpenControl
-   -- LayoutCard
-   
-   send "wikiBrowser_Init" to me in 30 ticks
-   pass preOpenControl
-end preOpenControl
-
-on resizeControl
-   put the rect of me into viewRect
-   LayoutControl viewRect
-end resizeControl
-
-command LayoutControl pRect
-   if pRect is empty then put the rect of this cd into pRect
-   get the menubar of the defaultstack
-   if it is not empty then
-      put the menubar_View of me into mView
-      if exists (mView) then
-         put 20 into sHeight
-         -- subtract sHeight from item 2 of pRect
-         add sHeight to item 2 of pRect
-      end if
-   end if
-   set the rect of me to pRect
-end LayoutControl
 
 
 --> Custom | Events

@@ -18,37 +18,54 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   -- put display_MenuTarget (tObject) into dView
-   put the display_View of tObject into dView
-   return dView
+   put display_MenuTarget (tObject) into cardObject
+   return cardObject
 end menu_Target
 
-getprop menu_CheckTarget [dView]
-   return exists (dView)
+getprop menu_CheckTarget [cardObject]
+   return exists (cardObject)
 end menu_CheckTarget
 
 
 --> Global | Wiki | Future | Tools | Menu
 -
-on menu_WikiFutureTools dView
+on menu_WikiFutureTools cardObject
    put the params
 end menu_WikiFutureTools
 
 private on _
 end _
 
-on menu_Behavior dView
-   put the behavior of dView into bObject
+on menu_EditFutureBehavior cardObject
+   put the behavior of cardObject into bObject
    edit the script of bObject
-end menu_Behavior
+end menu_EditFutureBehavior
 
-on menu_ModuleTools dView
-   put the view_Name of dView into viewName
-   display_ModuleTools viewName
-end menu_ModuleTools
+on menu_EditBackBehavior cardObject
+   put the behavior of the back_View of cardObject into bObject
+   edit the script of bObject
+end menu_EditBackBehavior
+
+on menu_EditMenuBehavior cardObject
+   put the behavior of the menubar_View of cardObject into bObject
+   edit the script of bObject
+end menu_EditMenuBehavior
 
 private on __
 end __
+
+on menu_ShowMenu cardObject
+   put the menubar_View of cardObject into mGroup
+   menuBar_ToggleShowMenu mGroup
+end menu_ShowMenu
+
+getprop checked_ShowMenu [cardObject]
+   put the menubar_View of cardObject into mGroup
+   if exists (mGroup) is false then return false -- bug should not be needed
+   --
+   put the show_Menu of mGroup into sBoolean
+   return sBoolean
+end checked_ShowMenu
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Future | Tools | Menu")

@@ -10,56 +10,66 @@ version: 0.1
 /*Here you make make notes as a basic form of help for this view.
 Full help text can be found on the linked wiki for the view.*/
 
---> Variables
--
-constant kViewName = "View|Wiki|Browser"
-
-
 --> Working on
 -
--- on preOpenCard
+on preOpenCard
    Init_MenuBar
 end preOpenCard
 
 command Init_MenuBar
    put the menubar_View of stack "View|Wiki|Future" into mGroup
-   -- put _MenuBarView() into mGroup
    if exists (mGroup) is false then return empty
    
-   put "File-Rev,Edit-Rev,Future-Default,Menu-Global|Menu|Group|Exists|Menu,Help-Rev" into mTable
-   set the menubar_Table of mGroup to mTable
+   set the behavior_StackNames of mGroup to "behavior_ViewMenuGroup,behavior_MenuGroupCreate"
    --
    return mTable
 end Init_MenuBar
 
 
+--> Objects | Private
+-
+private function _BackView
+   if exists (group "View|Wiki|Background" of me) is false then return empty
+   return the long id of group "View|Wiki|Background" of me
+end _BackView
+
+private function _BackGraphic
+   if exists (graphic "Drop Zone" of me) is false then return empty
+   return the long id of graphic "Drop Zone" of me
+end _BackGraphic
+
+private function _MenuBarView
+   if exists (group "View|Menu|Group" of me) is false then return empty
+   return the long id of group "View|Menu|Group" of me
+end _MenuBarView
+
+private function _WikiView
+   if exists (widget "View|Wiki|Browser" of me) is false then return empty
+   return the long id of widget "View|Wiki|Browser" of me
+end _WikiView
+
+
 --> Objects
 -
-getprop view_Object
-   return the long id of me
-end view_Object
-
-getprop module_View
-   return _WikiView()
-end module_View
+getprop back_View
+   return _BackView()
+end back_View
 
 getprop menubar_View
    return _MenuBarView()
 end menubar_View
 
-private function _MenuBarView
-   if exists (group "View|Menu|Group" of me) is false then return empty
-   put the long id of group "View|Menu|Group" of me into mGroup
-   return mGroup
-end _MenuBarView
+getprop wiki_View
+   return _WikiView()
+end wiki_View
 
-private function _WikiView
-   return the long id of widget kViewName of me
-end _WikiView
+getprop browser_View
+   return _WikiView()
+end browser_View
 
-private function _BackGraphic
-   return the long id of graphic "Drop Zone" of me
-end _BackGraphic
+getprop view_Object
+   return the long id of me
+end view_Object
 
 
 --> Events
@@ -69,18 +79,17 @@ on resizeStack
    pass resizeStack
 end resizeStack
 
-command LayoutCard cRect
-   if cRect is empty then put the rect of me into cRect
+command LayoutCard
+   put the rect of me into cRect
    --
    put cRect into wRect
    put the card_Margin of me into cMargin
    rect_SubtractMargins wRect, cMargin
+   add 20 to item 2 of wRect
+   
+   put _BackView() into backView
+   if exists (backView) then set the rect of backView to wRect
    --
-   put _WikiView() into wikiView
-   put _BackGraphic() into backGraphic
-   --
-   -- if exists (wikiView) then set the rect of wikiView to wRect
-   if exists (backGraphic) then set the rect of backGraphic to cRect
    return wRect
 end LayoutCard
 
@@ -95,35 +104,12 @@ end card_Margin
 
 setprop card_Margin cardMargin
    set the card_Margin of me to cardMargin
-   LayoutControl
+   LayoutCard
 end card_Margin
 
 
 --> Deps
 -
-getprop module_Controller [menuBit]
-   put the module_Folder of the target into moduleFolder
-   put moduleFolder & "controllers/" into cFolder
-   --
-   put the module_MenuTitle [menuBit] of the target into mTitle
-   put lcw_PipesToUnderscore (mTitle) & ".livecodescript" into shortFile
-   --
-   put cFolder & shortFile into cPath
-   return cPath
-end module_Controller
-
-getprop module_MenuTitle [menuBit]
-   put the view_Name of the target into moduleName
-   if viewName is empty then return empty
-   --
-   if menuBit is not empty then
-      put space & "|" && menuBit after moduleName
-   end if
-   put menu_GlobalTitleFromViewName (moduleName) into globalMenuTitle
-   put module_ConstructGlobalMenuTitle (moduleName, true) into globalMenuTitle
-   return globalMenuTitle
-end module_MenuTitle
-
 command rect_SubtractMargins @someRect, pMargin
    margin_Normalize pMargin, leftM, topM, rightM, bottomM
    put the result into nMargins
