@@ -234,6 +234,22 @@ end form_SetFirstMultipart
 
 --> POST
 -
+command post_LCW someRoute, socketID, requestArray
+   switch someRoute
+      case "/openverse"
+         put daemon_RequestJsonArray (requestArray) into postArray
+         put postArray ["search_Term"] into searchTerm
+         --
+         put openverse_Search (searchTerm) into sData
+         put wikiPage_OpenVerseThumbNails (sData) into pageArray
+         --
+         daemon_SendArray socketID, pageArray
+         return "Sent JSON. Socket still open."
+      default
+         post_ToController someRoute, socketID, requestArray
+   end switch
+end post_LCW
+
 command post_ToController someRoute, socketID, requestArray
    set the itemdelimiter to slash
    put item 2 of someRoute & ".lc" into controllerStackName
@@ -254,9 +270,20 @@ command post_ToController someRoute, socketID, requestArray
       --
       return "Forwarded POST to controller and returned page-json:" controllerStackName
    else
-      return "Error, cannot locate controlle stack:" controllerStackName
+      put "Error, cannot locate controlle stack:" && controllerStackName into sError
+      daemon_SendError socketID, sError
+      return sError
    end if
 end post_ToController
+
+command daemon_SendError socketID, pError
+   if pError is empty then
+      put "Some random error:" && the internet date into pError
+   end if
+   put pageArray_Construct ("Error", pError) into pageArray
+   daemon_SendArray socketID, pageArray
+   return the result
+end daemon_SendError
 
 command post_AssetUpload someRoute, socketID, requestArray
    -- someRoute = "/plugin/assets/upload"
@@ -293,22 +320,6 @@ end post_AssetUpload
 
 --> POST
 -
-command post_LCW someRoute, socketID, requestArray
-   switch someRoute
-      case "/openverse"
-         put daemon_RequestJsonArray (requestArray) into postArray
-         put postArray ["search_Term"] into searchTerm
-         --
-         put openverse_Search (searchTerm) into sData
-         put wikiPage_OpenVerseThumbNails (sData) into pageArray
-         --
-         daemon_SendArray socketID, pageArray
-         return "Sent JSON. Socket still open."
-      default
-         post_ToController someRoute, socketID, requestArray
-   end switch
-end post_LCW
-
 before route_POST someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    switch
@@ -326,7 +337,6 @@ before route_POST someRoute, socketID, requestArray
       case wikiDomain = "rest.livecode.world"
          -- someRoute = /podcast/rss
          post_LCW someRoute, socketID, requestArray
-         exit to top
       default
          -- pass on to behavior
    end switch

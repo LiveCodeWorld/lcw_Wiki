@@ -133,7 +133,7 @@ private on ___
 end ___
 
 on submenu_Astral
-   return menu_CreateTitle ("Global | Wiki | Astral | Menu")
+   return "Global | Wiki | Astral | Menu"
 end submenu_Astral
 
 on menu_ListDynadotWikis displayView
@@ -146,7 +146,7 @@ end menu_ListDynadotWikis
 end menu_DisplayLostWikis
 
 on submenu_Tunnel
-   return menu_CreateTitle ("Global | Tunnel | Menu")
+   return "Global | Tunnel | Menu"
    return "Global | Tunnel | Install | Menu"
 end submenu_Tunnel
 

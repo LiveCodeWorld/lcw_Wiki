@@ -46,29 +46,23 @@ end disabled_DisplayLoadedWikiEcoData
 
 --> Global | Wiki | Server | Menu
 -
-on menu_ReloadPluginRouteData wsView
-   dispatch "daemon_ClearPluginRouteData" to wsView
-   dispatch "daemon_LoadPluginRouteData" to wsView
-   --
-   put the plugin_RouteData of wsView into PluginRouteData
-   --
-   display_Data PluginRouteData, "PluginRouteData", "Wiki Routing"
-end menu_ReloadPluginRouteData
+on menu_DisplayCaddyTools
+   display_CaddyTools
+end menu_DisplayCaddyTools
 
-on menu_DisplaySocketData wsView
-   put the socket_Data of wsView into sData
-   display_Data  sData, "Socket Data"
-end menu_DisplaySocketData
+private on _
+end _
 
-private on ____
-end ____
+on submenu_SimpleServer
+   return "Global | Wiki | Server | Simple | Menu"
+end submenu_SimpleServer
 
-on insert_Data
+on submenu_Data
    return "Global | Wiki | Server | Data | Menu"
-end insert_Data
+end submenu_Data
 
-private on ___
-end ___
+private on __
+end __
 
 on menu_LaunchEtcHosts
    launch_EtcHosts
@@ -83,26 +77,19 @@ on menu_UpdateEtcHosts
    display_Text hostsText, "/etc/hosts"
 end menu_UpdateEtcHosts
 
-private on _____
-end _____
+private on ___
+end ___
 
 on submenu_InstallWiki
    return "Global | Wiki | Install | Menu"
 end submenu_InstallWiki
 
-private on ______
-end ______
+private on ____
+end ____
 
 on menu_CloseOpenSockets
    socket_CloseOpen
 end menu_CloseOpenSockets
-
-on menu_DisplayStaticTemplate
-   put wikiClient_GetStaticHtml() into htmlTemplate
-   display_Text htmlTemplate, "static.html", "Wiki Server File"
-   put the result into wsView
-   display_SetMenu wsView, "Global | Wiki | Default | Static | Menu", "title_Menu", "lcw_Wiki"
-end menu_DisplayStaticTemplate
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Server | Menu")

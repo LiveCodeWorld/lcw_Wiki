@@ -17,9 +17,20 @@ end project_Deps
 
 --> Custom
 -
-command project_PostInit
-   if the shiftKey is "Up" then
+-- command project_PostInit
+   if the shiftKey is "Up" then      
+      # Start proxy servers and load gardens
+      try
+         wikiServer_StartLocalProxy
+         -- wikiServer_StartNodeFarm
+      catch e
+         breakpoint
+      end try
+      
+      # Go to Wiki
+      breakpoint
       revIDEToggle "Suppress Errors"
+      go to stack "View|Wiki|Browser"
    end if
 end project_PostInit
 

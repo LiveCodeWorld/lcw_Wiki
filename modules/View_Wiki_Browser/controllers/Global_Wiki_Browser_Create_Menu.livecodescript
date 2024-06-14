@@ -111,6 +111,15 @@ end menu_DraftEmptySites
 private on ___
 end ___
 
+on menu_SnapWiki wikiView
+   put the browser_Snapshot [420] of wikiView into wImage
+   --
+   display_Image wImage, "Wiki Image"
+end menu_SnapWiki
+
+private on ____
+end ____
+
 on menu_CreateMenu wikiView
    ask_CreateModuleMenu "View|Wiki|Browser", wikiView, "Global | Wiki | Browser | Garden | Menu"
 end menu_CreateMenu

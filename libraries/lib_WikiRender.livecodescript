@@ -14,6 +14,133 @@ This linrary is the start of a native Livecode rendering of federated wiki-json.
 
 --> Working on
 -
+function wikiText_GetLinkArray sText
+   local sNum, eNum, linkArray
+   
+   put "(?i)\[(http|https|ftp):\/\/([^ ]+?)\s+(.*?)\]" into sRegex
+   put 1 into indexNum
+   repeat while matchChunk (sText, sRegex, sProt, eProt, sHref, eHref, sLink, eLink) is true
+      # Log Text
+      put char sProt to eProt of sText into linkArray [indexNum]["protocol"]
+      put char sHref to eHref of sText into linkArray [indexNum]["link"]
+      put char sLink to eLink of sText into linkArray [indexNum]["text"]
+      
+      # Delete and Repeat
+      put sProt -2 into sChunk
+      put eLink + 2 into eChunk
+      delete char sChunk to eChunk of sText
+      
+      # log Offsets
+      put sChunk into linkArray [indexNum]["sChunk"]
+      put eChunk into linkArray [indexNum]["eChunk"]
+      
+      add 1 to indexNum
+   end repeat
+   return linkArray
+end wikiText_GetLinkArray
+
+function text_TempReplaceQuoted someText, @offsetArray
+   -- was "temptext_StripQuoted"
+   -- version original,18/9/01
+   
+   put "(" & quote & "[^" & quote & "]*" & quote & ")" into someReg
+   put 1 into dummyNum
+   repeat
+      if matchchunk(someText, someReg, startChar, endChar) then
+         put char startChar to endChar of someText into quotedText
+         put "<dummy id=" & dummyNum & "/>" into safeReplaceMent
+         put safeReplaceMent into char startChar to endChar of someText
+         put quotedText into offsetArray[safeReplaceMent]
+         add 1 to dummyNum
+      else
+         return someText
+      end if
+   end repeat
+end text_TempReplaceQuoted
+
+function fedwiki_GetLinks wikiText
+   local sNum, eNum
+   
+   put "[^\]]+" into notBracket
+   put "\[\[(" & notBracket & ")\]\]" into someReg
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         put char sNum to eNum of wikiText into pageTitle
+         put pageTitle & CR after pageTitles
+         --
+         delete char 1 to eNum of wikiText
+      else 
+         exit repeat
+      end if
+   end repeat
+   delete char -1 of pageTitles
+   return pageTitles
+end fedwiki_GetLinks
+
+command fedwiki_ReplaceExternalLinks @wikiText
+   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
+   put "(\[http.+\])" into someReg
+   
+   local refStart, refEnd
+   put 0 into indexNum
+   repeat
+      get matchchunk (wikiText, someReg, sNum, eNum) 
+      if it is true then
+         add 1 to indexNum
+         put char sNum to eNum of wikiText into extLinkText
+         delete char - 1 of extLinkText
+         delete char 1 of extLinkText
+         put word 1 of extLinkText into extLinkURL
+         put word 2 to -1 of extLinkText into extLinkText
+         --
+         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
+         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
+         put markdownLink into char sNum to eNum of wikiText
+      else
+         exit repeat
+      end if
+   end repeat
+   return indexNum
+end fedwiki_ReplaceExternalLinks
+
+function fedwiki_ConstructLink someText, pExternalURL
+   put word 1 to -1 of line 1 of someText into someText
+   if pExternalURL is empty then
+      return "[[" & someText & "]]"
+   else
+      put word 1 to -1 of pExternalURL into pExternalURL
+      return "[" & pExternalURL && someText & "]"
+   end if
+end fedwiki_ConstructLink
+
+function _StripInternal sText
+   put "(?i)(\[\[[^\]]+\]\])" into sRegex
+   repeat while matchchunk (sText, sRegex, startChar, endChar) is true
+      put char startChar to endChar of sText into fLink
+      put char 3 to -3 of fLink into pageTitle
+      put pageTitle into char startChar to endChar of sText
+   end repeat
+   return sText
+end _StripInternal
+
+function _StripExternal sText
+   put "(?i)\[(http|https|ftp):\/\/([^ ]+?)\s+(.*?)\]" into sRegex
+   --   --
+   repeat while matchChunk (sText, sRegex, sProt, eProt, sHref, eHref, sLink, eLink) is true
+      put char sLink to eLink of sText into sLinkText
+      --
+      put sProt -2 into sChunk
+      put eLink + 2 into eChunk
+      --
+      put sLinkText into char sChunk to eChunk of sText
+   end repeat
+   return sText
+end _StripExternal
+
+
+--> PageArray
+-
 function pageArray_FetchText wikiDomain, pSlug, pPort
    put pageArray_Fetch (wikiDomain, pSlug, pPort) into pageArray
    put pageArray_Text (pageArray) into pageText
@@ -49,30 +176,6 @@ function pageArray_Text pageArray, pIncludeNotes, pBreak
    end repeat
    return word 1 to -1 of pageText
 end pageArray_Text
-
-function _StripInternal sText
-   put "(?i)(\[\[[^\]]+\]\])" into sRegex
-   repeat while matchchunk (sText, sRegex, startChar, endChar) is true
-      put char startChar to endChar of sText into fLink
-      put char 3 to -3 of fLink into pageTitle
-      put pageTitle into char startChar to endChar of sText
-   end repeat
-   return sText
-end _StripInternal
-
-function _StripExternal sText
-   put "(?i)\[(http|https|ftp):\/\/([^ ]+?)\s+(.*?)\]" into sRegex
-   --   --
-   repeat while matchChunk (sText, sRegex, sProt, eProt, sHref, eHref, sLink, eLink) is true
-      put char sLink to eLink of sText into sLinkText
-      --
-      put sProt -2 into sChunk
-      put eLink + 2 into eChunk
-      --
-      put sLinkText into char sChunk to eChunk of sText
-   end repeat
-   return sText
-end _StripExternal
 
 
 --> Wiki | Tag

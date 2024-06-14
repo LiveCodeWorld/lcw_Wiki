@@ -459,6 +459,7 @@ end pageArray_CompactRefs
 --> PageArray | Edit
 -
 command pageArray_CleanJournal @pageArray, pPreserveActions
+   -- ie pPreserveActions = "fork"
    switch pPreserveActions
       case empty
          pageArray_StripJournal pageArray

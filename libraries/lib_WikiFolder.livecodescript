@@ -31,7 +31,7 @@ function wikiFolder_ConstructFromFarm wikiDomain
    put ecoData_GetFarmFolder() into wikiFarm
    if there is not a folder wikiFarm then
       -- this check slows things (consider removing)
-      breakpoint
+      -- breakpoint
       put wikiFarm_GetDefaultFolder() into wikiFarm
    end if
    

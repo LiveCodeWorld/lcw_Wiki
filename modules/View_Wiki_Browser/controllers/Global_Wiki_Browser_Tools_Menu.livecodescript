@@ -53,9 +53,86 @@ getprop checked_SupressErrors
    return gRevSuppressErrors
 end checked_SupressErrors
 
+private function _PageArray wikiView, pageTitle
+   -- could get directly form live HTML using "lineup_Data"
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   if pageTitle is empty then
+      put the last_PageSlug of wikiView into pSlug
+      put lcw_Ask ("Choose a wiki page-slug for this domain...", pSlug, wikiDomain, wikiView) into pSlug
+   else
+      put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   end if
+   --
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   return pageArray
+end _PageArray
+
 
 --> Global | Wiki | Browser | Tools | Menu
 -
+on menu_CompactRefs wikiView, pageTitle
+   put _PageArray (wikiView, pageTitle) into pageArray
+   --
+   pageArray_CompactRefs pageArray
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_CompactRefs
+
+on menu_StripJournal wikiView, pageTitle
+   put _PageArray (wikiView, pageTitle) into pageArray
+   --
+   pageArray_StripJournal pageArray
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_StripJournal
+
+getprop stripJournal_Params [wikiView]
+   return LocalArray ["pageTitles"]
+end stripJournal_Params
+
+on menu_AddForks wikiView
+   put _PageArray (wikiView) into pageArray
+   --
+   put "livecode.world" into wikiDomains
+   if the shiftKey is "Down" then
+      pageArray_StripJournal pageArray
+   end if
+   pageArray_AddFork pageArray, wikiDomains
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_AddForks
+
+on menu_FixPageJson wikiView
+   put _PageArray (wikiView) into pageArray
+   --
+   pageArray_StripJournal pageArray
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_FixPageJson
+
+on menu_FixText wikiView, pageTitle
+   put _PageArray (wikiView) into pageArray
+   --
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum]["text"] into itemText
+      wikipedia_FixText itemText
+      put itemText into storyArray [itemNum]["text"]
+   end repeat
+   put storyArray into pageArray ["story"]
+   --   
+   set the ghost_PageArray of wikiView to pageArray
+end menu_FixText
+
+getprop fixText_Params [wikiView]
+   return LocalArray ["pageTitles"]
+end fixText_Params
+
+
+private on _
+end _
+
 on menu_SearchOpenverse wikiView
    put lcw_Ask ("Enter search terms...", "cat|dog", "Openverse", dView) into searchBit
    --
@@ -64,32 +141,6 @@ on menu_SearchOpenverse wikiView
    --
    set the ghost_PageArray of wikiView to pageArray
 end menu_SearchOpenverse
-
-on menu_CompactRefs wikiView, pageTitle
-   put the wiki_Domain of wikiView into wikiDomain
-   --
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put pageArray_Get (wikiDomain, pageSlug) into pageArray
-   -- put the lineup_Data of wikiView into lineupData
-   pageArray_CompactRefs pageArray
-   --
-   set the ghost_PageArray of wikiView to pageArray
-end menu_CompactRefs
-
-getprop cleanJournal_Params [wikiView]
-   return LocalArray ["pageTitles"]
-end cleanJournal_Params
-
-on menu_CleanJournal wikiView, pageTitle
-   
-end menu_CleanJournal
-
-private on _
-end _
-
-on menu_FlagEvent wikiView
-   set the flag_Handler of wikiView to "default"
-end menu_FlagEvent
 
 private on __
 end __
@@ -117,9 +168,9 @@ on menu_SupressErrors wikiView
    revIDEToggle "Suppress Errors"
 end menu_SupressErrors
 
-on menu_MessageWatcher wikiView
+on menu_MessageWatcher.M wikiView
    revIDEOpenPalette "message watcher"
-end menu_MessageWatcher
+end menu_MessageWatcher.M
 
 on menu_SuspendDevelopmentTools wikiView
    revIDESuspendDevelopmentTools
@@ -151,25 +202,13 @@ end menu_SaveStack
 private on _____
 end _____
 
+on menu_FlagEvent wikiView
+   set the flag_Handler of wikiView to "default"
+end menu_FlagEvent
+
 on menu_EditPlatform
    edit the script of stack "lib_Platform'"
 end menu_EditPlatform
-
-on menu_FixPageJson wikiView
-   put the wiki_Domain of wikiView into wikiDomain
-   put the last_PageSlug of wikiView into pSlug
-   put lcw_Ask ("Choose a wiki page-slug for this domain...", pSlug, wikiDomain, wikiView) into pSlug
-   --
-   put pageArray_Get (wikiDomain, pSlug) into pageArray
-   pageArray_StripJournal pageArray
-   set the ghost_PageArray of wikiView to pageArray
-   
-   -- put pageJson_Get (wikiDomain, pSlug) into pageJson
-   -- put wikiFile_Construct (wikiDomain, pSlug) into wikiPagePath
-   -- get jsonArray_FromFile (wikiPagePath, false)
-   --
-   -- display_PageArray pageArray
-end menu_FixPageJson
 
 on submenu_Dev
    return "Global | Wiki | Browser | Tools | Dev | Menu"

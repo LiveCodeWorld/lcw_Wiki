@@ -56,7 +56,7 @@ end wiki_NormailzePort
 
 function wiki_GetPort
    put LocalArray ["sPort"] into sPort
-   if sPort is empty then put 80 into sPort
+   if sPort is empty then put 3000 into sPort
    --
    return sPort
 end wiki_GetPort

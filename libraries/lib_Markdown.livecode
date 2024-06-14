@@ -36,6 +36,15 @@ end markdown
 
 --> Markdown
 -
+function markdown_TagItems someTags, pNotThese
+   repeat for each line someTag in someTags
+      if someTag is among the items of pNotThese then next repeat
+      put "[[" & someTag & "]], " after handlerTagList
+   end repeat
+   delete char -2 to -1 of handlerTagList
+   return handlerTagList
+end markdown_TagItems
+
 function markdown_GetSection mdText, pSectionTitle
    if pSectionTitle is empty then
       set the wholeMatches to false

@@ -22,28 +22,13 @@ getprop menu_CheckTarget [wikiView]
    return exists (wikiView)
 end menu_CheckTarget
 
-getprop checked_StopLiveServer
+getprop checked_LiveServer
    return wikiServer_IsRunning()
-end checked_StopLiveServer
+end checked_LiveServer
 
-getprop checked_StopNodeServer
+getprop checked_NodeServer
    return wikiServer_NodeIsRunning()
-end checked_StopNodeServer
-
-getprop port_Param [wsView]
-   put the listen_Port of wsView into sPort
-   -- put wiki_GetPort() into sPort
-   
-   if sPort is empty then
-      return 80
-   else
-      return sPort
-   end if
-end port_Param
-
-getprop port_Params
-   return "3000,8080,9090,-,80"
-end port_Params
+end checked_NodeServer
 
 getprop securityType_Params
    return wikiServer_ListSecurityTypes(true)
@@ -90,26 +75,63 @@ on menu_ToggleServer.5
    end switch
 end menu_ToggleServer.5
 
+on menu_StartLiveServer
+   wikiServer_StartLocalProxy
+end menu_StartLiveServer
+
 private on _____
 end _____
 
-on menu_StopNodeServer wikiView
-   wikiServer_StopNode
-end menu_StopNodeServer
+on menu_NodeServer wikiView
+   if wikiServer_NodeIsRunning() then
+      wikiServer_StopNode
+   else
+      wikiServer_StartNodeFarm
+   end if
+end menu_NodeServer
 
-on menu_StopLiveServer
-   wikiServer_Stop
-end menu_StopLiveServer
+on menu_LiveServer
+   if wikiServer_IsRunning() then
+      wikiServer_Stop
+   else
+      wikiServer_Start
+   end if
+end menu_LiveServer
+
+on menu_StartCaddy
+   caddy_ToggleProxy
+end menu_StartCaddy
+
+getprop checked_StartCaddy
+   return caddy_IsRunning()
+end checked_StartCaddy
 
 private on _
 end _
 
-on menu_Port wikiView, sPort
+on menu_NodePort wikiView, sPort
+   wikiServer_SetNodePort sPort
+   
    put the menubar_View of wikiView into mGroup
-   --
-   -- wiki_SetPort sPort
-   set the listen_Port of mGroup to sPort
-end menu_Port
+   -- get the listen_Port of mGroup
+   -- set the listen_Port of mGroup to sPort
+end menu_NodePort
+
+getprop nodeport_Param [wikiView]
+   -- put the listen_Port of wsView into sPort
+   -- put wiki_GetPort() into sPort
+   put wikiServer_GetNodePort() into sPort
+   
+   if sPort is empty then
+      return 80
+   else
+      return sPort
+   end if
+end nodeport_Param
+
+getprop nodeport_Params
+   return "3000,8080,9090,-,80"
+end nodeport_Params
 
 on menu_SecurityType wikiView, securityType
    wikiServer_SetSecurityType securityType
@@ -118,23 +140,21 @@ end menu_SecurityType
 private on __
 end __
 
+on submenu_Caddy
+   return "Global | Caddy | Menu"
+end submenu_Caddy
+
+on submenu_SimpleServer
+   return "Global | Wiki | Server | Simple | Menu"
+end submenu_SimpleServer
+
+on menu_DisplayCaddyTools
+   display_CaddyTools
+end menu_DisplayCaddyTools
+
 on menu_DisplayXterm
    wikiServer_StartWithXterm
 end menu_DisplayXterm
-
-on menu_DisplayServerLog
-   display_ViewTemplate "View|Wiki|Server"
-end menu_DisplayServerLog
-
-on menu_SetLogging wsView
-   put the behavior of stack "behavior_WikiRouter" is not empty into isLogging
-   if isLogging is true then
-      set the behavior of stack "behavior_WikiRouter" to empty
-   else
-      put the name of stack "behavior_DaemonLog" into bObject
-      set the behavior of stack "behavior_WikiRouter" to bObject
-   end if
-end menu_SetLogging
 
 private on ___
 end ___
@@ -154,23 +174,6 @@ on menu_SetWikiFarmFolder
    display_GardenEcodata
    finder_Reveal newFarmFolder
 end menu_SetWikiFarmFolder
-
-on menu_SetEcofolder
-   wikiPreference_SetDefaultEcoFolder
-   put the result into ecoFolder
-end menu_SetEcofolder
-
-on menu_AddGardenEcoFolder
-   put wikiFarm_EarthFolder() into rootFolder
-   answer folder "Choose a Garden eco-folder for your Gardens..." with rootFolder as sheet
-   if it is empty then exit to top
-   put it into ecoFolder
-   
-   wikiGarden_AddEcoFolder ecoFolder
-   --
-   display_GardenEcodata
-   finder_Reveal ecoFolder
-end menu_AddGardenEcoFolder
 
 private on ____
 end ____
@@ -194,6 +197,37 @@ end menu_DisplayOwnerJson
 on submenu_ServerData
    return "Global | Wiki | Server | Menu"
 end submenu_ServerData
+
+on menu_DisplayServerLog
+   display_ViewTemplate "View|Wiki|Server"
+end menu_DisplayServerLog
+
+on menu_SetLogging wsView
+   put the behavior of stack "behavior_WikiRouter" is not empty into isLogging
+   if isLogging is true then
+      set the behavior of stack "behavior_WikiRouter" to empty
+   else
+      put the name of stack "behavior_DaemonLog" into bObject
+      set the behavior of stack "behavior_WikiRouter" to bObject
+   end if
+end menu_SetLogging
+
+on menu_SetEcofolder
+   wikiPreference_SetDefaultEcoFolder
+   put the result into ecoFolder
+end menu_SetEcofolder
+
+on menu_AddGardenEcoFolder
+   put wikiFarm_EarthFolder() into rootFolder
+   answer folder "Choose a Garden eco-folder for your Gardens..." with rootFolder as sheet
+   if it is empty then exit to top
+   put it into ecoFolder
+   
+   wikiGarden_AddEcoFolder ecoFolder
+   --
+   display_GardenEcodata
+   finder_Reveal ecoFolder
+end menu_AddGardenEcoFolder
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | Server | Menu")

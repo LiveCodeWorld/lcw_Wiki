@@ -105,7 +105,7 @@ private on __
 end __
 
 on submenu_Register
-   return menu_CreateTitle ("Global | Wiki | Git | Line | Register | Menu")
+   return "Global | Wiki | Git | Line | Register | Menu"
 end submenu_Register
 
 on menu_Refresh

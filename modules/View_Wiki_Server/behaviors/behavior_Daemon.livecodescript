@@ -37,8 +37,8 @@ command daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
    put _NormalizeSocket (socketorRequestArray) into socketID
    put _OkHeaders ("application/json; charset=utf-8") into someHeader
    --
-   daemon_Send someHeader, someJSON, socketID, pSendCompressed
-   -- daemon_SendAndCloseSocket someHeader, someJSON, socketID, pSendCompressed
+   -- daemon_Send someHeader, someJSON, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, someJSON, socketID, pSendCompressed
    --
    return someHeader
 end daemon_SendJSON

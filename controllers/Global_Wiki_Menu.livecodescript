@@ -23,20 +23,20 @@ getprop menu_Target [tObject]
 end menu_Target
 
 -- getprop menu_CheckTarget [browserView]
-   try
-      put wiki_NodeServerIsRunning() into LocalArray ["wikiStarted"]
-      return exists (browserView)
-   catch e
-      return false
-   end try
+try
+   put wiki_NodeServerIsRunning() into LocalArray ["wikiStarted"]
+   return exists (browserView)
+catch e
+   return false
+end try
 end menu_CheckTarget
 
 
 --> Global | Wiki | Menu
 -
-on menu_Test
-   breakpoint
-end menu_Test
+on menu_DisplayCaddyTools
+   display_CaddyTools
+end menu_DisplayCaddyTools
 
 private on __
 end __

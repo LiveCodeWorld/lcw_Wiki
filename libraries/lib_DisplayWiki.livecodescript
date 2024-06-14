@@ -7,26 +7,37 @@ type: library
 version: 0.3
 
 /*
-command display_WikiDomain wikiDomain, pDisplayView, pPalette
-   set the cursor to watch
-   -- atopia_DeleteWikiSitemap wikiDomain
-   --
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   put fedwiki_ConstructSitePageArray (sitemapArray) into sitePageArray
-   --
-   display_Data sitePageArray, wikiDomain, "Wiki", pDisplayView, pPalette
-   put the result into displayView
-   --
-   display_SetInteractions displayView, "Wiki | Pages", "mDoubleUp_DisplayPage"
-   --
-   return displayView
-end display_WikiDomain
 */
 
 
 --> Working on
 -
-command display_WikiGhost wikiDomain, pageArray
+command display_ScriptDependencyData sObject
+   put the script_HkeyArray of sObject into hKeyArray
+   put dep_ConstructData (hkeyArray, sObject) into depData
+   --
+   put the short name of sObject into sTitle
+   display_Tool depData, sTitle, "Dependency Data", "lcw_Script"
+   put the result into dView
+   --
+   set the displayed_Object of dView to sObject
+   return dView
+end display_ScriptDependencyData
+
+command draft_HandlerHelp hKey
+   put hkey_ArrayFile (hKey) into hkeyArrayFile
+   if there is not a file hkeyArrayFile then
+      graph_Hkey hKey
+   end if
+   --
+   put help_FromHkey (hKey) into pageArray
+   --
+   draft_WikiPage "handler.livecode.world", pageArray
+   put the result into dView
+   return dView
+end draft_HandlerHelp
+
+command draft_WikiPage wikiDomain, pageArray
    put pageArray ["title"] into pageTitle
    put fedwiki_ConstructSlug (pageTitle) into pageSlug
    
@@ -44,7 +55,7 @@ command display_WikiGhost wikiDomain, pageArray
    set the ghost_PageArray of wikiBrowser to pageArray
    --
    return wikiBrowser
-end display_WikiGhost
+end draft_WikiPage
 
 
 --> Display | Wiki | list
@@ -59,9 +70,7 @@ command display_WikiPage wikiDomain, pSlug
       display_Wiki wikiDomain
       put the result into wikiView
    end if
-   
    set the page_Slug of wikiView to pSlug
-   -- set the tool_MenuBit of displayView to "Wiki | Page"
    return displayView
 end display_WikiPage
 

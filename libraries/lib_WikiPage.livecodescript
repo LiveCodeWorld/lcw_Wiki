@@ -15,6 +15,44 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
+function wikiPage_ForkDomains wikiDomain, pForkDomains
+   put url_GetTLD (wikiDomain) into forkDomains
+   put CR & "fedwiki.org" after forkDomains
+   if pForkDomains is not empty then
+      replace comma with CR in pForkDomains
+      put CR & pForkDomains after forkDomains
+   end if
+   return forkDomains
+end wikiPage_ForkDomains
+
+function wikiPage_Help subDomain, curlyData, pScriptHelp, pForkDomains
+   -- subDomain = scriptType 
+   put curlyData ["title"] into pageTitle
+   put help_ConstructDomain (subDomain) into wikiDomain
+   
+   # Fetch Template
+   put wikiTemplate_GetHelp (subDomain) into pageArray
+   if pageArray_Check (pageArray) is false then return empty
+   
+   # Rename
+   help_RenameTemplate pageArray, pageTitle, wikiDomain
+   
+   # Curly Merge
+   curly_MergePageArray pageArray, curlyData
+   if pScriptHelp is not empty then
+      put pageArray ["story"][1]["text"] into oText
+      put pScriptHelp & CR&CR & oText into newFirstPara
+      put newFirstPara into pageArray ["story"][1]["text"]
+   end if
+   
+   # Add Fork
+   pageArray_StripJournal pageArray
+   put wikiPage_ForkDomains (wikiDomain, pForkDomains) into forkDomains
+   pageArray_AddFork pageArray, forkDomains
+   --
+   return pageArray
+end wikiPage_Help
+
 function wikiPage_WelcomeVisitors wikiDomain
    put url_GetTLD (wikiDomain) into tldDomain
    put tldDomain into pageTitle

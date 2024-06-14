@@ -338,7 +338,7 @@ command daemon_RouteRequest requestArray
    _DeconstructRequestArray requestArray, socketID, someMethod, someRoute, queryString, requestUrl
    switch someMethod
       case "OPTIONS"
-         -- seems to iterate through each elemtn of neighbourhood
+         -- seems to iterate through each elemnt of neighbourhood
          -- but domain is not shown in "daemon_ReceivedHeader"
          put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
          if wikiDomain = "rest.livecode.world" then

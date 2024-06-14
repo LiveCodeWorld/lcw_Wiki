@@ -391,66 +391,8 @@ command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
 end fedwiki_UpdatePageItem
 
 
---> Fedwiki | Links
+--> HTML
 -
-function fedwiki_GetLinks wikiText
-   local sNum, eNum
-   -- put ".+" into notBracket
-   -- put "\[\[([^\]]+)\|([^\]]+)\]\]" into someReg
-   
-   put "[^\]]+" into notBracket
-   put "\[\[(" & notBracket & ")\]\]" into someReg
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         put char sNum to eNum of wikiText into pageTitle
-         put pageTitle & CR after pageTitles
-         --
-         delete char 1 to eNum of wikiText
-      else 
-         exit repeat
-      end if
-   end repeat
-   delete char -1 of pageTitles
-   return pageTitles
-end fedwiki_GetLinks
-
-command fedwiki_ReplaceExternalLinks @wikiText
-   -- in public - [https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png wikimedia.org]
-   put "(\[http.+\])" into someReg
-   
-   local refStart, refEnd
-   put 0 into indexNum
-   repeat
-      get matchchunk (wikiText, someReg, sNum, eNum) 
-      if it is true then
-         add 1 to indexNum
-         put char sNum to eNum of wikiText into extLinkText
-         delete char - 1 of extLinkText
-         delete char 1 of extLinkText
-         put word 1 of extLinkText into extLinkURL
-         put word 2 to -1 of extLinkText into extLinkText
-         --
-         -- - [wikimedia.org](https://upload.wikimedia.org/wikipedia/commons/9/9c/Open_Science_-_Prinzipien.png)
-         put "[" & extLinkText & "](" & extLinkURL & ")" into markdownLink
-         put markdownLink into char sNum to eNum of wikiText
-      else
-         exit repeat
-      end if
-   end repeat
-   return indexNum
-end fedwiki_ReplaceExternalLinks
-
-function fedwiki_ConstructLink someText, pExternalURL
-   put word 1 to -1 of line 1 of someText into someText
-   if pExternalURL is empty then
-      return "[[" & someText & "]]"
-   else
-      put word 1 to -1 of pExternalURL into pExternalURL
-      return "[" & pExternalURL && someText & "]"
-   end if
-end fedwiki_ConstructLink
-
 function html_ListImageNodes someHTML, pNode
    if someHTML is empty then return empty
    if pNode is empty then put "/" into pNode

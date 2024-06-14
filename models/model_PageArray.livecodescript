@@ -48,6 +48,58 @@ function accreditation_WikiPedia mwTitle, mwSlug
 end accreditation_WikiPedia
 
 
+--> PageArray | Construct
+-
+function pageArray_ToJson pageArray
+   put pageArray ["title"] into pageTitle
+   --
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   put indexArray_ToJson (storyArray) into storyJSON
+   put indexArray_ToJson (journalArray) into journalJSON
+   
+   # Start JSON
+   put "{" into pageJSON
+   
+   # Title
+   put kwote ("title") & ":" && kwote (pageTitle) & comma after pageJSON
+   
+   # Story
+   put kwote ("story") & ":" && "[" & storyJSON & "]" & comma after pageJSON
+   
+   # Journal 
+   put kwote ("journal") & ":" && "[" & journalJSON & "]" after pageJSON
+   
+   # End JSON
+   put "}" after pageJSON
+   --
+   return pageJSON
+end pageArray_ToJson
+
+function indexArray_ToJson indexArray
+   local jsonBit
+   repeat with itemNum = 1 to item 2 of the extents of indexArray
+      put indexArray [itemNum] into itemArray
+      put JSONExport (itemArray) into itemJSON
+      put itemJSON & comma & CR after jsonBit
+   end repeat
+   delete char -2 to -1 of jsonBit
+   return jsonBit
+end indexArray_ToJson
+
+function pageArray_Construct pageTitle, someMarkdown, pPlugin
+   put pageTitle into pageArray ["title"]
+   pageArray_AddMarkdown pageArray, someMarkdown
+   put journalArray_Construct (pageTitle) into pageArray ["journal"]
+   --
+   if pPlugin is not empty then
+      put pPlugin into pageArray ["plugin"]
+   end if
+   return pageArray
+end pageArray_Construct
+
+
 --> PageArray | File | Model
 -
 function pageArray_Fetch wikiDomain, pSlug, pPort
@@ -298,21 +350,6 @@ command pageArray_AddJsonArray @pageArray, jsonArray, pDescription, pID
    --
    return the result
 end pageArray_AddJsonArray
-
-
---> PageArray | Construct
--
-function pageArray_Construct pageTitle, someMarkdown, pPlugin
-   -- was "fedwiki_ConstructSimplePageArray"
-   put pageTitle into pageArray ["title"]
-   pageArray_AddMarkdown pageArray, someMarkdown
-   put journalArray_Construct (pageTitle) into pageArray ["journal"]
-   --
-   if pPlugin is not empty then
-      put pPlugin into pageArray ["plugin"]
-   end if
-   return pageArray
-end pageArray_Construct
 
 
 --> PageArray | LastUpdated

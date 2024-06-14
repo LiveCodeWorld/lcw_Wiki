@@ -122,9 +122,24 @@ on menu_Scale wikiView, sSale
    -- set the page_Scale of wikiView to sScale
 end menu_Scale
 
+private on ___
+end ___
+
 on menu_AnimationEngine
-   breakpoint
+   project_Toggle "lcw_Presentation"
 end menu_AnimationEngine
+
+getprop checked_AnimationEngine
+   return env_ProjectIsActive ("lcw_Presentation")
+end checked_AnimationEngine
+
+on menu_Governance
+   project_Toggle "lcw_Governance"
+end menu_Governance
+
+getprop checked_Governance
+   return env_ProjectIsActive ("lcw_Governance")
+end checked_Governance
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | View | Menu")

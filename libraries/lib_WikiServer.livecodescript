@@ -16,10 +16,71 @@ There are currently two versions the node-server and the live-server.
 --> Variables
 -
 local WikiServer_SecurityType
+local WikiServer_NodePort
 
 
 --> Working on
 -
+command wikiServer_RestartNode pNotify, pNotifyText
+   breakpoint
+   --
+   if pNotify is not false then
+      if pNotifyText is empty then put "Restarted node wiki-server!" into pNotifyText
+      lcw_Notify pNotifyText
+   end if
+   
+   wikiServer_StopNode
+   resetAll
+   wikiServer_StartNodeFarm
+   return serverObject
+end wikiServer_RestartNode
+
+command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
+   -- use "wikiServer_StartNodeFarm" instead
+   put wikiServer_ListProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then return empty -- so we know already started
+   --
+   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
+   --
+   wiki_NormailzePort pPort
+   if pPort is empty then put 80 into pPort
+   --
+   put wikiServer_ShellCommand (pSecurityType, pFarm, pPort, pDataFolder) into someShell
+   put shell (someShell) into shellResult
+   put word 2 of shellResult into wikiProcessID
+   
+   # Notify
+   put "Started node server on port" && wikiProcessID into sComment
+   lcw_Notify sComment, "Node Server"
+   
+   # Indicate wiki starting up
+   return wikiProcessID
+end wikiServer_StartNode
+
+command wikiServer_StartLocalProxy
+   wikiServer_StartNodeFarm 3000
+   --
+   caddy_Start
+   wikiServer_Start 9090
+end wikiServer_StartLocalProxy
+
+function wikiServer_GetNodePort
+   put WikiServer_NodePort into sPort
+   if sPort is a number then
+      return sPort
+   else
+      return 3000
+      -- return 80
+   end if
+end wikiServer_GetNodePort
+
+command wikiServer_SetNodePort sPort
+   if sPort is a number then
+      put sPort into WikiServer_NodePort
+   else
+      return "Error, sPort must be a valid port number:" && sPort
+   end if
+end wikiServer_SetNodePort
 
 
 --> WikiServer | Create
@@ -76,21 +137,14 @@ end wikiServer_NodeIsRunning
 
 --> WikiServer | Node
 -
-command wikiServer_RestartNode pNotify, pNotifyText
-   if pNotify is not false then
-      if pNotifyText is empty then put "Restarted node wiki-server!" into pNotifyText
-      lcw_Notify pNotifyText
+command wikiServer_StartNodeFarm pNodePort
+   # Node Port
+   if pNodePort is a number then
+      wikiServer_SetNodePort pNodePort
+   else
+      put wikiServer_GetNodePort() into pNodePort
    end if
    
-   put ecoData_GetFarmFolder() into farmFolder
-   --
-   wikiServer_StopNode
-   resetAll
-   wikiServer_StartNode farmFolder
-   return serverObject
-end wikiServer_RestartNode
-
-command wikiServer_StartNodeFarm
    put wikiServer_ListProcessIds() into wikiProcessIDs
    if wikiProcessIDs is not empty then
       ecoData_ConstructLoadAndStore
@@ -116,38 +170,21 @@ command wikiServer_StartNodeFarm
       breakpoint
    end if
    
-   put wikiServer_ShellCommand ("friends", true, 80, farmFolder) into someShell
+   put wikiServer_ShellCommand ("friends", true, pNodePort, farmFolder) into someShell
    put shell (someShell) into shellResult
    put word 2 of shellResult into wikiProcessID
    
+   if wikiProcessID is not a number then
+      breakpoint
+   end if
+   
    # Notify
-   put "Started node server using" && someShell into sComment
+   put "Started node server in farm mode using port" && wikiProcessID into sComment
    lcw_Notify sComment, "Node Server"
    
    # Indicate wiki starting up
    return wikiProcessID
 end wikiServer_StartNodeFarm
-
-command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
-   put wikiServer_ListProcessIds() into wikiProcessIDs
-   if wikiProcessIDs is not empty then return empty -- so we know already started
-   --
-   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
-   --
-   wiki_NormailzePort pPort
-   if pPort is empty then put 80 into pPort
-   --
-   put wikiServer_ShellCommand (pSecurityType, pFarm, pPort, pDataFolder) into someShell
-   put shell (someShell) into shellResult
-   put word 2 of shellResult into wikiProcessID
-   
-   # Notify
-   put "Started node server using" && someShell into sComment
-   lcw_Notify sComment, "Node Server"
-   
-   # Indicate wiki starting up
-   return wikiProcessID
-end wikiServer_StartNode
 
 command wikiServer_StopNode pIDs
    if the platform = "MacOS" then
@@ -182,12 +219,14 @@ command wikiServer_Start pPort, pWikiServer
    
    # Get Port
    if pPort is empty then
-      -- put 80 into pPort
+      put 9090 into pPort
       put the daemon_Port of pWikiServer into pPort
    end if
    
    # Stop servers
-   if wikiServer_NodeIsRunning() then
+   put wikiServer_ListProcessIds() into nodeIds
+   if pPort is among the lines of nodeIds then
+      breakpoint
       wikiServer_StopNode
    end if
    
@@ -402,18 +441,25 @@ end wikiServer_CopyPageToDefault
 -
 function wikiServer_ShellCommand pSecurityType, pFarm, pPort, pDataFolder, pLog, pWithNvm
    put wikiServer_StartNodeCommand (pSecurityType, pFarm, pLog, pPort, pDataFolder, pWithNvm) into someShell
+   
    put "/usr/bin/nohup" & space before someShell
+   
+   -- shell_WrapNohup someShell, pLog
    
    # Add redirect output bit (log if needed)
    put _RedirectBit (pLog) into reDirectOutput
    put space & reDirectOutput after someShell
    put space & "jobs -l" after someShell
-   --
+   
+   -- shell_AddSource someShell
    put "source ~/.zshrc;" before someShell
    --
    return someShell
 end wikiServer_ShellCommand
 
+
+--> Private | WikiServer | Shell
+-
 private function _NodeShell pWithNvm
    if pWithNvm is true then
       return nvm_GetBin()
@@ -499,20 +545,27 @@ end wikiServer_TerminalCommand
 -
 function wikiServer_ListProcessIds
    -- put "wiki --security_legacy" into wikiCommand
-   put "wiki" into wikiCommand
-   --
-   put merge ("ps aux | grep '[[wikiCommand]]'") into someShell
+   put ps_Grep ("wiki") into pids
+   return pids
+end wikiServer_ListProcessIds
+
+
+--> Deps
+-
+function ps_Grep pCommand
+   put "grep" && pCommand into grepCommand
+   put "ps aux |" && grepCommand into someShell
    put shell (someShell) into shellResult
-   put lineOffset (wikiCommand, shellResult) into lineNum
-   delete line lineNum of shellResult
    --
    repeat for each line sLine in shellResult
+      if word -2 to -1 of sLine = grepCommand then next repeat
+      --
       put word 2 of sLine into pid
       put pid & comma after pids
    end repeat
    delete char -1 of pids
    return pids
-end wikiServer_ListProcessIds
+end ps_Grep
 
 
 --> Private

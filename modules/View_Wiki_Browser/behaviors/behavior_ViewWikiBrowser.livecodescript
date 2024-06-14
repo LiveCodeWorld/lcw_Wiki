@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: behavior_ViewWikiBrowser
 type: behavior
-version: 0.3
+version: 0.4
 
 /*
 This view is for a single wiki-browser view
@@ -15,6 +15,34 @@ This view is for a single wiki-browser view
 --> Variables
 -
 local LocalArray
+
+
+--> Working on
+-
+getprop browser_Snapshot [newW]
+   -- if pNewW is empty then put 420 into pNewW
+   local sMargin = 12
+   
+   put _BrowserWidget() into browserWidget
+   put the windowID of the defaultstack into wID
+   
+   # Work out local rect
+   put the rect of browserWidget into localRect
+   put rect_SimpleSubtract (localRect, sMargin) into innerRect
+   --
+   if newW is empty then
+      -- export snapshot from browserWidget to somePNG as PNG -- broken
+      -- put the object_Snapshot of browserWidget into somePNG
+      
+      export snapshot from rect innerRect of window wID to somePNG as PNG
+   else
+      put scale_Height (localRect, newW) into newH
+      put newW,newH into exportDimensions
+      --
+      export snapshot from rect innerRect of window wID at size exportDimensions to somePNG as PNG
+   end if
+   return somePNG
+end browser_Snapshot
 
 
 --> Events
@@ -27,12 +55,13 @@ end resizeControl
 command LayoutControl pRect
    if pRect is empty then put the rect of this cd into pRect
    _RectIfMenuBar pRect
+   --
    set the rect of me to pRect
 end LayoutControl
 
 command _RectIfMenuBar @sRect
    put the menubar of the defaultstack into gName
-   if (gName is empty) then
+   if (gName is not empty) then
       put 20 into mHeight
       --
       put the menubar_View of me into mGroup
@@ -626,15 +655,6 @@ getprop page_JsonFile [pSlug]
 end page_JsonFile
 
 
---> Working on
--
-getprop browser_Snapshot
-   -- export snapshot from _BrowserWidget() to somePNG as PNG -- bug: returns half the data
-   put the object_Snapshot of _BrowserWidget() into somePNG
-   return somePNG
-end browser_Snapshot
-
-
 --> Lineup
 -
 getprop lineup_Titles
@@ -1198,3 +1218,26 @@ function url_GetDomain someURL
    
    return urlDomain
 end url_GetDomain
+
+function rect_SimpleSubtract someRect, sNum
+   add sNum to item 1 of someRect
+   add sNum to item 2 of someRect
+   subtract sNum from item 3 of someRect
+   subtract sNum from item 4 of someRect
+   --
+   return someRect
+end rect_SimpleSubtract
+
+function scale_Height originalRect, newW
+   rect_ExtractDimensions originalRect, originalW , originalH
+   put newW / originalW into sFactor
+   put originalH * sFactor into newH
+   return newH
+end scale_Height
+
+command rect_ExtractDimensions someRect, @someW, @someH, pScale
+   if pScale is not a number then put 1 into pScale
+   --
+   put pScale * (item 3 of someRect - item 1 of someRect) into someW
+   put pScale * (item 4 of someRect - item 2 of someRect) into someH
+end rect_ExtractDimensions
