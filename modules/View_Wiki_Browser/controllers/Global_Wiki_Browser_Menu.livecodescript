@@ -82,8 +82,7 @@ end disabled_Subdomain
 
 --> Global | Wiki | Browser | Menu
 -
-on menu_DisplayDomain wikiView, wikiDomain   
-   if the shiftKey is "down" then put empty into wikiView
+on menu_DisplayDomain wikiView, wikiDomain
    switch wikiDomain
       case "Ask"
          put the wiki_Domain of wikiView into wikiDomain
@@ -101,13 +100,25 @@ on menu_DisplayDomain wikiView, wikiDomain
          display_WikiBrowser "https://chat.openai.com/", wikiView
          break
       default
-         display_Wiki wikiDomain, wikiView
+         if the shiftKey is "Down" then
+            if the controlKey is "Down" then
+               display_Wiki wikiDomain, wikiView
+            else
+               set the wiki_Domain of wikiView to wikiDomain
+            end if
+         else
+            set the page_Title [wikiDomain] of wikiView to "Welcome Visitors"
+         end if
    end switch
 end menu_DisplayDomain
 
 on menu_Subdomain wikiView, subDomain
    if the shiftKey is "Down" then
-      display_Wiki subDomain
+      if the controlKey is "Down" then
+         display_Wiki subDomain, wikiView
+      else
+         set the wiki_Domain of wikiView to subDomain
+      end if 
    else
       set the page_Title [subDomain] of wikiView to "Welcome Visitors"
    end if
@@ -151,6 +162,16 @@ end menu_ResetDomain.0
 
 private on ___
 end ___
+
+on menu_DomainTools wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   put the siteMap_Array of wikiView into sArray
+   display_Tool sArray, wikiDomain, "Wiki Domain", "lcw_Wiki"
+   put the result into dView
+   set the displayed_Object of dView to wikiView
+   return dView
+end menu_DomainTools
 
 on menu_SaveStack wikiView
    put the stack_Name of wikiView into sName

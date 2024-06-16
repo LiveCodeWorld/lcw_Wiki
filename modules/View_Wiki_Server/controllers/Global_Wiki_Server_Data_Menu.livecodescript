@@ -40,6 +40,16 @@ end disabled_WikiGardenRefresh
 
 --> Global | Wiki | Server | Data | Menu
 -
+on menu_DisplayPerformativeDictionary
+   put pageArray_Get ("rest.livecode.world", "performative-dictionary") into pageArray
+   put pageArray_RefDictionary (pageArray) into storyArray
+   --
+   display_Data storyArray
+end menu_DisplayPerformativeDictionary
+
+private on _
+end _
+
 on menu_WikiGardenUpdate
    ecoData_ConstructLoadAndStore
    --
@@ -55,8 +65,8 @@ on menu_ReconstructEcodata dView
    display_GardenEcodata
 end menu_ReconstructEcodata
 
-private on _
-end _
+private on __
+end __
 
 on menu_DisplayStoredEcoData
    display_GardenEcodata
@@ -66,9 +76,6 @@ on menu_DisplayLoadedWikiEcoData
    put ecoData_Get() into ecoData
    display_GardenEcodata ecoData
 end menu_DisplayLoadedWikiEcoData
-
-private on __
-end __
 
 on menu_DisplayGardenDomainData
    put wikiGarden_GetDomainData() into gardenDomainData

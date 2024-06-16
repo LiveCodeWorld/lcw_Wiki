@@ -51,11 +51,14 @@ command _FixLayout
 end _FixLayout
 
 on wikiBrowser_SetProps
-   set the flag_Handler of _WikiView() to "default"
-   set the wiki_EditMode of _WikiView() to true
-   
-   # Fix menu geometry bug
-   -- LayoutCard
+   put _WikiView() into wikiView
+   --
+   get the behavior_StackNames of wikiView
+   set the behavior_StackNames of wikiView to "behavior_ViewWikiBrowser,behavior_WikiJavascript"
+   --
+   set the flag_Handler of wikiView to "default"
+   set the wiki_EditMode of wikiView to true
+   set the external_Links of wikiView to true
    
    lcw_Notify "Added custom events to wiki!"
 end wikiBrowser_SetProps
@@ -96,8 +99,10 @@ private function _MenuBarView
 end _MenuBarView
 
 private function _WikiView
-   if exists (widget "View|Wiki|Browser" of me) is false then return empty
-   return the long id of widget "View|Wiki|Browser" of me
+   constant viewName = "View|Wiki|Browser"
+   --
+   if exists (widget viewName of me) is false then return empty
+   return the long id of widget viewName of me
 end _WikiView
 
 

@@ -63,16 +63,7 @@ end disabled_AddOwnerJson
 --> Global | Wiki | Browser | Server | Menu
 -
 on menu_ToggleServer.5
-   switch
-      case wikiServer_NodeIsRunning()
-         -- wikiServer_Toggle wikiView
-         wikiServer_StopNode
-         wikiServer_Start
-         break
-      default
-         wikiServer_Stop
-         wikiServer_StartNodeFarm
-   end switch
+   toggleServer_BetweenLiveAndNode
 end menu_ToggleServer.5
 
 on menu_StartLiveServer
@@ -82,21 +73,13 @@ end menu_StartLiveServer
 private on _____
 end _____
 
-on menu_NodeServer wikiView
-   if wikiServer_NodeIsRunning() then
-      wikiServer_StopNode
-   else
-      wikiServer_StartNodeFarm
-   end if
-end menu_NodeServer
+on menu_LiveServer.L
+   toggleServer_Live
+end menu_LiveServer.L
 
-on menu_LiveServer
-   if wikiServer_IsRunning() then
-      wikiServer_Stop
-   else
-      wikiServer_Start
-   end if
-end menu_LiveServer
+on menu_NodeServer wikiView
+   toggleServer_Node
+end menu_NodeServer
 
 on menu_StartCaddy
    caddy_ToggleProxy

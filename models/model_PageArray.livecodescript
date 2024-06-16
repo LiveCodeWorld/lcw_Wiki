@@ -50,6 +50,11 @@ end accreditation_WikiPedia
 
 --> PageArray | Construct
 -
+function pageArray_FromJson pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   return pageArray
+end pageArray_FromJson
+
 function pageArray_ToJson pageArray
    put pageArray ["title"] into pageTitle
    --
@@ -77,26 +82,51 @@ function pageArray_ToJson pageArray
    return pageJSON
 end pageArray_ToJson
 
-function indexArray_ToJson indexArray
-   local jsonBit
-   repeat with itemNum = 1 to item 2 of the extents of indexArray
-      put indexArray [itemNum] into itemArray
-      put JSONExport (itemArray) into itemJSON
-      put itemJSON & comma & CR after jsonBit
+function pageArray_ReferenceDictionary pageArray, pWikiArray, hType
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxNum
+   --
+   set the itemdelimiter to ":"
+   put 1 into indexNum
+   repeat with itemNum = 1 to maxNum
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "reference" then
+         put itemArray ["site"] into domainAndPort
+         put item 1 of domainAndPort into wikiDomain
+         --
+         put itemArray ["slug"] into pSlug
+         --
+         put itemArray ["title"] into hName
+         put itemArray ["text"] into sWord
+         --
+         -- put itemArray into refIArray [indexNum]
+         put wikiDomain into refIArray [sWord]["wikiDomain"]
+         put pSlug into refIArray [sWord]["pageSlug"]
+         put hName into refIArray [sWord]["hName"]
+         --
+         if pWikiArray is an array then
+            put handlerWiki_FindKey (hName, pWikiArray) into hKey
+            if hKey is not empty then
+               put hKey into refIArray [sWord]["hKey"]
+            end if
+         end if
+         --
+         add 1 to indexNum
+      end if
    end repeat
-   delete char -2 to -1 of jsonBit
-   return jsonBit
-end indexArray_ToJson
+   return refIArray
+end pageArray_ReferenceDictionary
 
-function pageArray_Construct pageTitle, someMarkdown, pPlugin
-   put pageTitle into pageArray ["title"]
-   pageArray_AddMarkdown pageArray, someMarkdown
-   put journalArray_Construct (pageTitle) into pageArray ["journal"]
+function pageArray_Construct pTitle, mdText, pPlugin
+   put pTitle into pArray ["title"]
+   pageArray_AddMarkdown pArray, mdText
+   get journalArray_Construct (pTitle)
+   put it into pArray ["journal"]
    --
    if pPlugin is not empty then
-      put pPlugin into pageArray ["plugin"]
+      put pPlugin into pArray ["plugin"]
    end if
-   return pageArray
+   return pArray
 end pageArray_Construct
 
 
@@ -106,7 +136,7 @@ function pageArray_Fetch wikiDomain, pSlug, pPort
    put pageJson_Fetch (wikiDomain, pSlug, pPort) into pageJson
    --
    if pageJson is empty then return empty
-   put json_ToArray (pageJson) into pageArray
+   put pageArray_FromJson (pageJson) into pageArray
    return pageArray
 end pageArray_Fetch
 
@@ -186,6 +216,9 @@ command pageArray_AddGraphviz @pageArray, sText, pDot, pSVG, pID
    return the result
 end pageArray_AddGraphviz
 
+
+--> PageArray | Journal
+- 
 command pageArray_StripJournal @pageArray, pSourceArray, pMilliseconds
    put pageArray ["title"] into pageTitle
    put pageArray ["story"] into storyArray
@@ -412,8 +445,8 @@ end pageArray_AddRoster
 -
 command pageArray_SetTitle @pageArray, someTitle, pID
    if someTitle is  empty then return false
-   put "#" && someTitle into someMarkdown
-   pageArray_AddMarkdown pageArray, someMarkdown, pID
+   put "#" && someTitle into mdText
+   pageArray_AddMarkdown pageArray, mdText, pID
    put the result into itemNum
    --
    put pageArray ["story"][itemNum] into newItemArray
@@ -484,9 +517,9 @@ end pageArray_AddDeleteAction
 
 --> PageArray | Add
 -
-command pageArray_AddMarkdown @pageArray, someMarkdown, pID
-   if someMarkdown is empty then return 0
-   put itemArray_Construct ("markdown", pID, someMarkdown) into itemArray
+command pageArray_AddMarkdown @pageArray, mdText, pID
+   if mdText is empty then return 0
+   put itemArray_Construct ("markdown", pID, mdText) into itemArray
    itemArray_Add itemArray, pageArray
    return the result
 end pageArray_AddMarkdown

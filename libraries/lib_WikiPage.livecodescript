@@ -317,10 +317,18 @@ function wikiPage_SitesIndex someDomain, pPageTitle, pFirstPara
    end if
    put pPageTitle into pageTitle
    
+   if pPageTitle is empty then
+      put wikiPage_DomainTitle (tldDomain, "Sites") into pageTitle
+   else
+      put pPageTitle into pageTitle
+      -- put "Sites" into word -1 of sitesTitle
+   end if
+   put pageTitle into sitesTitle
+   
    # WikiFolders
    put wikiDomain_List (tldDomain) into wikiDomains
-   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
    
+   # PageArray
    put _SitesIndex (wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara) into pageArray
    
    # Clean and Return
@@ -809,11 +817,17 @@ end _SitesIndex
 
 private function _ActivityPageArray tldDomain, moreActivityText, titleWord, sinceWhen, pPageTitle, pFirstPara
    if pPageTitle is empty then
-      put wikiPage_DomainTitle (tldDomain, titleWord) into pPageTitle
+      put wikiPage_DomainTitle (tldDomain, titleWord) into pageTitle
+      put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
+   else
+      put pPageTitle into pageTitle
+      if word -1 of pageTitle = "Sites" then
+         put titleWord into word -1 of pageTitle
+      end if
+      put pageTitle into sitesTitle
+      put "Sites" into word -1 of sitesTitle
    end if
-   put pPageTitle into pageTitle
-   put wikiPage_DomainTitle (tldDomain, "Sites") into sitesTitle
-   
+   --
    put _Activity (pageTitle, sitesTitle, tldDomain, sinceWhen, moreActivityText, pFirstPara) into  pageArray
    return pageArray
 end _ActivityPageArray

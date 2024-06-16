@@ -21,17 +21,58 @@ local WikiServer_NodePort
 
 --> Working on
 -
+command toggle_ProxyFarm
+   
+end toggle_ProxyFarm
+
+command toggleServer_BetweenLiveAndNode
+   breakpoint -- this toggles between live and node
+   switch
+      case wikiServer_NodeIsRunning()
+         wikiServer_StopNode
+         wikiServer_Start
+         break
+      default
+         wikiServer_Stop
+         wikiServer_StartNodeFarm
+   end switch
+end toggleServer_BetweenLiveAndNode
+
+command toggleServer_Node
+   if wikiServer_NodeIsRunning() then
+      wikiServer_StopNode
+   else
+      wikiServer_StartNodeFarm
+   end if
+end toggleServer_Node
+
+command toggleServer_Live
+   if wikiServer_IsRunning() then
+      wikiServer_Stop
+   else
+      wikiServer_Start
+   end if
+end toggleServer_Live
+
+
+--> WikiServer
+-
 command wikiServer_RestartNode pNotify, pNotifyText
-   breakpoint
-   --
+   # Stop
+   wikiServer_StopNode
+   
+   # Reset just in case
+   resetAll
+   
+   # Restart
+   wikiServer_StartNodeFarm
+   
+   # Notify
    if pNotify is not false then
       if pNotifyText is empty then put "Restarted node wiki-server!" into pNotifyText
       lcw_Notify pNotifyText
    end if
    
-   wikiServer_StopNode
-   resetAll
-   wikiServer_StartNodeFarm
    return serverObject
 end wikiServer_RestartNode
 
@@ -50,7 +91,7 @@ command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
    put word 2 of shellResult into wikiProcessID
    
    # Notify
-   put "Started node server on port" && wikiProcessID into sComment
+   put "Started node server on port" && pPort  & ". Using socket" && wikiProcessID into sComment
    lcw_Notify sComment, "Node Server"
    
    # Indicate wiki starting up
@@ -220,7 +261,7 @@ command wikiServer_Start pPort, pWikiServer
    # Get Port
    if pPort is empty then
       put 9090 into pPort
-      put the daemon_Port of pWikiServer into pPort
+      -- put the daemon_Port of pWikiServer into pPort
    end if
    
    # Stop servers
@@ -384,19 +425,6 @@ end wikiServer_IsRunning
 
 --> WikiServer | Start
 -
-command wikiServer_Toggle pWikiView
-   if wikiServer_IsRunning() is true then
-      wikiServer_Stop
-      --
-      lcw_Notify "Stopped wiki-server!"
-   else
-      wikiServer_StopNode
-      wikiServer_Start
-      --
-      lcw_Notify "Started wiki-server!"
-   end if
-end wikiServer_Toggle
-
 command wikiServer_StartWithXterm pXtermBrowser, pLog
    put wikiServer_TerminalCommand() into someShell -- not working with Shell
    --

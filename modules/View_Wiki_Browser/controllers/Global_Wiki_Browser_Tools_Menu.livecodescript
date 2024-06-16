@@ -53,7 +53,7 @@ getprop checked_SupressErrors
    return gRevSuppressErrors
 end checked_SupressErrors
 
-private function _PageArray wikiView, pageTitle
+private function _GetPageArray wikiView, pageTitle
    -- could get directly form live HTML using "lineup_Data"
    put the wiki_Domain of wikiView into wikiDomain
    --
@@ -66,13 +66,13 @@ private function _PageArray wikiView, pageTitle
    --
    put pageArray_Get (wikiDomain, pageSlug) into pageArray
    return pageArray
-end _PageArray
+end _GetPageArray
 
 
 --> Global | Wiki | Browser | Tools | Menu
 -
 on menu_CompactRefs wikiView, pageTitle
-   put _PageArray (wikiView, pageTitle) into pageArray
+   put _GetPageArray (wikiView, pageTitle) into pageArray
    --
    pageArray_CompactRefs pageArray
    --
@@ -80,7 +80,7 @@ on menu_CompactRefs wikiView, pageTitle
 end menu_CompactRefs
 
 on menu_StripJournal wikiView, pageTitle
-   put _PageArray (wikiView, pageTitle) into pageArray
+   put _GetPageArray (wikiView, pageTitle) into pageArray
    --
    pageArray_StripJournal pageArray
    --
@@ -92,7 +92,7 @@ getprop stripJournal_Params [wikiView]
 end stripJournal_Params
 
 on menu_AddForks wikiView
-   put _PageArray (wikiView) into pageArray
+   put _GetPageArray (wikiView) into pageArray
    --
    put "livecode.world" into wikiDomains
    if the shiftKey is "Down" then
@@ -104,7 +104,7 @@ on menu_AddForks wikiView
 end menu_AddForks
 
 on menu_FixPageJson wikiView
-   put _PageArray (wikiView) into pageArray
+   put _GetPageArray (wikiView) into pageArray
    --
    pageArray_StripJournal pageArray
    --
@@ -112,7 +112,7 @@ on menu_FixPageJson wikiView
 end menu_FixPageJson
 
 on menu_FixText wikiView, pageTitle
-   put _PageArray (wikiView) into pageArray
+   put _GetPageArray (wikiView) into pageArray
    --
    put pageArray ["story"] into storyArray
    repeat with itemNum = 1 to item 2 of the extents of storyArray
@@ -213,3 +213,4 @@ end menu_EditPlatform
 on submenu_Dev
    return "Global | Wiki | Browser | Tools | Dev | Menu"
 end submenu_Dev
+

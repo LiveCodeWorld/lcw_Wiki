@@ -67,21 +67,43 @@ end _
 
 on menu_CreateSitesPage wikiView
    put the wiki_Domain of wikiView into wikiDomain
-   put wikiPage_SitesIndex (wikiDomain) into pageArray
+   --
+   put wikiPage_DomainTitle (wikiDomain, "Sites") into pageTitle
+   put "Give the sites page for the domain [[var]] a titile?" into sQuestion
+   put lcw_Ask (sQuestion, pageTitle, wikiView, wikiDomain) into pageTitle
+   put pageTitle into LocalArray ["pageTitle"]
+   
+   put wikiPage_SitesIndex (wikiDomain, pageTitle) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+   --
+   put wikiPage_SitesActivity (wikiDomain, pageTitle) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+   --
+   put wikiPage_ActivityIndex (wikiDomain, pageTitle) into pageArray
    set the ghost_PageArray of wikiView to pageArray
 end menu_CreateSitesPage
 
 on menu_CreateActivityPage wikiView
    put the wiki_Domain of wikiView into wikiDomain
-   put wikiPage_SitesActivity (wikiDomain) into pageArray
+   put LocalArray ["pageTitle"] into pageTitle
+   --
+   put wikiPage_SitesActivity (wikiDomain, pageTitle) into pageArray
    set the ghost_PageArray of wikiView to pageArray
 end menu_CreateActivityPage
 
+getprop disabled_CreateActivityPage
+   return LocalArray ["pageTitle"] is empty
+end disabled_CreateActivityPage
+
 on menu_CreateActivityIndex wikiView
    put the wiki_Domain of wikiView into wikiDomain
-   put wikiPage_ActivityIndex (wikiDomain) into pageArray
+   put wikiPage_ActivityIndex (wikiDomain, pageTitle) into pageArray
    set the ghost_PageArray of wikiView to pageArray
 end menu_CreateActivityIndex
+
+getprop disabled_CreateActivityIndex [wikiView]
+   return LocalArray ["pageTitle"] is empty
+end disabled_CreateActivityIndex
 
 private on __
 end __

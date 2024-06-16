@@ -30,13 +30,13 @@ function pageArray_FromURL droppedURL, pWikiDomain
          return empty
       else
          -- put hName & "_PageArray" into propName
-         -- put the propName[droppedURL] of cObject into pageArray - not working for scriptonly vprops??
-         -- put the index_PageArray [droppedURL] of cObject into pageArray -- works
+         -- put the propName[droppedURL] of cObject into pArray - not working for scriptonly vprops??
+         -- put the index_PageArray [droppedURL] of cObject into pArray -- works
          
          put hName & "_GetPageArray" into fName
          put fName & "(" & kwote (droppedURL) & ")" into sFunction
-         put value (sFunction, cObject) into pageArray -- crashes Livecode if no object
-         return pageArray
+         put value (sFunction, cObject) into pArray -- crashes Livecode if no object
+         return pArray
       end if
    else
       return empty
@@ -55,25 +55,26 @@ function platform_MatchDroppedUrl droppedURL, rPatternArray
    return empty
 end platform_MatchDroppedUrl
 
-function platform_FetchPatternArray wikiDomain, pPort
-   put pageArray_Fetch( wikiDomain, "domain-tools", pPort) into pageArray
+function platform_FetchPatternArray wDom, pPort
+   get pageArray_Fetch (wDom, "domain-tools", pPort)
+   put pArray ["story"] into sArray
    --
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
+   put item 2 of the extents of sArray into mNum
+   repeat with itemNum = 1 to mNum
+      put sArray [itemNum] into itemArray
       switch itemArray ["type"]
          case "code"
             put itemArray ["text"] into sCode
-            _ParsePatternCode rPatternArray, sCode
+            _ParsePatternCode patternArray, sCode
             break
          case "reference"
-            
+            # Not done yet
             break
          default
-            -- just description
+            # Description
       end switch
    end repeat
-   return rPatternArray
+   return patternArray
 end platform_FetchPatternArray
 
 
@@ -85,16 +86,16 @@ command platform_CleanJournal browserView
    -- display_Data flagArray, "clicked_FlagArray", "Flag"
    put flagArray ["href"] into flagHref
    put flagArray ["pageTitle"] into pageTitle
-   put flagArray ["target"] into wikidomain
+   put flagArray ["target"] into wDomain
    --
    set the itemdelimiter to slash
    put item -1 of flagHref into pageSlug
    --
-   put the page_Array [pageTitle] of browserView into pageArray
-   pageArray_CleanJournal pageArray
-   -- display_PageArray pageArray, wikidomain
-   -- set the page_Slug [wikidomain] of browserView to pageSlug
-   set the ghost_PageArray of browserView to pageArray
+   put the page_Array [pageTitle] of browserView into pArray
+   pageArray_CleanJournal pArray
+   -- display_PageArray pArray, wDomain
+   -- set the page_Slug [wDomain] of browserView to pageSlug
+   set the ghost_PageArray of browserView to pArray
 end platform_CleanJournal
 
 on platform_ToggleMenuBar browserView
@@ -104,14 +105,14 @@ end platform_ToggleMenuBar
 
 on platform_Wikipedia browserView, pageSlug
    -- put mediawiki_FetchPageArray ("https://en.wikipedia.org/wiki/Well-being")
-   put mediawiki_GetPageArrayFromSlug (pageSlug) into pageArray
-   transport_ReturnPageArray pageArray
+   put mediawiki_GetPageArrayFromSlug (pageSlug) into pArray
+   transport_ReturnPageArray pArray
 end platform_Wikipedia
 
 on platform_Roster browserView
    put wikiDomain_List ("*astral*") into wikiDomains
-   put roster_ConstructPageArray (wikiDomains) into pageArray
-   transport_ReturnPageArray pageArray
+   put roster_ConstructPageArray (wikiDomains) into pArray
+   transport_ReturnPageArray pArray
 end platform_Roster
 
 on platform_Test browserView, otherItems
@@ -175,18 +176,6 @@ end platform_DeconstructURL
 function platform_ToolItems externalURL
    platform_DeconstructURL externalURL, toolItems, urlExt, hName
    return toolItems
-   
-   put "(http://tools\.platform\.earth/test\.json)" into sReg
-   -- put "http://tools\.platform\.earth/(.+)\.json" into sReg
-   -- put "(http|https)://tools\.platform\.earth/(.+)json" into sReg
-   -- put "^(http|https)://tools\.platform\.earth/(.+)json$" into sReg
-   -- put "(http|https)://tools\.platform\.earth/(.+)json" into sReg
-   --
-   if matchChunk (externalURL, sReg , toolName) is true then
-      return toolName
-   else
-      return empty
-   end if
 end platform_ToolItems
 
 
