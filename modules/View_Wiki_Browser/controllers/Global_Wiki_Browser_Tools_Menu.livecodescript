@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Wiki | Browser | Tools | Menu
 type: controller
-version: 0.1
+version: 0.2
 
 /*Here you can describe this menu.
 Full help text should be provided on the linked wiki.*/
@@ -25,7 +25,7 @@ getprop menu_CheckTarget [wikiView]
 end menu_CheckTarget
 
 getprop checked_FlagEvent [wikiView]
-    get the flag_Handler of wikiView
+   get the flag_Handler of wikiView
    if it = "default" then
       return true
    else
@@ -53,13 +53,20 @@ getprop checked_SupressErrors
    return gRevSuppressErrors
 end checked_SupressErrors
 
+private function _GetLastPageArray wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   put the last_PageSlug of wikiView into pageSlug
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   return pageArray
+end _GetLastPageArray
+
 private function _GetPageArray wikiView, pageTitle
    -- could get directly form live HTML using "lineup_Data"
    put the wiki_Domain of wikiView into wikiDomain
    --
    if pageTitle is empty then
-      put the last_PageSlug of wikiView into pSlug
-      put lcw_Ask ("Choose a wiki page-slug for this domain...", pSlug, wikiDomain, wikiView) into pSlug
+      put the last_PageSlug of wikiView into pageSlug
+      put lcw_Ask ("Choose a wiki page-slug for this domain...", pageSlug, wikiDomain, wikiView) into pageSlug
    else
       put fedwiki_ConstructSlug (pageTitle) into pageSlug
    end if
@@ -82,7 +89,12 @@ end menu_CompactRefs
 on menu_StripJournal wikiView, pageTitle
    put _GetPageArray (wikiView, pageTitle) into pageArray
    --
-   pageArray_StripJournal pageArray
+   if the shiftkey is "Down" then
+      breakpoint
+      pageArray_StripJournal pageArray
+   else
+      pageArray_StripJournal pageArray
+   end if
    --
    set the ghost_PageArray of wikiView to pageArray
 end menu_StripJournal
@@ -90,6 +102,45 @@ end menu_StripJournal
 getprop stripJournal_Params [wikiView]
    return LocalArray ["pageTitles"]
 end stripJournal_Params
+
+private on _____
+end _____
+
+on menu_EditLast.E wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   put the last_PageSlug of wikiView into pageSlug
+   put the lineup_Title [pageSlug] of wikiView into pageTitle
+   
+   # Create Page Dialogue
+   put wikiPage_EditOrCreate (wikiDomain, pageSlug, pageTitle) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+   
+   # Images
+   put _GetLastPageArray (wikiView) into pageArray
+   put wikiPageEditImages (pageArray) into pageArray
+   if pageArray is an array then
+      set the ghost_PageArray of wikiView to pageArray
+   end if
+end menu_EditLast.E
+
+on menu_EditGhosts.G wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   put the ghost_Slugs of wikiView into ghostSlugs
+   repeat for each line ghostSlug in ghostSlugs
+      if ghostSlug is among the items of "create-page,edit-page" then next repeat
+      --
+      put the lineup_Title [ghostSlug] of wikiView into pageTitle
+      put wikiPage_EditOrCreate (wikiDomain, ghostSlug, pageTitle) into pageArray
+      set the ghost_PageArray of wikiView to pageArray
+   end repeat
+end menu_EditGhosts.G
+
+-- on menu_LastImages.I wikiView
+   put _GetLastPageArray (wikiView) into pageArray
+   put wikiPageEditImages (pageArray) into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_LastImages.I
 
 on menu_AddForks wikiView
    put _GetPageArray (wikiView) into pageArray
@@ -129,7 +180,6 @@ getprop fixText_Params [wikiView]
    return LocalArray ["pageTitles"]
 end fixText_Params
 
-
 private on _
 end _
 
@@ -161,7 +211,7 @@ on menu_ScriptDebugMode
 end menu_ScriptDebugMode
 
 -- on menu_SuppressMessages
-   revIDEToggle "Suppress Messages"
+revIDEToggle "Suppress Messages"
 end menu_SuppressMessages
 
 on menu_SupressErrors wikiView
@@ -213,4 +263,3 @@ end menu_EditPlatform
 on submenu_Dev
    return "Global | Wiki | Browser | Tools | Dev | Menu"
 end submenu_Dev
-

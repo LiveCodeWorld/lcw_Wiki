@@ -21,47 +21,69 @@ function wikiTemplate_Get templateTitle, newPageTitle, curlyData, pForkDomains, 
 end wikiTemplate_Get
 
 function wikiDialogue_Get pageSlug, wikiDomain, dialogueSlug, pPageArrayTitle, pTemplateDomain
-   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
-   put fedwiki_ConstructTitle (pageSlug) into pageTitle
-   --
-   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
-   put pageTitle into curlyData ["all"]["New Page Title"]
-   put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
-   put pageSlug into curlyData ["all"]["originalSlug"]
-   put wikiDomain into curlyData ["all"]["wikiDomain"]
-   --
    put pageArray_GetDialogue (dialogueSlug, pPageArrayTitle, pTemplateDomain) into pageArray
-   curly_MergePageArray pageArray, curlyData
-   --
-   pageArray_CleanJournal pageArray
+   put wikiPage_MergeDialogue (pageArray, wikiDomain, pageSlug) into pageArray
    return pageArray
 end wikiDialogue_Get
+
+function wikiPage_MergeDialogue pageArray, wikiDomain, pageSlug
+   put wikiDialogue_CurlyData (wikiDomain, pageSlug) into curlyData
+   curly_MergePageArray pageArray, curlyData
+   pageArray_CleanJournal pageArray
+   return pageArray
+end wikiPage_MergeDialogue
+
+function wikiDialogue_CurlyData wikiDomain, pageSlug
+   put wikiDomain into curlyData ["all"]["wikiDomain"]
+   --
+   put pageSlug into curlyData ["all"]["originalSlug"]
+   put fedwiki_ConstructTitle (pageSlug) into pageTitle
+   put pageTitle into curlyData ["all"]["New Page Title"]
+   put urlEncode (pageTitle) into curlyData ["all"]["URLEncodedTitle"]
+      
+   # Check Wikipedia for Title
+   mediawiki_NormaliseTitle pageSlug, mediaWikiTitle, pageID
+   if mediaWikiTitle is not empty then
+      put mediaWikiTitle into curlyData ["all"]["Wikipedia Title"]
+      -- put pageTitle into curlyData ["all"]["originalTitle"]
+   end if
+   
+   return curlyData
+end wikiDialogue_CurlyData
 
 
 --> PageArray
 -
+function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain, 
+   if pPageTitle is empty then
+      put fedwiki_ConstructTitle (dialogueSlug) into pPageTitle
+   end if
+   
+   # Fetch Dialogue
+   if pDialogueDomain is empty then
+      put pageArray_GetTemplate ("dialogue.fedwiki.org", dialogueSlug, pPageTitle) into pageArray
+   else
+      put pageArray_GetTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
+   end if
+   put "html" into pageArray ["plugin"]
+   pageArray_CleanJournal pageArray
+   --
+   return pageArray
+end pageArray_GetDialogue
+
 function pageArray_GetTemplate wikiDomain, templateTitle, newTitle, pForkDomains
    if pForkDomains is empty then put "fedwiki.org,server.fedwiki.org" into pForkDomains
    
    put fedwiki_ConstructSlug (templateTitle) into pageSlug
    put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
    --
+   if pageArray is not an array then
+      put pageArray_Fetch ("dialogue.fedwiki.org", pageSlug) into pageArray
+   end if
+   -- if pageArray is not an array then put pageArray_Fetch ("template.fedwiki.org", pageSlug) into pageArray
+   --
    pageArray_Rename pageArray, newTitle
    pageArray_CleanFork pageArray, pForkDomains
    --
    return pageArray
 end pageArray_GetTemplate
-
-function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain, 
-   if pDialogueDomain is empty then put "dialogue.fedwiki.org" into pDialogueDomain
-   if pPageTitle is empty then
-      put fedwiki_ConstructTitle (dialogueSlug) into pPageTitle
-   end if
-   
-   # Fetch Dialogue
-   put pageArray_GetTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
-   put "html" into pageArray ["plugin"]
-   pageArray_CleanJournal pageArray
-   --
-   return pageArray
-end pageArray_GetDialogue

@@ -20,17 +20,13 @@ local WikiServer_Data
 
 --> Working on
 -
-function wikiServer_View
-   put view_GetTemplateObject ("View|Wiki|Server") into wikiServerView
-   return wikiServerView
-end wikiServer_View
-
 
 --> WikiServer | List
 -
 function wikiServer_ListNames
-   repeat for each key rServerObject in WikiServer_Data
-      put WikiServer_Data [rServerObject]["name"] into serverName
+   put wikiServer_GetData() into wsData
+   repeat for each key rServerObject in wsData
+      put wsData [rServerObject]["name"] into serverName
       put serverName & CR after serverNames
    end repeat
    delete char -1 of serverNames
@@ -38,7 +34,8 @@ function wikiServer_ListNames
 end wikiServer_ListNames
 
 function wikiServer_ListObjects
-   put keys (WikiServer_Data) into rServerObjects
+   put wikiServer_GetData() into wsData
+   put keys (wsData) into rServerObjects
    return rServerObjects
 end wikiServer_ListObjects
 

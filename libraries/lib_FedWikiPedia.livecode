@@ -39,7 +39,7 @@ end fedwikipedia_ConstructSourceArray
 
 --> Working On
 -  
-function mediawiki_FetchSummaryPageArray mwTitle, pLang, pAddToc
+function mw_SummaryPageArray mwTitle, pLang, pAddToc
    -- used by "summary" of "mediawiki.lc"
    -- see also "fedwiki_FetchWikipediaSummaryPageArray"
    -- very similar to "mediawiki_FetchPageArray"
@@ -75,7 +75,7 @@ function mediawiki_FetchSummaryPageArray mwTitle, pLang, pAddToc
    pageArray_AddWikipediaCred pageArray, mwTitle, mwSlug
    --
    return pageArray
-end mediawiki_FetchSummaryPageArray
+end mw_SummaryPageArray
 
 
 --> Wikipedia
@@ -156,7 +156,7 @@ function wikipedia_ListPages titleString, pNearMatch, pLang
 end wikipedia_ListPages
 
 function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
-   -- use "mediawiki_FetchSummaryPageArray" instead
+   -- use "mw_SummaryPageArray" instead
    -- see also "fedwikipedia_FetchSectionSummaryPageArray"
    -- need to make a "parse" call to get TOC
    local pSectionNum

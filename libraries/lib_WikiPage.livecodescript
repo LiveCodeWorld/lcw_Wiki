@@ -15,6 +15,103 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
+function wikiPage_EditOrCreate wikiDomain, pageSlug, pPageTitle
+   if pPageTitle is empty then
+      put fedwiki_ConstructTitle (pageSlug) into pPageTitle
+   end if
+   
+   put wikiFile_Construct (wikiDomain, pageSlug) into pageJsonFile
+   --
+   if there is a file pageJsonFile then
+      put "Edit Page" && kwote (pPageTitle, "'") into editTitle
+      put wikiPage_EditPage (pageSlug, wikiDomain, editTitle) into pageArray
+   else
+      put wikiDialogue_CurlyData (wikiDomain, pageSlug) into curlyData
+      put curlyData ["all"]["Wikipedia Title"] into mwTitle
+      if mwTitle is not empty then
+         put "Create Page" && kwote (mwTitle, "'") into createTitle
+      else
+         put "Create Page" && kwote (pPageTitle, "'") into createTitle
+      end if
+      
+      -- put wikiDialogue_Get (pageSlug, wikiDomain, "create-page-dialogue", createTitle) into pageArray
+      -- put wikiPage_MergeDialogue (pageArray, wikiDomain, pageSlug) into pageArray
+      put pageArray_GetDialogue ("create-page-dialogue", createTitle, wikiDomain) into pageArray
+      curly_MergePageArray pageArray, curlyData
+      pageArray_CleanJournal pageArray
+   end if
+   return pageArray
+end wikiPage_EditOrCreate
+
+function wikiPageEditImages pageArray
+   /*
+   "size": "wide",
+   "text": "We can [[drag-and-drop]] an image from [[Photos]] while working on [[localhost]].",
+   "width": "420",
+   "location": {
+   "latitude": "51.509413888888886",
+   "longitude": "-0.12234166666666667"
+   },
+   "id": "771a82a9ee369a96",
+   "height": "315",
+   "url": "/assets/plugins/image/0bc52c9aeab76ab47feb3e72d7965ca5.jpg",
+   "type": "image"
+   */
+   
+   put pageArray ["story"] into storyArray
+   put "thumbnail" into sSize
+   
+   put "Images for you to fix..." into mdText
+   put pageArray_Construct ("Edit Images", mdText, "tool") into pageArray
+   --
+   put 1 into newItemNum
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum] into itemArray
+      if itemArray ["type"] = "image" then
+         --
+         put itemArray into hiddenArray
+         put colour_GetRandom() into rgbColour
+         put colour_RgbToHex (rgbColour) into bColour
+         --
+         put itemArray ["url"] into imageURL
+         put itemArray ["text"] into cText
+         delete variable hiddenArray ["text"]
+         --
+         put empty into linkURL
+         put empty into sLat
+         put empty into sLong
+         put "wide" into sSize
+         pageArray_AddImage pageArray, imageURL, cText, linkURL, sLat, sLong, sSize
+         --
+         pageArray_AddForm pageArray, "Edit Image", "http://rest.livecode.world/echo", sSize, "size", bColour, "Images", 22, hiddenArray
+         pageArray_AddPageFold pageArray, "-"
+         --
+         add 1 to newItemNum
+      end if
+   end repeat
+   --
+   if newItemNum > 1 then
+      return pageArray
+   else
+      return empty
+   end if
+end wikiPageEditImages
+
+function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
+   # Get Curly Template
+   put wikiDialogue_Get (pageSlug, wikiDomain, "edit-page-dialogue", pPageArrayTitle) into pageArray
+   -- put pageArray_GetDialogue ("edit-page-dialogue", pPageArrayTitle, wikiDomain) into pageArray
+   -- put wikiPage_MergeDialogue (pageArray, wikiDomain, pageSlug) into pageArray
+   
+   # Add Create Section
+   wikiPage_AddCreateButtons pageArray, wikiDomain, pageSlug
+   
+   # Add Transporter Section
+   wikiPage_AddTransporters pageArray
+   
+   return pageArray
+end wikiPage_EditPage
+
 function wikiPage_ForkDomains wikiDomain, pForkDomains
    put url_GetTLD (wikiDomain) into forkDomains
    put CR & "fedwiki.org" after forkDomains
@@ -373,19 +470,6 @@ end wikiPage_CreateMissingSites
 
 --> WikiPage | Edit
 -
-function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
-   # Get Curly Template
-   put wikiDialogue_Get (pageSlug, wikiDomain, "edit-page-dialogue", pPageArrayTitle) into editPageArray
-   
-   # Add Create Section
-   wikiPage_AddCreateButtons editPageArray, wikiDomain, pageSlug
-   
-   # Add Transporter Section
-   wikiPage_AddTransporters editPageArray
-   
-   return editPageArray
-end wikiPage_EditPage
-
 command wikiPage_AddCreateButtons @editPageArray, wikiDomain, pageSlug
    # ValueArray
    put pageSlug into valueArray ["pageSlug"]

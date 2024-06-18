@@ -17,6 +17,89 @@ local LocalArray
 
 --> Working on
 -
+getprop footer_WikiEditTag
+   put "liveCode.javascript_Result(document.querySelector('footer span.editEnable').outerHTML);" into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end footer_WikiEditTag
+
+getprop lineup_Titles
+   -- return the page_Titles of me
+   
+   put the lineup_Urls of me into lineupUrls
+   repeat for each line wikiURL in lineupUrls
+      set the itemdelimiter to slash
+      put item -1 of wikiURL into shortFile
+      set the itemdelimiter to "."
+      put item 1 of shortFile into pSlug
+      --
+      put the page_SlugTitle [pSlug] of me into pageTitle
+      put pageTitle & CR after pageTitles
+   end repeat
+   delete char -1 of pageTitles
+   return pageTitles
+end lineup_Titles
+
+getprop lineup_Title [pageSlug]
+   -- Construct the JavaScript code to find the <span> element and get its text content
+   put "liveCode.javascript_Result(document.querySelector('#" & pageSlug & " .header h1 span').innerText.trim());" into sJavascript
+   put _GetJavascriptResult(sJavascript) into sTitle
+   return sTitle
+end lineup_Title
+
+getprop flag_Html [pageSlug]
+   if pageSlug is empty then put "welcome-visitors" into pageSlug
+   --
+   put wiki_PageFlagJavascript (pageSlug) into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end flag_Html
+
+getprop page_Div [pageSlug]  
+   put merge ("liveCode.javascript_Result(document.querySelector('#[[pageSlug]]').outerHTML);") into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end page_Div
+
+getprop lineUp_Domain [pTitle]
+   put fedwiki_ConstructSlug (pTitle) into pSlug
+   put _SlugArray() into slugArray
+   return slugArray [pSlug]["wikiDomain"]
+end lineUp_Domain
+
+private function _SlugArray
+   put the browser_URL of me into browserURL
+   --
+   set the itemdelimiter to slash
+   put item 3 of browserURL into ownerDomain
+   
+   put _LineUpJson() into lineupJson
+   
+   # Work out urls in Livecode (probably faster in js)
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   --
+   replace comma with CR in lineupJson
+   replace quote with empty in lineupJson
+   
+   repeat for each line sLink in lineupJson
+      set the itemdelimiter to slash
+      if char 1 to 2 of sLink = "//" then
+         put item 3 of sLink into sDomain
+         put item 4 of sLink into pageSlug
+      else
+         put ownerDomain into sDomain
+         put item -1 of sLink into pageSlug
+      end if
+      
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      
+      put sDomain into slugArray [pageSlug]["wikiDomain"]
+   end repeat
+   return slugArray
+end _SlugArray
+
 function pageArray_FromJson pageJSON
    put json_ToArray (pageJSON) into pageArray
    return pageArray
@@ -50,14 +133,14 @@ function pageArray_ToJson pageArray
 end pageArray_ToJson
 
 getprop footer_IsVisible
-set the javascript_AddHandlers of me to "javascript_Result"
---
-put js_ElementIsVisible ("footer") into sJavascript
-do sJavascript in me
-put LocalArray ["sResult"] into sResult
---
-put sResult = "visible" into isVisible
-return isVisible
+   set the javascript_AddHandlers of me to "javascript_Result"
+   --
+   put js_ElementIsVisible ("footer") into sJavascript
+   do sJavascript in me
+   put LocalArray ["sResult"] into sResult
+   --
+   put sResult = "visible" into isVisible
+   return isVisible
 end footer_IsVisible
 
 setprop footer_IsVisible showMe
@@ -67,8 +150,24 @@ setprop footer_IsVisible showMe
 end footer_IsVisible
 
 
---> Props | PageArray
+--> Props | Ghost
 -
+getprop ghost_Slugs
+   put the lineup_Urls of me into lineupUrls
+   repeat for each line wikiURL in lineupUrls
+      set the itemdelimiter to slash
+      put item -1 of wikiURL into shortFile
+      set the itemdelimiter to "."
+      put item 1 of shortFile into pSlug
+      --
+      if _GetPageClass (pSlug) contains "ghost" then
+         put pSlug & CR after pSlugs
+      end if
+   end repeat
+   delete char -1 of pSlugs
+   return pSlugs
+end ghost_Slugs
+
 setprop ghost_PageArray pageArray
    -- put json_FromArray (pageArray) into pageJSON
    -- put textEncode (pageJSON, "UTF-8") into pageJSON
@@ -84,8 +183,8 @@ end ghost_PageArray
 
 function _ErrorJson
    -- simplify without dpes
-   put "Error decoding array." into someMarkdown
-   put pageArray_Construct ("Error", someMarkdown, "markdown") into pageArray
+   put "Error decoding array." into mdText
+   put pageArray_Construct ("Error", mdText, "markdown") into pageArray
    put json_FromArray (pageArray) into pageJSON
    return pageJSON
 end _ErrorJson
@@ -239,9 +338,7 @@ setprop page_Width [pSlug] sWidth
 end page_Width
 
 getprop page_Class [pageSlug]
-   put wikijs_GetPageClass (pageSlug) into sJavascript
-   put _GetJavascriptResult (sJavascript) into sResult
-   return sResult
+   return _GetPageClass (pageSlug)
 end page_Class
 
 setprop page_Scale [pageSlug] scaleItems
@@ -288,9 +385,22 @@ end pretty_Journal
 --> Props
 -
 getprop last_PageSlug
-   put the browser_URL of me into browserURL
-   get _LineUpInfo (browserURL)
-   return item -1 of line -1 of it
+   put the browser_URL of me into browserURL -- will not include last ghost page
+   put _LineUpInfo (browserURL) into lineUpInfo
+   --
+   put the number of lines of lineUpInfo into maxNum
+   repeat with lineNum = maxNum down to 1
+      put line lineNum of lineUpInfo into sLine
+      put item 2 of sLine into pageSlug
+      --
+      put _GetPageClass (pageSlug) into sClass
+      if sClass = "page ghost" then
+         next repeat
+      else
+         return pageSlug
+      end if
+   end repeat
+   return "welcome-visitors" -- should not be?
 end last_PageSlug
 
 getprop last_PageInfo
@@ -343,13 +453,28 @@ getprop lineUp_URL [slugOrNum]
    end switch
 end lineUp_URL
 
-getprop lineup_Titles
-   return the page_Titles of me
-end lineup_Titles
-
 getprop lineup_Slugs
    return the page_Slugs of me
+   
+   put the lineUp_Array of me into lineUpSlugs
+   combine lineUpSlugs with CR
+   replace ".json" with empty in lineUpSlugs
+   return lineUpSlugs -- slash at beginning of each line
 end lineup_Slugs
+
+getprop page_Slugs
+   put the lineup_Urls of me into lineupUrls
+   repeat for each line wikiURL in lineupUrls
+      set the itemdelimiter to slash
+      put item -1 of wikiURL into shortFile
+      set the itemdelimiter to "."
+      put item 1 of shortFile into pSlug
+      --
+      put pSlug & CR after pSlugs
+   end repeat
+   delete char -1 of pSlugs
+   return pSlugs
+end page_Slugs
 
 getprop lineup_Urls
    put the browser_URL of me into browserURL
@@ -506,14 +631,6 @@ getprop search_Html [slugAndFunc]
    return sResult
 end search_Html
 
-getprop flag_Html [pageSlug]
-   if pageSlug is empty then put "welcome-visitors" into pageSlug
-   --
-   put wiki_PageFlagJavascript (pageSlug) into sJavascript
-   put _GetJavascriptResult (sJavascript) into sResult
-   return sResult
-end flag_Html
-
 
 --> Javascript | Handlers
 -
@@ -571,6 +688,12 @@ end wiki_IsTransparent
 
 --> Private
 -
+private function _GetPageClass pageSlug
+   put wikijs_GetPageClass (pageSlug) into sJavascript
+   put _GetJavascriptResult (sJavascript) into pClass
+   return pClass
+end _GetPageClass
+
 private command _DisplayPage pTitle, pDomainAndPort
    -- put fedwiki_ConstructSlug (pTitle) into pageSlug
    --
@@ -587,6 +710,10 @@ end _DisplayPage
 private function _LineUpInfo browserURL
    put _LineUpJson() into lineupJson
    
+   # Work out urls in Livecode (probably faster in js)
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   --
    set the itemdelimiter to slash
    put item 3 of browserURL into ownerDomain
    
@@ -614,6 +741,10 @@ end _LineUpInfo
 private function _LineUpUrls browserURL
    put _LineUpJson() into lineupJson
    
+   # Work out urls in Livecode (probably faster in js)
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   --
    set the itemdelimiter to slash
    put item 3 of browserURL into urlDomain
    
@@ -631,15 +762,16 @@ private function _LineUpUrls browserURL
    return lineUpURLs
 end _LineUpUrls
 
+getprop lineUp_Array
+   put _LineUpJson() into sJSON
+   put JsonImport (sJSON) into linupArray
+   display_Data linupArray, the name of me, "the lineUp_Array"
+   return linupArray
+end lineUp_Array
+
 private function _LineUpJson
    put wikijs_GetLinupUrls() into sJavascript
-   put _GetJavascriptResult (sJavascript) into lineupJson
-   
-   # Work out urls in Livecode (probably faster in js)
-   --
-   delete char 1 of lineupJson
-   delete char -1 of lineupJson
-   
+   put _GetJavascriptResult (sJavascript) into lineupJson 
    return lineupJson
 end _LineUpJson
 
@@ -704,4 +836,3 @@ function wikijs_GetLinupUrls
    put CR & "liveCode.javascript_Result(JSON.stringify(hrefs));" after sJavascript
    return sJavascript
 end wikijs_GetLinupUrls
-

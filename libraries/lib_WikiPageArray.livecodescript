@@ -91,6 +91,77 @@ private command _AddMapSection @pageArray, summaryArray, pTileType
 end _AddMapSection
 
 
+--> Mediawiki | Titles
+-
+command mediawiki_NormaliseTitle searchTitleString, @pageTitle, @pageID, pLang
+   -- searches everything, not just title and finds best match
+   put mediawiki_FindPageID (searchTitleString, true, pLang) into pageID
+   
+   -- /w/api.php?action=query&format=json&pageids=51071416&redirects=1&converttitles=1
+   put wikipedia_GetApiRoot (pLang) & "/w/api.php" into apiRoot
+   --
+   put "?action=query&format=json" into apiPath
+   put "&pageids=" & pageID after apiPath
+   put "&redirects=1&converttitles=1" after apiPath
+   put apiRoot & apiPath into restURL
+   --
+   put mediawiki_FetchJSON (restURL) into someJSON
+   put json_ToArray (someJSON) into batchResultArray
+   --
+   put batchResultArray ["query"] into queryArray
+   put queryArray ["pages"] into pagesArray
+   put keys(pagesArray) into newPageIDs -- should only be one
+   put line 1 of newPageIDs into newPageID
+   put pagesArray [newPageID]["title"] into pageTitle
+   --
+   put textDecode (pageTitle, "utf-8") into pageTitle
+   
+   put queryArray ["redirects"][1]["to"] into rTitle -- = pageTitle
+   put queryArray ["redirects"][1]["from"] into oTitle
+   put queryArray ["redirects"][1]["tofragment"] into toFragment
+   --   
+   return batchResultArray
+end mediawiki_NormaliseTitle
+
+function mediawiki_FindPageID titleString, pNearMatch, pLang
+   put mediawiki_FetchSearchJson (titleString, pNearMatch, pLang) into someJSON
+   put json_ToArray (someJSON) into queryResultArray
+   
+   put queryResultArray ["query"]["search"] into searchResultArray
+   repeat with indexNum = 1 to item 2 of the extents of searchResultArray
+      put searchResultArray [indexNum]["pageid"] into pageID
+      put pageID & CR after pageIDs
+   end repeat
+   delete char -1 of pageIDs
+   return pageIDs
+end mediawiki_FindPageID
+
+function mediawiki_FetchSearchJson titleString, pNearMatch, pLang
+   -- title search no longer works (using "nearmatch")
+   -- /w/api.php?action=query&format=json&list=search&utf8=1&srsearch=Nelson%20Mandela
+   -- /w/api.php?action=query&format=json&list=search&redirects=1&converttitles=1&utf8=1&srsearch=British%20Archaeological%20Awards&srlimit=50&srwhat=nearmatch
+   
+   put urlencode (titleString) into encodedSearchString
+   replace "+" with "%20" in encodedSearchString
+   
+   put "?action=query&format=json&list=search&utf8=1" into apiPath
+   if pNearMatch is true then
+      put "&srwhat=nearmatch" after apiPath
+   end if
+   -- put "&prop=info" after apiPath
+   put "&redirects=1&converttitles=1" after apiPath
+   put "&srlimit=50" after apiPath
+   --
+   put "&srsearch=" & encodedSearchString after apiPath
+   --
+   put wikipedia_GetApiRoot(pLang) & "/w/api.php" into apiStem
+   put apiStem & apiPath into restURL
+   
+   put mediawiki_FetchJSON (restURL) into someJSON
+   return someJSON
+end mediawiki_FetchSearchJson
+
+
 --> Mediawiki
 -
 function mediawiki_FetchDialoguePageArray pageSlug
@@ -210,75 +281,6 @@ function mediawiki_FetchParseArray wikiSlug, pSectionNum, pApiRoot
 end mediawiki_FetchParseArray
 
 
---> Mediawiki | Titles
--
-command mediawiki_NormaliseTitle searchTitleString, @pageTitle, @pageID, pLang
-   -- searches everything, not just title and finds best match
-   put mediawiki_FindPageID (searchTitleString, true, pLang) into pageID
-   
-   -- /w/api.php?action=query&format=json&pageids=51071416&redirects=1&converttitles=1
-   put wikipedia_GetApiRoot (pLang) & "/w/api.php" into apiRoot
-   --
-   put "?action=query&format=json" into apiPath
-   put "&pageids=" & pageID after apiPath
-   put "&redirects=1&converttitles=1" after apiPath
-   put apiRoot & apiPath into restURL
-   --
-   put mediawiki_FetchJSON (restURL) into someJSON
-   put json_ToArray (someJSON) into batchResultArray
-   --
-   put batchResultArray ["query"] into queryArray
-   put queryArray ["pages"] into pagesArray
-   put keys(pagesArray) into newPageIDs -- should only be one
-   put line 1 of newPageIDs into newPageID
-   put pagesArray [newPageID]["title"] into pageTitle
-   --
-   put queryArray ["redirects"][1]["to"] into rTitle -- = pageTitle
-   put queryArray ["redirects"][1]["from"] into oTitle
-   put queryArray ["redirects"][1]["tofragment"] into toFragment
-   --   
-   return batchResultArray
-end mediawiki_NormaliseTitle
-
-function mediawiki_FindPageID titleString, pNearMatch, pLang
-   put mediawiki_FetchSearchJson (titleString, pNearMatch, pLang) into someJSON
-   put json_ToArray (someJSON) into queryResultArray
-   
-   put queryResultArray ["query"]["search"] into searchResultArray
-   repeat with indexNum = 1 to item 2 of the extents of searchResultArray
-      put searchResultArray [indexNum]["pageid"] into pageID
-      put pageID & CR after pageIDs
-   end repeat
-   delete char -1 of pageIDs
-   return pageIDs
-end mediawiki_FindPageID
-
-function mediawiki_FetchSearchJson titleString, pNearMatch, pLang
-   -- title search no longer works (using "nearmatch")
-   -- /w/api.php?action=query&format=json&list=search&utf8=1&srsearch=Nelson%20Mandela
-   -- /w/api.php?action=query&format=json&list=search&redirects=1&converttitles=1&utf8=1&srsearch=British%20Archaeological%20Awards&srlimit=50&srwhat=nearmatch
-   
-   put urlencode (titleString) into encodedSearchString
-   replace "+" with "%20" in encodedSearchString
-   
-   put "?action=query&format=json&list=search&utf8=1" into apiPath
-   if pNearMatch is true then
-      put "&srwhat=nearmatch" after apiPath
-   end if
-   -- put "&prop=info" after apiPath
-   put "&redirects=1&converttitles=1" after apiPath
-   put "&srlimit=50" after apiPath
-   --
-   put "&srsearch=" & encodedSearchString after apiPath
-   --
-   put wikipedia_GetApiRoot(pLang) & "/w/api.php" into apiStem
-   put apiStem & apiPath into restURL
-   
-   put mediawiki_FetchJSON (restURL) into someJSON
-   return someJSON
-end mediawiki_FetchSearchJson
-
-
 --> PageArray | Construct | Mediawiki
 -
 function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArray, mobileSectionArray, pFirstSectionOnly, pWikipediaURL
@@ -326,7 +328,7 @@ function mediawiki_ConstructPageArray pageTitle, pageSlug, wikiText, summaryArra
 end mediawiki_ConstructPageArray
 
 function mediawiki_ConstructSummaryPageArray firstSection, summaryArray, mobileSectionArray
-   -- used by "mediawiki_FetchSummaryPageArray"
+   -- used by "mw_SummaryPageArray"
    
    put summaryArray ["title"] into pageTitle
    put line 1 of firstSection into firstLine

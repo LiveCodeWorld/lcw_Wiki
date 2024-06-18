@@ -38,14 +38,11 @@ getprop siteMap_Array
    return wsmArray
 end siteMap_Array
 
-getprop wiki_Domain [pageTitle]
-   if pageTitle is empty then
+getprop wiki_Domain [pTitle]
+   if pTitle is empty then
       return _WikiDomain()
    else
-      put fedwiki_ConstructSlug (pageTitle) into pageSlug
-      put _SlugArray() into slugArray
-      put slugArray [pageSlug]["wikiDomain"] into wikiDomain
-      return wikiDomain
+      return the lineUp_Domain [pTitle] of me
    end if
 end wiki_Domain
 
@@ -289,20 +286,6 @@ getprop wiki_Garden
    return gardenName
 end wiki_Garden
 
-getprop page_Slugs
-   put the lineup_Urls of me into lineupUrls
-   repeat for each line wikiURL in lineupUrls
-      set the itemdelimiter to slash
-      put item -1 of wikiURL into shortFile
-      set the itemdelimiter to "."
-      put item 1 of shortFile into pSlug
-      --
-      put pSlug & CR after pSlugs
-   end repeat
-   delete char -1 of pSlugs
-   return pSlugs
-end page_Slugs
-
 getprop page_Titles
    put the lineup_Data of me into lineupData
    put indexArray_List (lineupData, "title") into pageTitles
@@ -439,34 +422,6 @@ private command _CheckPageArray pageArray, pageSlug, wikiDomain
       put wikiDialogue_Get (pageSlug, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
    end if
 end _CheckPageArray
-
-private function _SlugArray
-   put the browser_URL of me into browserURL
-   --
-   set the itemdelimiter to slash
-   put item 3 of browserURL into ownerDomain
-   
-   put _LineUpJson() into lineupJson
-   replace comma with CR in lineupJson
-   replace quote with empty in lineupJson
-   
-   repeat for each line sLink in lineupJson
-      set the itemdelimiter to slash
-      if char 1 to 2 of sLink = "//" then
-         put item 3 of sLink into sDomain
-         put item 4 of sLink into pageSlug
-      else
-         put ownerDomain into sDomain
-         put item -1 of sLink into pageSlug
-      end if
-      
-      set the itemdelimiter to "."
-      delete item -1 of pageSlug
-      
-      put sDomain into slugArray [pageSlug]["wikiDomain"]
-   end repeat
-   return slugArray
-end _SlugArray
 
 
 --> Deps

@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Wiki | Browser | Server | Menu
 type: controller
-version: 0.2
+version: 0.3
 
 /*Here you can describe this menu.
 Full help text should be provided on the linked wiki.*/
@@ -62,27 +62,43 @@ end disabled_AddOwnerJson
 
 --> Global | Wiki | Browser | Server | Menu
 -
-on menu_ToggleServer.5
-   toggleServer_BetweenLiveAndNode
-end menu_ToggleServer.5
+on menu_ToggleProxyFarm.4
+   toggle_ProxyFarm
+end menu_ToggleProxyFarm.4
 
-on menu_StartLiveServer
+getprop checked_ToggleProxyFarm
+   return wikiServer_ProxyFarmIsRunning()
+end checked_ToggleProxyFarm
+
+on menu_ToggleLiveServer.L
+   toggleServer_LiveOnly
+end menu_ToggleLiveServer.L
+
+getprop checked_ToggleLiveServer
+   return wikiServer_OnlyIsRunning()
+end checked_ToggleLiveServer
+
+-- on menu_SwitchServers
+   toggleServer_BetweenLiveAndNode
+end menu_SwitchServers
+
+-- on menu_StartLiveServer
    wikiServer_StartLocalProxy
 end menu_StartLiveServer
 
 private on _____
 end _____
 
-on menu_LiveServer.L
+on menu_LiveServer
    toggleServer_Live
-end menu_LiveServer.L
+end menu_LiveServer
 
 on menu_NodeServer wikiView
    toggleServer_Node
 end menu_NodeServer
 
 on menu_StartCaddy
-   caddy_ToggleProxy
+   toggleServer_Caddy
 end menu_StartCaddy
 
 getprop checked_StartCaddy

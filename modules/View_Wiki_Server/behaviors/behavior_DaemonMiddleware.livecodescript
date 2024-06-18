@@ -25,7 +25,32 @@ local MiddlewareArray
 
 --> Working on
 -
-before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+before route_GET someRoute, socketID, requestArray
+   switch
+       case someRoute = "/lcw_BrowserUrl"
+         get_LcwBookmarklet someRoute, socketID, requestArray
+         return "Sent JSON. Socket still open."
+         exit to top
+       case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
+         # Flag Click (see get_FlagClick)
+         get_WikiServerToolPage someRoute, requestArray, socketID
+         break
+      default
+         return empty
+   end switch
+end route_Get
+
+-- before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
+end get_WikiPageJson
+
+private command _ReturnAndExit pageArray, socketID
+   daemon_SendArray socketID, pageArray
+   return "Sent JSON. Socket still open."
+end _ReturnAndExit
+
+command wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
+   -- here we filter by pageSlug and wiki domain
    switch
       case wikiDomain = "create.sites.fedwiki.org"
          put wikiPage_FilteredDomainList (pageSlug) into pageArray
@@ -53,7 +78,7 @@ before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
       default
          -- pass on to behavior
    end switch
-end get_WikiPageJson
+end wikiBehavior_CustomGET
 
 command get_LcwBookmarklet someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
@@ -180,27 +205,6 @@ end get_CreatePage
 
 --> GET
 -
-before route_GET someRoute, socketID, requestArray
-   switch
-      case someRoute = "/plugin/assets/upload"
-         break
-      case someRoute = "/lcw_BrowserUrl"
-         get_LcwBookmarklet someRoute, socketID, requestArray
-         return "Sent JSON. Socket still open."
-         exit to top
-      case someRoute = "/system/sitemap.json"
-      case someRoute = "/system/site-index.json"
-         -- pass on as it is called regularly
-         break
-      case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
-         # Flag Click (see get_FlagClick)
-         get_WikiServerToolPage someRoute, requestArray, socketID
-         break
-      default
-         return empty
-   end switch
-end route_Get
-
 command form_SetFirstMultipart rPostData, sBoundary, @someImage, @shortFileName, @mimeType
    -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
    /*
@@ -457,9 +461,3 @@ private function _GuessLastSlug sReferer
    end if
    return lastPageSlug
 end _GuessLastSlug
-
-private command _ReturnAndExit pageArray, socketID
-   daemon_SendArray socketID, pageArray
-   return "Sent JSON. Socket still open."
-   exit to top
-end _ReturnAndExit

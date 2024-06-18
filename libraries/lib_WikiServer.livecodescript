@@ -20,9 +20,82 @@ local WikiServer_NodePort
 
 
 --> Working on
--
-command toggle_ProxyFarm
+-   
+function wikiServer_View pPort
+   if pPort is empty then
+      put view_GetTemplateObject ("View|Wiki|Server") into wsView
+      return wsView
+   else
+      put wikiServer_GetData() into wsData
+      repeat for each key wsView in wsData
+         put wsData [wsView]["port"] into sPort
+         if sPort = sPort then
+            return wsView
+         end if
+      end repeat
+      return empty
+   end if
+end wikiServer_View
+
+command wikiServer_CloseServerWithPort pPort
+   put wikiServer_View (pPort) into wsView
+   if exists (wsView) then
+      set the daemon_IsRunning of wsView to false
+      return wsView
+   else
+      return empty
+   end if
+end wikiServer_CloseServerWithPort
+
+function wikiServer_OnlyIsRunning
+   get the opensockets
+   if 80 is not among the lines of it then return false
    
+   put wikiServer_GetData() into wsData
+   if item 2 of the extents of wsData = 1 then
+      put wsData [1]["port"] into onlyPort
+      return onlyPort = 80
+   end if
+   
+   -- put wikiServer_ListObjects() into serverObjects
+   return true
+end wikiServer_OnlyIsRunning
+
+function wikiServer_IsRunning
+   put wikiServer_ListObjects() into serverObjects
+   put serverObjects is not empty into isRunning
+   return isRunning
+end wikiServer_IsRunning
+
+function wikiServer_NodeIsRunning
+   return wikiServer_ListProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wikiServer_NodeIsRunning
+
+function wikiServer_ProxyFarmIsRunning
+   put caddy_IsRunning() AND wikiServer_NodeIsRunning() AND wikiServer_IsRunning() into sBoolean
+   return sBoolean
+end wikiServer_ProxyFarmIsRunning
+
+command toggleServer_LiveOnly
+   if wikiServer_OnlyIsRunning() then
+      wikiServer_StopLive
+   else
+      wikiServer_StopAll
+      wikiServer_StartLive 80
+   end if
+end toggleServer_LiveOnly
+
+command toggle_ProxyFarm
+   if wikiServer_ProxyFarmIsRunning() is not false then
+      wikiServer_StopAll
+   else
+      try
+         wikiServer_StartLocalProxy
+      catch e
+         breakpoint
+      end try
+   end if
 end toggle_ProxyFarm
 
 command toggleServer_BetweenLiveAndNode
@@ -30,10 +103,10 @@ command toggleServer_BetweenLiveAndNode
    switch
       case wikiServer_NodeIsRunning()
          wikiServer_StopNode
-         wikiServer_Start
+         wikiServer_StartLive
          break
       default
-         wikiServer_Stop
+         wikiServer_StopLive
          wikiServer_StartNodeFarm
    end switch
 end toggleServer_BetweenLiveAndNode
@@ -48,15 +121,30 @@ end toggleServer_Node
 
 command toggleServer_Live
    if wikiServer_IsRunning() then
-      wikiServer_Stop
+      wikiServer_StopLive
    else
-      wikiServer_Start
+      wikiServer_StartLive
    end if
 end toggleServer_Live
 
 
 --> WikiServer
 -
+command wikiServer_StartLocalProxy
+   wikiServer_CloseServerWithPort 80
+   --
+   wikiServer_StartLive 9090
+   wikiServer_StartNodeFarm 3000
+   --
+   caddy_Start
+end wikiServer_StartLocalProxy
+
+command wikiServer_StopAll
+   if wikiServer_IsRunning() then wikiServer_StopLive
+   if wikiServer_NodeIsRunning() then wikiServer_StopNode
+   if caddy_IsRunning() then caddy_CloseServerProcesses
+end wikiServer_StopAll
+
 command wikiServer_RestartNode pNotify, pNotifyText
    # Stop
    wikiServer_StopNode
@@ -97,13 +185,6 @@ command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
    # Indicate wiki starting up
    return wikiProcessID
 end wikiServer_StartNode
-
-command wikiServer_StartLocalProxy
-   wikiServer_StartNodeFarm 3000
-   --
-   caddy_Start
-   wikiServer_Start 9090
-end wikiServer_StartLocalProxy
 
 function wikiServer_GetNodePort
    put WikiServer_NodePort into sPort
@@ -169,11 +250,6 @@ command wikiServer_SwitchIfGarden wikiDomain
    put the result into wikiProcessID
    return wikiProcessID
 end wikiServer_SwitchIfGarden
-
-function wikiServer_NodeIsRunning
-   return wikiServer_ListProcessIds() is not empty
-   -- return "wiki" is among the lines of the openprocesses
-end wikiServer_NodeIsRunning
 
 
 --> WikiServer | Node
@@ -248,7 +324,7 @@ end wikiServer_StopNode
 
 --> WikiServer | Start
 -
-command wikiServer_Start pPort, pWikiServer
+command wikiServer_StartLive pPort, pWikiServer
    -- tunnel_LaunchFromConfig
    if exists (pWikiServer) is false then put wikiServer_View() into pWikiServer
    
@@ -283,9 +359,9 @@ command wikiServer_Start pPort, pWikiServer
    lcw_Notify sComment, "Node Server"
    
    return pWikiServer
-end wikiServer_Start
+end wikiServer_StartLive
 
-command wikiServer_Stop pWikiServers, pCloseAll
+command wikiServer_StopLive pWikiServers, pCloseAll
    switch
       case pWikiServers is empty
       case pWikiServers = "All"
@@ -309,7 +385,7 @@ command wikiServer_Stop pWikiServers, pCloseAll
    lcw_Notify "Closed Live Server!", "Live Server"
    
    return pWikiServer
-end wikiServer_Stop
+end wikiServer_StopLive
 
 
 --> WikiServer | Files (see lib_AtopiaDomainOwnership)
@@ -414,15 +490,6 @@ function wikiServer_ListSecurityTypes pPrettyMenu
 end wikiServer_ListSecurityTypes
 
 
---> WikiServer | Running
--
-function wikiServer_IsRunning
-   put wikiServer_ListObjects() into serverObjects
-   put serverObjects is not empty into isRunning
-   return isRunning
-end wikiServer_IsRunning
-
-
 --> WikiServer | Start
 -
 command wikiServer_StartWithXterm pXtermBrowser, pLog
@@ -440,10 +507,10 @@ command wikiServer_Restart pNotify, pNotifyText
    
    put wikiServer_View() into serverObject
    set the daemon_IsRunning of serverObject to false
-   -- wikiServer_Stop serverObject, pCloseAll
+   -- wikiServer_StopLive serverObject, pCloseAll
    -- put the result into serverObject
    resetAll
-   -- wikiServer_Start serverObject
+   -- wikiServer_StartLive serverObject
    set the daemon_IsRunning of serverObject to true
    return serverObject
 end wikiServer_Restart
@@ -630,4 +697,3 @@ private function _ParseWikiShellResult shellResult, pWikiBit
    put word 2 of line lineNum of shellResult into pid
    return pid
 end _ParseWikiShellResult
-

@@ -60,17 +60,22 @@ function pageArray_ListReferenceDomains pageArray
 end pageArray_ListReferenceDomains
 
 function pageArray_ExtractRefItems fromPageArray
+   put pageArray_ExtractItems (fromPageArray, "reference") into refItemStoryArray
+   return refItemStoryArray
+end pageArray_ExtractRefItems
+
+function pageArray_ExtractItems fromPageArray, itemKind
    put fromPageArray ["story"] into fromStoryArray
    put 1 into newItemNum
    repeat with itemNum = 1 to item 2 of the extents of fromStoryArray
       put fromStoryArray [itemNum] into itemArray
-      if itemArray ["type"] = "reference" then
+      if itemArray ["type"] = itemKind then
          put itemArray into refItemStoryArray [newItemNum]
          add 1 to newItemNum
       end if
    end repeat
    return refItemStoryArray
-end pageArray_ExtractRefItems
+end pageArray_ExtractItems
 
 function pageArray_ReferenceLinkArray pageArray, fromSlug, fromDomain
    put fromDomain & "/" & fromSlug into fromLink

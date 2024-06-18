@@ -102,7 +102,7 @@ on menu_DisplayDomain wikiView, wikiDomain
       default
          if the shiftKey is "Down" then
             if the controlKey is "Down" then
-               display_Wiki wikiDomain, wikiView
+               display_Wiki wikiDomain
             else
                set the wiki_Domain of wikiView to wikiDomain
             end if
@@ -115,7 +115,7 @@ end menu_DisplayDomain
 on menu_Subdomain wikiView, subDomain
    if the shiftKey is "Down" then
       if the controlKey is "Down" then
-         display_Wiki subDomain, wikiView
+         display_Wiki subDomain
       else
          set the wiki_Domain of wikiView to subDomain
       end if 

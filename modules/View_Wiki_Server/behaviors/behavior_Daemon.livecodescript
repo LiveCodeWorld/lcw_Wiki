@@ -74,6 +74,126 @@ on socketTimeout pSocketID
    wikiServer_Restart true, the params
 end socketTimeout
 
+
+--> Dameon | Send
+-
+command daemon_SendArray socketOrRequestArray, sArray, pSendCompressed
+   put json_FromArray (sArray) into someJSON
+   daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
+   put the result into someHeader
+   return someHeader
+end daemon_SendArray
+
+command daemon_SendJS socketOrRequestArray, sJavascript, pSendCompressed
+   put _NormalizeSocket (socketorRequestArray) into socketID
+   --
+   put _OkHeaders ("application/javascript; charset=UTF-8") into someHeader
+   -- daemon_Send someHeader, sJavascript, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, sJavascript, socketID
+   --
+   return someHeader
+end daemon_SendJS
+
+command daemon_SendCSS socketOrRequestArray, someText, pSendCompressed
+   put _NormalizeSocket (socketorRequestArray) into socketID
+   put _OkHeaders ("text/css; charset=UTF-8") into someHeader
+   --
+   -- daemon_Send someHeader, someText, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, someText, socketID
+   --
+   return someHeader
+end daemon_SendCSS
+
+command daemon_SendText socketOrRequestArray, someText, pETag, pCookieName, pCookieValue, pSendCompressed
+   put _NormalizeSocket (socketorRequestArray) into socketID
+   put _OkHeaders ("text/html", pCookieName, pCookieValue) into someHeader
+   --
+   -- daemon_Send someHeader, someText, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, someText, socketID
+   --
+   return someHeader
+end daemon_SendText
+
+command daemon_SendMovedTemporarily socketID, locationURL
+   /*
+   •	Date:Tue, 28 Jul 2015 16:27:39 GMT
+   •	Location:welcome-visitors.html
+   •	Vary:Accept
+   */
+   put _MovedTemporarilyHeaders (locationURL) into someHeader
+   --
+   -- daemon_Send someHeader, "Moved Temporarily", socketID, false
+   daemon_SendAndCloseSocket someHeader, "Moved Temporarily", socketID
+   --
+   return the result
+end daemon_SendMovedTemporarily
+
+command daemon_SendNotFound socketID, pLogComment
+   put _NotFoundHeaders() into someHeader
+   --
+   -- daemon_Send someHeader, "Page not found", socketID, false
+   daemon_SendAndCloseSocket someHeader, "Page not found", socketID
+   --
+   return the result
+end daemon_SendNotFound
+
+command daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
+   -- Handler that Forwards the user to another URL. It needs an absolute url as a parameter.
+   -- This handler uses a 301 (permanent redirection) to drive the browser to a new location.
+   
+   if pDescriptiveContent is empty then
+      put "Should redirect to <a href=" & quote & redirectURL & quote & ">" & redirectURL & "</a>" into descriptiveContent
+   end if
+   put _RedirectionHeaders (redirectURL, pDescriptiveContent) into someHeader
+   --
+   -- daemon_Send someHeader, descriptiveContent, socketID, false
+   daemon_SendAndCloseSocket someHeader, descriptiveContent, socketID
+   --
+   return the result
+end daemon_SendRedirect
+
+command daemon_SendHeaderArray someRoute, headerArray, socketID, pSendCompressed
+   put daemon_GetRouteData (someRoute) into routeData
+   
+   put daemon_ConstructDefaultHeader() into defaultHeaderArray
+   delete variable headerArray ["Content-Length"] -- because it is always added below
+   union headerArray with defaultHeaderArray
+   put "HTTP/1.1 200 OK" into someHeader
+   put CRLF & daemon_DeconstructHeaderArray (headerArray) after someHeader
+   
+   -- daemon_SendRaw someHeader, routeData, socketID
+   -- daemon_Send someHeader, routeData, socketID, pSendCompressed -- adds "Content-Length"
+   daemon_SendAndCloseSocket someHeader, routeData, socketID
+   --
+   return the result
+end daemon_SendHeaderArray
+
+command daemon_SendCompressed someHeader, contentToSend, socketID
+   -- always adds "Content-Length:" header
+   put CRLF & "Content-Encoding: gzip" after someHeader
+   put compress (contentToSend) into compressedData
+   
+   _AddContentLengthHeader someHeader, compressedData
+   
+   daemon_SendRaw someHeader, compressedData, socketID
+   return the result
+end daemon_SendCompressed
+
+command daemon_SendSimple someHeader, contentToSend, socketID
+   -- always adds "Content-Length:" header
+   _AddContentLengthHeader someHeader, contentToSend
+   
+   daemon_SendRaw someHeader, contentToSend, socketID
+   return the result
+end daemon_SendSimple
+
+command daemon_SendRaw someHeader, contentToSend, socketID
+   -- everything should use this to send (so it can be trapped by middleware for logging etc)
+   put someHeader & CRLF & CRLF & contentToSend into headersAndContent
+   write headersAndContent to socket socketID
+   return headersAndContent
+end daemon_SendRaw
+
 private function _DaemonIsRunning
    put the server_Array of me into serverArray
    put serverArray is an array into daemonIsRunning
@@ -385,7 +505,9 @@ command daemon_SendAsset socketorRequestArray, assetFile, pSendCompressed
    put CRLF & "Keep-Alive: timeout=5" after someHeader
    put CRLF & "Cache-Control: public, max-age=0" after someHeader
    --
-   daemon_Send someHeader, someAsset, socketID, pSendCompressed
+   -- daemon_Send someHeader, someAsset, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, someAsset, socketID
+   --
    return the result
 end daemon_SendAsset
 
@@ -405,7 +527,9 @@ command daemon_SendImage socketorRequestArray, someImage, pImageType, pSendCompr
    put _NormalizeSocket (socketorRequestArray) into socketID
    put _OkHeaders (imageHeader) into someHeader
    --
-   daemon_Send someHeader, someImage, socketID, pSendCompressed
+   -- daemon_Send someHeader, someImage, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, someImage, socketID
+   --
    return someHeader
 end daemon_SendImage
 
@@ -503,7 +627,8 @@ command daemon_SendSiteMapJSON socketOrRequestArray, someJSON, pSendCompressed, 
    put CRLF & "Keep-Alive: timeout=5" after someHeader
    _AddLastModifiedHeader someHeader -- this seems essential to functioning of changes / activity plugins.
    --
-   daemon_Send someHeader, someJSON, socketID, pSendCompressed
+   -- daemon_Send someHeader, someJSON, socketID, pSendCompressed
+   daemon_SendAndCloseSocket someHeader, someJSON, socketID
    return someHeader
 end daemon_SendSiteMapJSON
 
@@ -517,109 +642,12 @@ command daemon_SetSession socketID, someReply, pContentType
    get "IHqOSrK5HDQ7rFiarE1KcQ.EqHAy6x1nZ4z80ClyyMVivHNqfs4zhkNRoFqMbe6DlBkBAI3aRAtseJGHO7qcaqE.1438105299038.86400000.UzvAUVkRttrGikzPDllFJG4iNgURB4cVMqkr_rBR4EU"
    put it into theSessionID
    put _OkHeaders (pContentType, "session", theSessionID) into someHeader
-   daemon_Send someHeader, someReply, socketID
+   --
+   -- daemon_Send someHeader, someReply, socketID
+   daemon_SendAndCloseSocket someHeader, someReply, socketID
+   --
    return the result
 end daemon_SetSession
-
-
---> Dameon | Send
--
-command daemon_SendArray socketOrRequestArray, sArray, pSendCompressed
-   put json_FromArray (sArray) into someJSON
-   daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
-   put the result into someHeader
-   return someHeader
-end daemon_SendArray
-
-command daemon_SendJS socketOrRequestArray, sJavascript, pSendCompressed
-   put _NormalizeSocket (socketorRequestArray) into socketID
-   put _OkHeaders ("application/javascript; charset=UTF-8") into someHeader
-   daemon_Send someHeader, sJavascript, socketID, pSendCompressed
-   return someHeader
-end daemon_SendJS
-
-command daemon_SendCSS socketOrRequestArray, someText, pSendCompressed
-   put _NormalizeSocket (socketorRequestArray) into socketID
-   put _OkHeaders ("text/css; charset=UTF-8") into someHeader
-   daemon_Send someHeader, someText, socketID, pSendCompressed
-   return someHeader
-end daemon_SendCSS
-
-command daemon_SendText socketOrRequestArray, someText, pETag, pCookieName, pCookieValue, pSendCompressed
-   put _NormalizeSocket (socketorRequestArray) into socketID
-   put _OkHeaders ("text/html", pCookieName, pCookieValue) into someHeader
-   daemon_Send someHeader, someText, socketID, pSendCompressed
-   return someHeader
-end daemon_SendText
-
-command daemon_SendMovedTemporarily socketID, locationURL
-   /*
-   •	Date:Tue, 28 Jul 2015 16:27:39 GMT
-   •	Location:welcome-visitors.html
-   •	Vary:Accept
-   */
-   put _MovedTemporarilyHeaders (locationURL) into someHeader
-   daemon_Send someHeader, "Moved Temporarily", socketID, false
-   return the result
-end daemon_SendMovedTemporarily
-
-command daemon_SendNotFound socketID, pLogComment
-   put _NotFoundHeaders() into someHeader
-   daemon_Send someHeader, "Page not found", socketID, false
-   return the result
-end daemon_SendNotFound
-
-command daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
-   -- Handler that Forwards the user to another URL. It needs an absolute url as a parameter.
-   -- This handler uses a 301 (permanent redirection) to drive the browser to a new location.
-   
-   if pDescriptiveContent is empty then
-      put "Should redirect to <a href=" & quote & redirectURL & quote & ">" & redirectURL & "</a>" into descriptiveContent
-   end if
-   put _RedirectionHeaders (redirectURL, pDescriptiveContent) into someHeader
-   daemon_Send someHeader, descriptiveContent, socketID, false
-   return the result
-end daemon_SendRedirect
-
-command daemon_SendHeaderArray someRoute, headerArray, socketID, pSendCompressed
-   put daemon_GetRouteData (someRoute) into routeData
-   
-   put daemon_ConstructDefaultHeader() into defaultHeaderArray
-   delete variable headerArray ["Content-Length"] -- because it is always added below
-   union headerArray with defaultHeaderArray
-   put "HTTP/1.1 200 OK" into someHeader
-   put CRLF & daemon_DeconstructHeaderArray (headerArray) after someHeader
-   
-   -- daemon_SendRaw someHeader, routeData, socketID
-   daemon_Send someHeader, routeData, socketID, pSendCompressed -- adds "Content-Length"
-   return the result
-end daemon_SendHeaderArray
-
-command daemon_SendCompressed someHeader, contentToSend, socketID
-   -- always adds "Content-Length:" header
-   put CRLF & "Content-Encoding: gzip" after someHeader
-   put compress (contentToSend) into compressedData
-   
-   _AddContentLengthHeader someHeader, compressedData
-   
-   daemon_SendRaw someHeader, compressedData, socketID
-   return the result
-end daemon_SendCompressed
-
-command daemon_SendSimple someHeader, contentToSend, socketID
-   -- always adds "Content-Length:" header
-   _AddContentLengthHeader someHeader, contentToSend
-   
-   daemon_SendRaw someHeader, contentToSend, socketID
-   return the result
-end daemon_SendSimple
-
-command daemon_SendRaw someHeader, contentToSend, socketID
-   -- everything should use this to send (so it can be trapped by middleware for logging etc)
-   put someHeader & CRLF & CRLF & contentToSend into headersAndContent
-   write headersAndContent to socket socketID
-   return headersAndContent
-end daemon_SendRaw
 
 
 --> Dameon | Send | And Close

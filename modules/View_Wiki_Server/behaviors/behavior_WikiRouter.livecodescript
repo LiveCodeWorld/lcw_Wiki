@@ -21,6 +21,25 @@ local PluginRouteData
 
 --> Working on
 -
+
+--> GET | Processing
+-
+command get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+   # First the wiki-client looks for page at origin server
+   put pageJson_Get (wikiDomain, pageSlug) into someJSON
+   --
+   if someJSON is empty then
+      get_WikiPageJsonNotFound someRoute, socketID, requestArray
+      return the result
+   else
+      daemon_SendJSON socketID, someJSON
+      return "Sent JSON. Socket still open."
+   end if
+end get_WikiPageJson
+
+
+--> Flag
+-
 command get_FlagClick someRoute, socketID, requestArray, pPageTitle
    get_WikiDomain someRoute, socketID, requestArray, pPageTitle
 end get_FlagClick
@@ -90,7 +109,7 @@ command get_WikiPageJsonNotFound someRoute, socketID, requestArray
             if the shiftKey is "Down" then
                mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
                if pageID is a number then
-                  put mediawiki_FetchSummaryPageArray (pageTitle) into pageArray
+                  put mw_SummaryPageArray (pageTitle) into pageArray
                   put "markdown" into pageArray ["plugin"]
                else
                   put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
@@ -548,22 +567,6 @@ command get_WikiClientJsMap someRoute, socketID
    daemon_SendJSON socketID, binaryJSON
    return "Sent js.map JSON. Socket still open."
 end get_WikiClientJsMap
-
-
---> GET | Processing
--
-command get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
-   # First the wiki-client looks for page at origin server
-   put pageJson_Get (wikiDomain, pageSlug) into someJSON
-   --
-   if someJSON is empty then
-      get_WikiPageJsonNotFound someRoute, socketID, requestArray
-      return the result
-   else
-      daemon_SendJSON socketID, someJSON
-      return "Sent JSON. Socket still open."
-   end if
-end get_WikiPageJson
 
 
 --> GET | Plugin
