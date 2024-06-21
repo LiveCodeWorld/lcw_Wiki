@@ -40,15 +40,6 @@ before route_GET someRoute, socketID, requestArray
    end switch
 end route_Get
 
--- before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
-wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
-end get_WikiPageJson
-
-private command _ReturnAndExit pageArray, socketID
-   daemon_SendArray socketID, pageArray
-   return "Sent JSON. Socket still open."
-end _ReturnAndExit
-
 command wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
    -- here we filter by pageSlug and wiki domain
    switch
@@ -79,6 +70,10 @@ command wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
          -- pass on to behavior
    end switch
 end wikiBehavior_CustomGET
+
+-- before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
+end get_WikiPageJson
 
 command get_LcwBookmarklet someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
@@ -453,6 +448,11 @@ end ward_FetchRecentRoster
 
 --> Private
 -
+private command _ReturnAndExit pageArray, socketID
+   daemon_SendArray socketID, pageArray
+   return "Sent JSON. Socket still open."
+end _ReturnAndExit
+
 private function _GuessLastSlug sReferer
    set the itemdelimiter to slash
    put item -1 of sReferer into lastPageSlug

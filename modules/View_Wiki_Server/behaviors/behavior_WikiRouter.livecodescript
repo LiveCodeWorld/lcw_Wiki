@@ -21,6 +21,24 @@ local PluginRouteData
 
 --> Working on
 -
+command route_POST someRoute, socketID, requestArray
+   lcw_Notify "route_POST" && someRoute
+   --
+   # Logins and Transporters?
+   switch
+      case matchText (someRoute, "/plugin/image/upload/(.+)", shortImageFile)
+         post_Image shortImageFile, requestArray, socketID
+         return the result
+      case someRoute = "/favicon.png"
+         post_Favicon requestArray, socketID
+         return the result
+      default
+         put daemon_GetRequestText (requestArray) into rPostData
+         daemon_SendJSON socketID, "{'hello': 'world'}"
+         return the result
+   end switch
+end route_POST
+
 
 --> GET | Processing
 -
@@ -848,22 +866,6 @@ command route_GET someRoute, socketID, requestArray
          end if
    end switch
 end route_GET
-
-command route_POST someRoute, socketID, requestArray
-   # Logins and Transporters?
-   switch
-      case matchText (someRoute, "/plugin/image/upload/(.+)", shortImageFile)
-         post_Image shortImageFile, requestArray, socketID
-         return the result
-      case someRoute = "/favicon.png"
-         post_Favicon requestArray, socketID
-         return the result
-      default
-         put daemon_GetRequestText (requestArray) into rPostData
-         daemon_SendJSON socketID, "{'hello': 'world'}"
-         return the result
-   end switch
-end route_POST
 
 command route_DELETE someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
