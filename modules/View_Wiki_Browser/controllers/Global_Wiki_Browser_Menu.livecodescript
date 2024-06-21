@@ -163,6 +163,17 @@ end menu_ResetDomain.0
 private on ___
 end ___
 
+on menu_Keypass wikiView
+   -- display_Template
+   display_ModuleInstance "View|Keepass"
+   if item 1 of the result = "Error" then
+      lcw_AnswerWarning "Cannot open stack View|Keepass! [[var]]", wikiView, the result
+   else
+      put the result into dView
+      return dView
+   end if
+end menu_Keypass
+
 on menu_DomainTools wikiView
    put the wiki_Domain of wikiView into wikiDomain
    --

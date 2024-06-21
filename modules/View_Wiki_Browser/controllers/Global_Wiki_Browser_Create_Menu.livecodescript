@@ -44,10 +44,13 @@ end _IsLocalHost
 --> Global | Wiki | Browser | Create | Menu
 -
 on menu_CreateNewWiki wikiView
+   ask_CreateWikiSite wikiView
+   
+   /*
    put the wiki_Domain of wikiView into wikiDomain
    put lcw_Ask ("Create a new wiki...", wikiDomain, wikiView) into wikiDomain
    --
-   wikiServer_Create wikiDomain
+   wikiSite_Create wikiDomain
    if item 1 of the result is "Error" then
       put the result into sMarkdown
       put pageArray_Construct ("Error", sMarkdown) into pageArray
@@ -60,6 +63,7 @@ on menu_CreateNewWiki wikiView
    end if
    --
    set the ghost_PageArray of wikiView to pageArray
+   */
 end menu_CreateNewWiki
 
 on _
@@ -138,6 +142,15 @@ on menu_SnapWiki wikiView
    --
    display_Image wImage, "Wiki Image"
 end menu_SnapWiki
+
+on menu_SearchOpenverse wikiView
+   put lcw_Ask ("Enter search terms...", "cat|dog", "Openverse", dView) into searchBit
+   --
+   put openverse_Search (searchBit) into sData
+   put wikiPage_OpenVerseThumbNails (sData) into pageArray
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_SearchOpenverse
 
 private on ____
 end ____

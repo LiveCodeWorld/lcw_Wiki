@@ -69,6 +69,7 @@ command display_WikiPage wikiDomain, pSlug
    if exists (wikiView) is false then
       display_Wiki wikiDomain
       put the result into wikiView
+      wait 30 ticks
    end if
    set the page_Slug of wikiView to pSlug
    return displayView

@@ -43,16 +43,6 @@ getprop checked_ScriptDebugMode
    return revIDEGetPreference("cREVScriptDebugMode")
 end checked_ScriptDebugMode
 
-getprop checked_SuppressMessages
-   global gRevSuppressMessages
-   return gRevSuppressMessages
-end checked_SuppressMessages
-
-getprop checked_SupressErrors
-   global gRevSuppressErrors
-   return gRevSuppressErrors
-end checked_SupressErrors
-
 private function _GetLastPageArray wikiView
    put the wiki_Domain of wikiView into wikiDomain
    put the last_PageSlug of wikiView into pageSlug
@@ -78,6 +68,36 @@ end _GetPageArray
 
 --> Global | Wiki | Browser | Tools | Menu
 -
+on menu_AddBookmarks wikiView
+   put the bookmark_Data of wikiView into bookmarkData
+   wikiBookmark_SetData bookmarkData
+end menu_AddBookmarks
+
+on menu_DisplayBookmarks wikiView
+   put wikiBookmark_GetData() into bookmarkData
+   --
+   set the bookmark_Data of wikiView to bookmarkData
+   --
+   display_Data bookmarkData, "bookmarkData"
+end menu_DisplayBookmarks
+
+on menu_DeleteBookmark wikiView, pageSlug
+   wikiBookmark_Delete pageSlug
+end menu_DeleteBookmark
+
+getprop deleteBookmark_Params
+   put wikiBookmark_GetData() into bookmarkData
+   put wikiBookMark_ListSlugs (bookmarkData) into pageSlugs
+   return pageSlugs
+end deleteBookmark_Params
+
+on menu_ClearBookmarks
+   wikiBookmark_SetData empty
+end menu_ClearBookmarks
+
+private on _
+end _
+
 on menu_CompactRefs wikiView, pageTitle
    put _GetPageArray (wikiView, pageTitle) into pageArray
    --
@@ -103,8 +123,8 @@ getprop stripJournal_Params [wikiView]
    return LocalArray ["pageTitles"]
 end stripJournal_Params
 
-private on _____
-end _____
+private on __
+end __
 
 on menu_EditLast.E wikiView
    put the wiki_Domain of wikiView into wikiDomain
@@ -137,13 +157,13 @@ on menu_EditGhosts.G wikiView
 end menu_EditGhosts.G
 
 -- on menu_LastImages.I wikiView
-   put _GetLastPageArray (wikiView) into pageArray
-   put wikiPageEditImages (pageArray) into pageArray
-   set the ghost_PageArray of wikiView to pageArray
+put _GetLastPageArray (wikiView) into pageArray
+put wikiPageEditImages (pageArray) into pageArray
+set the ghost_PageArray of wikiView to pageArray
 end menu_LastImages.I
 
-on menu_AddForks wikiView
-   put _GetPageArray (wikiView) into pageArray
+on menu_LastForks wikiView
+   put _GetLastPageArray (wikiView) into pageArray
    --
    put "livecode.world" into wikiDomains
    if the shiftKey is "Down" then
@@ -152,7 +172,7 @@ on menu_AddForks wikiView
    pageArray_AddFork pageArray, wikiDomains
    --
    set the ghost_PageArray of wikiView to pageArray
-end menu_AddForks
+end menu_LastForks
 
 on menu_FixPageJson wikiView
    put _GetPageArray (wikiView) into pageArray
@@ -180,31 +200,27 @@ getprop fixText_Params [wikiView]
    return LocalArray ["pageTitles"]
 end fixText_Params
 
-private on _
-end _
-
-on menu_SearchOpenverse wikiView
-   put lcw_Ask ("Enter search terms...", "cat|dog", "Openverse", dView) into searchBit
-   --
-   put openverse_Search (searchBit) into sData
-   put wikiPage_OpenVerseThumbNails (sData) into pageArray
-   --
-   set the ghost_PageArray of wikiView to pageArray
-end menu_SearchOpenverse
-
-private on __
-end __
-
-on menu_RevealEmptyFolder wikiView
-   
-end menu_RevealEmptyFolder
-
-on menu_TrashEmptyFolders
-   
-end menu_TrashEmptyFolders
-
 private on ___
 end ___
+
+on menu_MenuGroupTools mGroup
+   display_ModuleTools "View|Menu|Group"
+end menu_MenuGroupTools
+
+on menu_WikiBrowserTools mGroup
+   display_ModuleTools "View|Wiki|Browser"
+end menu_WikiBrowserTools
+
+on menu_WikiFutureTools mGroup
+   display_ModuleTools "View|Wiki|Future"
+end menu_WikiFutureTools
+
+on menu_WikiServerTools mGroup
+   display_ModuleTools "View|Wiki|Server"
+end menu_WikiServerTools
+
+private on ____
+end ____
 
 on menu_ScriptDebugMode
    revIDEToggle "Script Debug Mode"
@@ -214,9 +230,26 @@ end menu_ScriptDebugMode
 revIDEToggle "Suppress Messages"
 end menu_SuppressMessages
 
+-- getprop checked_SuppressMessages
+global gRevSuppressMessages
+return gRevSuppressMessages
+end checked_SuppressMessages
+
 on menu_SupressErrors wikiView
    revIDEToggle "Suppress Errors"
+   --
+   global gRevSuppressErrors
+   if gRevSuppressErrors is true then
+      lcw_Notify "Error messages are now suppressed!"
+   else
+      lcw_Notify "Error messages are now back on."
+   end if
 end menu_SupressErrors
+
+getprop checked_SupressErrors
+   global gRevSuppressErrors
+   return gRevSuppressErrors
+end checked_SupressErrors
 
 on menu_MessageWatcher.M wikiView
    revIDEOpenPalette "message watcher"
@@ -226,8 +259,8 @@ on menu_SuspendDevelopmentTools wikiView
    revIDESuspendDevelopmentTools
 end menu_SuspendDevelopmentTools
 
-private on ____
-end ____
+private on _____
+end _____
 
 on menu_RevealWikiFolder wikiView
    put the wiki_Domain of wikiView into wikiDomain
@@ -249,8 +282,8 @@ on menu_SaveStack wikiView
    save stack stackName
 end menu_SaveStack
 
-private on _____
-end _____
+private on ______
+end ______
 
 on menu_FlagEvent wikiView
    set the flag_Handler of wikiView to "default"

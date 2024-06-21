@@ -198,7 +198,7 @@ on submenu_ServerData
 end submenu_ServerData
 
 on menu_DisplayServerLog
-   display_ViewTemplate "View|Wiki|Server"
+   viewTemplate_Go "View|Wiki|Server"
 end menu_DisplayServerLog
 
 on menu_SetLogging wsView

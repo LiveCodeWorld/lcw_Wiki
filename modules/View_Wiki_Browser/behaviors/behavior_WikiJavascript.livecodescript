@@ -17,11 +17,101 @@ local LocalArray
 
 --> Working on
 -
-getprop footer_WikiEditTag
-   put "liveCode.javascript_Result(document.querySelector('footer span.editEnable').outerHTML);" into sJavascript
-   put _GetJavascriptResult (sJavascript) into sResult
-   return sResult
-end footer_WikiEditTag
+private function _LineUpData browserURL, noGhosts
+   put _LineUpJson() into lineupJson
+   
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   set the itemdelimiter to slash
+   put item 3 of browserURL into ownerDomain
+   replace comma with CR in lineupJson
+   replace quote with empty in lineupJson
+   
+   repeat with itemNum = 1 to the number of lines of lineupJson
+      put line itemNum of lineupJson into sLink
+      set the itemdelimiter to slash
+      if char 1 to 2 of sLink = "//" then
+         put item 3 of sLink into sDomain
+         put item 4 of sLink into pageSlug
+      else
+         put ownerDomain into sDomain
+         put item -1 of sLink into pageSlug
+      end if
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      
+      put _GetPageClass (pageSlug) into pageClass
+      if (noGhosts is true) AND (pageClass contains "ghost") then
+         next repeat
+      end if
+      
+      put sDomain into lineUpData [itemNum]["wikiDomain"]
+      put pageSlug into lineUpData [itemNum]["pageSlug"]
+      put pageClass into lineUpData [itemNum]["pageClass"]
+   end repeat
+   return lineUpData
+end _LineUpData
+
+
+--> Bookmarks
+-
+getprop bookmark_Data
+   put the lineup_Data of me into lineupData
+   
+   put wikiBookmark_GetData() into bookmarkData
+   repeat with itemNum = 1 to item 2 of the extents of lineupData
+      put lineupData [itemNum] into itemArray
+      if itemArray ["pageClass"] = "page ghost" then next repeat
+      
+      put itemArray ["wikiDomain"] into wikiDomain
+      put itemArray ["pageSlug"] into pageSlug
+      put wikiBookMark_Find (bookmarkData, pageSlug, wikiDomain) into foundNum
+      if foundNum = 0 then
+         delete variable itemArray ["pageClass"]
+         indexArray_AddToEnd bookmarkData, itemArray
+      end if
+   end repeat
+   return bookmarkData
+end bookmark_Data
+
+setprop bookmark_Data bookmarkData
+   -- was add_Bookmarks
+   put the lineup_Data [true] of me into lineupData
+   --
+   repeat with itemNum = 1 to item 2 of the extents of bookmarkData
+      put bookmarkData [itemNum] into itemArray      
+      put itemArray ["wikiDomain"] into wikiDomain
+      put itemArray ["pageSlug"] into pageSlug
+      --
+      put wikiBookMark_Find (lineupData, pageSlug, wikiDomain) into foundNum
+      if foundNum = 0 then
+         set the page_Slug [wikiDomain] of me to pageSlug
+      end if
+   end repeat
+   -- 
+   return bookmarkData
+end bookmark_Data
+
+getprop lineup_Data [noGhosts]
+   put the browser_URL of me into browserURL
+   put _LineUpData (browserURL, noGhosts) into lineUpData
+   return lineUpData
+end lineup_Data
+
+
+--> Props
+-
+getprop lineUp_Array
+   put _LineUpJson() into sJSON
+   put JsonImport (sJSON) into linupArray
+   -- display_Data linupArray, the name of me, "the lineUp_Array"
+   return linupArray
+end lineUp_Array
+
+getprop lineUp_Info
+   put the browser_URL of me into browserURL
+   return _LineUpInfo (browserURL)
+end lineUp_Info
 
 getprop lineup_Titles
    -- return the page_Titles of me
@@ -46,6 +136,15 @@ getprop lineup_Title [pageSlug]
    put _GetJavascriptResult(sJavascript) into sTitle
    return sTitle
 end lineup_Title
+
+
+--> Props
+-
+getprop footer_WikiEditTag
+   put "liveCode.javascript_Result(document.querySelector('footer span.editEnable').outerHTML);" into sJavascript
+   put _GetJavascriptResult (sJavascript) into sResult
+   return sResult
+end footer_WikiEditTag
 
 getprop flag_Html [pageSlug]
    if pageSlug is empty then put "welcome-visitors" into pageSlug
@@ -496,26 +595,6 @@ getprop lineUp_Domain [slugOrNum]
    return lineUpDomain
 end lineUp_Domain
 
-getprop lineUp_Info
-   put the browser_URL of me into browserURL
-   return _LineUpInfo (browserURL)
-end lineUp_Info
-
-getprop lineup_Data
-   put the browser_URL of me into browserURL
-   --
-   put _LineUpUrls (browserURL) into lineUpURLs
-   repeat with indexNum = 1 to the number of lines of lineupUrls
-      set the cursor to busy
-      put line indexNum of lineupUrls into jsonUrl
-      --
-      put url jsonUrl into pageJson
-      put pageArray_FromJson (pageJson) into pageArray
-      put pageArray into lineupData [indexNum]
-   end repeat
-   return lineupData
-end lineup_Data
-
 
 --> Browser | Javascript
 -
@@ -716,7 +795,7 @@ private function _LineUpInfo browserURL
    --
    set the itemdelimiter to slash
    put item 3 of browserURL into ownerDomain
-   
+   --
    replace comma with CR in lineupJson
    replace quote with empty in lineupJson
    
@@ -761,13 +840,6 @@ private function _LineUpUrls browserURL
    delete char -1 of lineUpURLs
    return lineUpURLs
 end _LineUpUrls
-
-getprop lineUp_Array
-   put _LineUpJson() into sJSON
-   put JsonImport (sJSON) into linupArray
-   display_Data linupArray, the name of me, "the lineUp_Array"
-   return linupArray
-end lineUp_Array
 
 private function _LineUpJson
    put wikijs_GetLinupUrls() into sJavascript

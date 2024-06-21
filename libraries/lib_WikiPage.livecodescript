@@ -129,7 +129,8 @@ function wikiPage_Help subDomain, curlyData, pScriptHelp, pForkDomains
    
    # Fetch Template
    put wikiTemplate_GetHelp (subDomain) into pageArray
-   if pageArray_Check (pageArray) is false then return empty
+   if pageArray ["plugin"] = "Error" then return pageArray -- could use "title"
+   if pageArray_Check (pageArray) is false then return pageArray_Construct  ("Error", "Some error with wikiTemplate_GetHelp()", "Error")
    
    # Rename
    help_RenameTemplate pageArray, pageTitle, wikiDomain
@@ -953,4 +954,3 @@ private command _AddMissingSites wikiDomains, @pageArray
    delete char -1 of foundWikiFolders
    return foundWikiFolders
 end _AddMissingSites
-

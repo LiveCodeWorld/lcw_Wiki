@@ -204,44 +204,8 @@ command wikiServer_SetNodePort sPort
    end if
 end wikiServer_SetNodePort
 
-
---> WikiServer | Create
--
-command wikiServer_Create wikiDomain
-   # Create folders in wikiFolder of default farm
-   put wikiFolder_ConstructFromFarm (wikiDomain) into wikiFolder
-   if there is a folder wikiFolder then
-      return "Error, a folder for this domain already exists:" && wikiFolder
-   end if
-   --
-   repeat for each item shortFolder in "pages,recycle,status"
-      put wikiFolder & shortFolder & slash into sFolder
-      folder_CreateNested sFolder
-   end repeat
-   
-   # Create Image and Assets folders
-   put wikiFolder & "assets/plugins/image" & slash into sFolder
-   folder_CreateNested sFolder
-   
-   # Add domain to /etc/hosts
-   put system_GetAdminPassword() into systemPassword
-   hosts_Add wikiDomain, systemPassword
-   
-   # Create files
-   put wikiPage_WelcomeVisitors (wikiDomain) into pageArray
-   pageArray_Set wikiDomain, "welcome-visitors", pageArray
-   
-   # Set Favicon
-   put wikiServer_GetFavicon() into pngData
-   wikiServer_SetFavicon wikiDomain, pngData
-   
-   # Add owner.json
-   wikiServer_SetFriendlyData wikiDomain
-   --
-   return wikiFolder
-end wikiServer_Create
-
 command wikiServer_SwitchIfGarden wikiDomain
+   breakpoint
    put wikiGarden_Name (wikiDomain) into gardenName
    if gardenName is empty then return empty
    

@@ -103,7 +103,7 @@ on menu_CreateLocalWiki dView
    put the selected_Line of dView into wikiDomain
    put lcw_Ask ("Add new wiki domain to /etchosts?", wikiDomain, "Local Wiki Domain", dView) into wikiDomain
    --
-   wikiServer_Create wikiDomain
+   wikiSite_Create wikiDomain
    display_LocalWikis dView
    --
    put wiki_Browser() into browserView

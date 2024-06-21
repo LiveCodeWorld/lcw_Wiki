@@ -42,9 +42,11 @@ getprop checked_BrowserVisible [wikiView]
 end checked_BrowserVisible
 
 getprop checked_ShowMenu [wikiView]
-   put the menuBar_View of wikiView into mGroup
-   put the show_Menu of mGroup into sBoolean
-   return sBoolean
+   return the menubar_IsActive of wikiView
+   
+   -- put the menuBar_View of wikiView into mGroup
+   -- put the show_Menu of mGroup into sBoolean
+   -- return sBoolean
 end checked_ShowMenu
 
 getprop checked_Background [wikiView]
