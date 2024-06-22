@@ -211,9 +211,6 @@ on menu_MenuControllerTools
    display_Project "lcw_Controllers"
 end menu_MenuControllerTools
 
-private on ____
-end ____
-
 on menu_WikiBrowserTools mGroup
    display_ModuleTools "View|Wiki|Browser"
 end menu_WikiBrowserTools
@@ -226,8 +223,8 @@ on menu_WikiServerTools mGroup
    display_ModuleTools "View|Wiki|Server"
 end menu_WikiServerTools
 
-private on _____
-end _____
+private on ____
+end ____
 
 on menu_ScriptDebugMode
    revIDEToggle "Script Debug Mode"
@@ -266,8 +263,8 @@ on menu_SuspendDevelopmentTools wikiView
    revIDESuspendDevelopmentTools
 end menu_SuspendDevelopmentTools
 
-private on ______
-end ______
+private on _____
+end _____
 
 on menu_RevealWikiFolder wikiView
    put the wiki_Domain of wikiView into wikiDomain
@@ -289,8 +286,8 @@ on menu_SaveStack wikiView
    save stack stackName
 end menu_SaveStack
 
-private on _______
-end _______
+private on ______
+end ______
 
 on menu_FlagEvent wikiView
    set the flag_Handler of wikiView to "default"
