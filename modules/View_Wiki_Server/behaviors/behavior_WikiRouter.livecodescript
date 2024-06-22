@@ -141,30 +141,53 @@ command route_GET someRoute, socketID, requestArray
          get_FactoriesJson socketID
          return the result
          
+      case someRoute = "/images/noise.png"
+      case someRoute = "/images/crosses.png"
+         -- case someRoute begins with "/images/"
+         -- "/images/crosses.png"
+         get_ClientPNG someRoute, socketID
+         return the result
+         
+      case matchText (someRoute, "/assets/plugins/image/(.+)" , shortImageFile)
+         get_Image shortImageFile, wikiDomain, socketID, requestArray         
+         break
       case matchText (someRoute, "/assets/(.+)" , encodedPath)
          put URLDecode (encodedPath) into assetPath
          get_Asset assetPath, wikiDomain, socketID, requestArray 
          return the result
          
+      case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
+         get_RecycledPageJson pageSLug, wikiDomain, socketID
+         return the result
+      case someRoute = "/recycler/system/slugs.json"
+         get_RecycledSlugsJson wikiDomain, socketID
+         return the result
+      case someRoute = "/recycler/favicon.png"
+         -- recycler favicon?
+         get_LocalFavicon wikiDomain, socketID
+         return the result
+      case someRoute = "/view/welcome-visitors/view/changes.js.map"
+         breakpoint -- ???
+         get_WikiClientJsMap someRoute, socketID
+         return the result
+         
+      case someRoute = "/plugin/assets/list"
+         breakpoint
+         get_ListAssets wikiDomain, requestArray, socketID
+         return the result
          
       case matchText (someRoute, "/(.+).json" , pageSLug)
          get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
          return the result
          
          
-      case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
       case someRoute begins with "/theme/" -- "/theme/style.css"
       case someRoute begins with "/style/" -- "/style/print.css" -- "/style/style.css"
+      case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
          get_CSS someRoute, socketID
-         return the result
-         
+         return the result        
       case someRoute begins with "/js/"
          get_WikiClientJavascript someRoute, socketID
-         return the result
-         
-      case someRoute begins with "/images/"
-         -- "/images/crosses.png"
-         get_ClientPNG someRoute, socketID
          return the result
          
       default
@@ -193,23 +216,6 @@ private function _ExtraSwitch someRoute, wikiDomain, requestArray, socketID
          route_Plugin someRoute, socketID, requestArray
          return the result
          
-      case matchText (someRoute, "/assets/plugins/image/(.+)" , shortImageFile)
-         get_Image shortImageFile, wikiDomain, socketID, requestArray         
-         break
-      case someRoute = "/plugin/assets/list"
-         get_ListAssets wikiDomain, requestArray, socketID
-         return the result
-         
-      case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
-         get_RecycledPageJson pageSLug, wikiDomain, socketID
-         return the result
-      case someRoute = "/recycler/system/slugs.json"
-         get_RecycledSlugsJson wikiDomain, socketID
-         return the result
-      case someRoute = "/view/welcome-visitors/view/changes.js.map"
-         get_WikiClientJsMap someRoute, socketID
-         return the result
-                  
       case someRoute = "/client.js"
       case someRoute = "/client.max.js"
       case someRoute = "/client.map"
