@@ -21,6 +21,11 @@ local WikiServer_NodePort
 
 --> Working on
 -   
+function wikiServer_DefaultPort
+   -- put the daemon_Port of pWikiServer into pPort
+   return 9090
+end wikiServer_DefaultPort
+
 function wikiServer_View pPort
    if pPort is empty then
       put view_GetTemplateObject ("View|Wiki|Server") into wsView
@@ -300,8 +305,9 @@ command wikiServer_StartLive pPort, pWikiServer
    
    # Get Port
    if pPort is empty then
-      put 9090 into pPort
-      -- put the daemon_Port of pWikiServer into pPort
+      put wikiServer_DefaultPort() into pPort
+   else
+      wiki_SetPort pPort 
    end if
    
    # Stop servers

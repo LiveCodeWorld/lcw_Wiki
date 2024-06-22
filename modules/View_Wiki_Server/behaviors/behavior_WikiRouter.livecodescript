@@ -17,18 +17,54 @@ We use commands instead of functions as this allows before and after handlers to
 --> Variables
 -
 local PluginRouteData
-local Test_Data
+local TestRouteData
+
+
+--> Not implemented
+-
+command get_Theme socketID, someRoute, requestArray
+   daemon_SendNotFound socketID, word 1 of the params
+   return "Themes not implemented" && someRoute
+end get_Theme
+
+command get_SecurityJS socketID, someRoute, requestArray
+   daemon_SendNotFound socketID, word 1 of the params
+   return "Security.js not implemented for" && someRoute
+end get_SecurityJS
 
 
 --> Working on
 -
+getprop plugin_RouteData
+   return PluginRouteData
+end plugin_RouteData
+
+getprop test_Data
+   return TestRouteData
+end test_Data
+
+command testData_Log someRoute, requestArray, routeArray
+   -- put routeArray into TestRouteData ["PluginRouteData"]
+   put empty into TestRouteData ["routes"][someRoute]
+end testData_Log
+
 on testData_Clear
-   put empty into Test_Data
+   -- put empty into LocalData
+   put empty into TestRouteData
 end testData_Clear
 
-on display_TestData
-   display_Tool Test_Data, "Test Data", "Wiki", "lcw_Wiki"
-end display_TestData
+command daemon_LoadPluginRouteData
+   put wikiPlugin_List() into wikiPlugins
+   set the itemdelimiter to "-"
+   repeat for each line wikiPlugin in wikiPlugins
+      put item 3 of wikiPlugin into pluginName
+      _LoadPluginRoutes pluginName
+   end repeat
+end daemon_LoadPluginRouteData
+
+command daemon_ClearPluginRouteData
+   delete variable PluginRouteData
+end daemon_ClearPluginRouteData
 
 command route_POST someRoute, socketID, requestArray
    lcw_Notify "route_POST" && someRoute
@@ -68,26 +104,82 @@ command route_GET someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    --
    put PluginRouteData [someRoute] into routeArray
-   
-   put PluginRouteData into Test_Data ["routes"]
-   put requestArray into Test_Data ["routes"][someRoute]
+   testData_Log someRoute, requestArray, routeArray
    --
    switch
       case routeArray is an array
          get_FromPlugineRouteData routeArray, socketID, wikiDomain, requestArray
          return the result
-         
       case someRoute = "/"
          get_WikiDomain someRoute, socketID, requestArray
          return the result
       case someRoute = "/view/welcome-visitors"
          get_FlagClick someRoute, socketID, requestArray
          return the result
+      case someRoute = "/favicon.ico"
+      case someRoute = "/favicon.png"
+         get_LocalFavicon wikiDomain, socketID
+         return the result
+         
+      case someRoute = "/security/security.js"
+      case someRoute begins with "/security/"
+         -- fontawsom for some reason?
+         get_SecurityJS socketID, someRoute, requestArray
+         return the result
+         
+      case someRoute begins with "/theme/"
+         get_Theme socketID, someRoute, requestArray
+         return the result
+         
+      case someRoute = "/system/sitemap.json"
+         get_SiteMapJson wikiDomain, socketID
+         return the result
+      case someRoute = "/system/site-index.json"
+         get_SiteIndexJson wikiDomain, socketID
+         return the result
+      case someRoute = "/system/factories.json"
+         get_FactoriesJson socketID
+         return the result
+         
+      case matchText (someRoute, "/assets/(.+)" , encodedPath)
+         put URLDecode (encodedPath) into assetPath
+         get_Asset assetPath, wikiDomain, socketID, requestArray 
+         return the result
+         
          
       case matchText (someRoute, "/(.+).json" , pageSLug)
          get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
          return the result
          
+         
+      case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
+      case someRoute begins with "/theme/" -- "/theme/style.css"
+      case someRoute begins with "/style/" -- "/style/print.css" -- "/style/style.css"
+         get_CSS someRoute, socketID
+         return the result
+         
+      case someRoute begins with "/js/"
+         get_WikiClientJavascript someRoute, socketID
+         return the result
+         
+      case someRoute begins with "/images/"
+         -- "/images/crosses.png"
+         get_ClientPNG someRoute, socketID
+         return the result
+         
+      default
+         if _LinupTest (someRoute) is true then
+            get_WikiLineUp someRoute, socketID, requestArray
+            return the result
+         end if
+         
+         return _ExtraSwitch (someRoute, wikiDomain, requestArray, socketID)
+   end switch
+end route_GET
+
+private function _ExtraSwitch someRoute, wikiDomain, requestArray, socketID
+   breakpoint
+   switch 
       case someRoute = "/plugins/activity.js"
          -- investigate why this route is popping up
          put PluginRouteData ["/plugins/activity/activity.js"] into routeArray
@@ -107,17 +199,6 @@ command route_GET someRoute, socketID, requestArray
       case someRoute = "/plugin/assets/list"
          get_ListAssets wikiDomain, requestArray, socketID
          return the result
-      case matchText (someRoute, "/assets/(.+)" , encodedPath)
-         put URLDecode (encodedPath) into assetPath
-         get_Asset assetPath, wikiDomain, socketID, requestArray 
-         return the result
-         
-      case someRoute = "/system/sitemap.json"
-         get_SiteMapJson wikiDomain, socketID
-         return the result
-      case someRoute = "/system/site-index.json"
-         get_SiteIndexJson wikiDomain, socketID
-         return the result
          
       case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
          get_RecycledPageJson pageSLug, wikiDomain, socketID
@@ -128,48 +209,17 @@ command route_GET someRoute, socketID, requestArray
       case someRoute = "/view/welcome-visitors/view/changes.js.map"
          get_WikiClientJsMap someRoute, socketID
          return the result
-         
-      case someRoute = "/security/security.js"
-         get_SecurityJS socketID, someRoute, requestArray
-         return the result
-         
-      case someRoute = "/system/factories.json"
-         get_FactoriesJson socketID
-         return the result
-         
-      case someRoute = "/favicon.ico"
-      case someRoute = "/favicon.png"
-         get_LocalFavicon wikiDomain, socketID
-         return the result
-         
-      case someRoute begins with "/images/"
-         get_ClientPNG someRoute, socketID -- "/images/crosses.png"
-         return the result
-         
-      case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
-      case someRoute begins with "/theme/" -- "/theme/style.css"
-      case someRoute begins with "/style/" -- "/style/print.css" -- "/style/style.css"
-         get_CSS someRoute, socketID
-         return the result
-         
+                  
       case someRoute = "/client.js"
       case someRoute = "/client.max.js"
       case someRoute = "/client.map"
-      case someRoute begins with "/js/"
-         get_WikiClientJavascript someRoute, socketID
-         return the result
-         
       default
-         if _LinupTest (someRoute) is true then
-            get_WikiLineUp someRoute, socketID, requestArray
-            return the result
-         else
-            -- /plugin/assets/list
-            undefined_Get socketID, someRoute, requestArray
-            return the result
-         end if
+         breakpoint
+         -- /plugin/assets/list
+         undefined_Get socketID, someRoute, requestArray
+         return the result
    end switch
-end route_GET
+end _ExtraSwitch
 
 private command _OldSwitch
    switch
@@ -311,21 +361,6 @@ command _SetFirstMultipart rPostData, @someImage, @shortFileName, @mimeType
    --
    return "Finished"
 end _SetFirstMultipart
-
-
---> Not implemented
--
-command get_SecurityJS socketID, someRoute, requestArray
-   daemon_SendNotFound socketID, word 1 of the params
-   return "Security.js not implemented for" && someRoute
-end get_SecurityJS
-
-
---> Props
--
-getprop plugin_RouteData
-   return PluginRouteData
-end plugin_RouteData
 
 
 --> Plugin
@@ -494,19 +529,6 @@ before daemon_Start pPortToListenOn, pDaemonServer
    daemon_ClearPluginRouteData
    daemon_LoadPluginRouteData
 end daemon_Start
-
-command daemon_LoadPluginRouteData
-   put wikiPlugin_List() into wikiPlugins
-   set the itemdelimiter to "-"
-   repeat for each line wikiPlugin in wikiPlugins
-      put item 3 of wikiPlugin into pluginName
-      _LoadPluginRoutes pluginName
-   end repeat
-end daemon_LoadPluginRouteData
-
-command daemon_ClearPluginRouteData
-   delete variable PluginRouteData
-end daemon_ClearPluginRouteData
 
 command daemon_RouteRequest requestArray
    # Core handler that lib_Daemon dispatches  

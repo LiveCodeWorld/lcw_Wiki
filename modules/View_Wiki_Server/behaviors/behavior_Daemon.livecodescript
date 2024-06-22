@@ -22,7 +22,7 @@ Logging and similar functions are added using before/after middleware handlers.
 -
 local SocketData   -- Array used to gather socket data from potentially multiple connections as they come in
 
-constant Daemon_DefaultPort = 80
+constant Daemon_DefaultPort = 9090
 local Listen_Port = 80
 local Bound_Port
 local Request_Array
@@ -33,6 +33,16 @@ local Drop_Delay = 60
 
 --> Working on
 -
+private command _NormalizeDaemonPort @pPort
+   if pPort is not a number then
+      put Listen_Port into pPort
+      if pPort is not a number then
+         -- put wikiServer_DefaultPort() into pPort
+         put Daemon_DefaultPort into pPort
+      end if
+   end if
+end _NormalizeDaemonPort
+
 command daemon_StoreServerInfo requestArray
    put requestArray into Request_Array
    
@@ -234,15 +244,6 @@ command daemon_SetListenPort @pPort
    put pPort into Listen_Port
    return pPort
 end daemon_SetListenPort
-
-private command _NormalizeDaemonPort @pPort
-   if pPort is not a number then
-      put Listen_Port into pPort
-      if pPort is not a number then
-         put Daemon_DefaultPort into pPort
-      end if
-   end if
-end _NormalizeDaemonPort
 
 
 --> Props | Temporary

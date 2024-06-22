@@ -98,6 +98,37 @@ end menu_ClearBookmarks
 private on _
 end _
 
+on menu_AddOwnerJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   if wikiServer_OwnerExists (wikiDomain) then
+      display_WikiOwner wikiDomain
+   else
+      wikiServer_SetFriendlyData wikiDomain
+   end if
+end menu_AddOwnerJson
+
+on menu_DisplayOwnerJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   display_WikiOwner wikiDomain
+end menu_DisplayOwnerJson
+
+getprop checked_AddOwnerJson [wikiView]
+   put the wiki_Domain of wikiView into wikiDomain
+   return wikiServer_OwnerExists (wikiDomain)
+end checked_AddOwnerJson
+
+getprop disabled_AddOwnerJson [wikiView]
+   put the wiki_Domain of wikiView into wikiDomain
+   switch wikiDomain
+      case "localhost"
+         return "delete"
+      default
+         return false
+   end switch
+end disabled_AddOwnerJson
+
 on menu_CompactRefs wikiView, pageTitle
    put _GetPageArray (wikiView, pageTitle) into pageArray
    --

@@ -18,6 +18,11 @@ local LocalArray
 
 --> Menu | Props
 -
+getprop menu_Target [tObject]
+   put wikiServer_View() into wsView
+   return wsView
+end menu_Target
+
 getprop menu_CheckTarget [wikiView]
    return exists (wikiView)
 end menu_CheckTarget
@@ -43,21 +48,6 @@ getprop checked_SetLogging
    put it is not empty into isLogging
    return isLogging
 end checked_SetLogging
-
-getprop checked_AddOwnerJson [wikiView]
-   put the wiki_Domain of wikiView into wikiDomain
-   return wikiServer_OwnerExists (wikiDomain)
-end checked_AddOwnerJson
-
-getprop disabled_AddOwnerJson [wikiView]
-   put the wiki_Domain of wikiView into wikiDomain
-   switch wikiDomain
-      case "localhost"
-         return "delete"
-      default
-         return false
-   end switch
-end disabled_AddOwnerJson
 
 
 --> Global | Wiki | Browser | Server | Menu
@@ -108,15 +98,15 @@ end checked_StartCaddy
 private on _
 end _
 
-on menu_NodePort wikiView, sPort
+on menu_NodePort wsView, sPort
    wikiServer_SetNodePort sPort
    
-   put the menubar_View of wikiView into mGroup
+   -- put the menubar_View of wsView into mGroup
    -- get the listen_Port of mGroup
    -- set the listen_Port of mGroup to sPort
 end menu_NodePort
 
-getprop nodeport_Param [wikiView]
+getprop nodeport_Param [wsView]
    -- put the listen_Port of wsView into sPort
    -- put wiki_GetPort() into sPort
    put wikiServer_GetNodePort() into sPort
@@ -132,7 +122,7 @@ getprop nodeport_Params
    return "3000,8080,9090,-,80"
 end nodeport_Params
 
-on menu_SecurityType wikiView, securityType
+on menu_SecurityType wsView, securityType
    wikiServer_SetSecurityType securityType
 end menu_SecurityType
 
@@ -177,25 +167,18 @@ end menu_SetWikiFarmFolder
 private on ____
 end ____
 
-on menu_AddOwnerJson wikiView
-   put the wiki_Domain of wikiView into wikiDomain
-   --
-   if wikiServer_OwnerExists (wikiDomain) then
-      display_WikiOwner wikiDomain
-   else
-      wikiServer_SetFriendlyData wikiDomain
-   end if
-end menu_AddOwnerJson
-
-on menu_DisplayOwnerJson wikiView
-   put the wiki_Domain of wikiView into wikiDomain
-   --
-   display_WikiOwner wikiDomain
-end menu_DisplayOwnerJson
-
 on submenu_ServerData
    return "Global | Wiki | Server | Menu"
 end submenu_ServerData
+
+on menu_DisplayTestRouteLog wsView
+   -- put wikiServer_View() into wsView
+   put the test_Data of wsView into testData
+   display_Data testData, "Test Data", "Wiki"
+   
+   put the plugin_RouteData of wsView into pluginRouteData
+   display_Data pluginRouteData, "the plugin_RouteData", "Wiki"
+end menu_DisplayTestRouteLog
 
 on menu_DisplayServerLog
    viewTemplate_Go "View|Wiki|Server"
