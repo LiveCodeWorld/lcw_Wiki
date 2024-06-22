@@ -17,6 +17,42 @@ local LocalArray
 
 --> Working on
 -
+on bevent_ExternalLink externalURL
+   platform_DeconstructURL externalURL, toolItems, urlExt, hName
+   switch
+      case toolItems is empty
+         -- display_WikiBrowser externalURL
+         launch url externalURL
+         break
+      default
+         put the long id of me into browserView
+         put item 2 to -1 of toolItems into otherItems
+         dispatch hName with browserView,otherItems
+         switch it
+            case "unhandled"
+               put hName
+               break
+            default
+               
+         end switch
+   end switch
+end bevent_ExternalLink
+
+getprop external_Links
+   get the javascriptHandlers of me
+   return "bevent_ExternalLink" is among the lines of it
+end external_Links
+
+setprop external_Links sBoolean
+   if sBoolean is true then
+      put wikijs_Override() into overrideJS
+      set the browser_Javascript of me to overrideJS
+      set the javascript_AddHandlers of me to "bevent_ExternalLink"
+   else
+      set the javascript_RemoveHandlers of me to "bevent_ExternalLink"
+   end if
+end external_Links
+
 private function _LineUpData browserURL, noGhosts
    put _LineUpJson() into lineupJson
    
@@ -291,21 +327,6 @@ end _ErrorJson
 
 --> Props | Javascript
 -
-getprop external_Links
-   get the javascriptHandlers of me
-   return "bevent_ExternalLink" is among the lines of it
-end external_Links
-
-setprop external_Links sBoolean
-   if sBoolean is true then
-      put wikijs_Override() into overrideJS
-      set the browser_Javascript of me to overrideJS
-      set the javascript_AddHandlers of me to "bevent_ExternalLink"
-   else
-      set the javascript_RemoveHandlers of me to "bevent_ExternalLink"
-   end if
-end external_Links
-
 getprop wiki_Override
    get the javascriptHandlers of me
    switch it
@@ -342,26 +363,6 @@ on javascript_Result sResult
    put sResult into LocalArray ["sResult"]
    return sResult
 end javascript_Result
-
-on bevent_ExternalLink externalURL
-   platform_DeconstructURL externalURL, toolItems, urlExt, hName
-   switch
-      case toolItems is empty
-         display_WikiBrowser externalURL
-         break
-      default
-         put the long id of me into browserView
-         put item 2 to -1 of toolItems into otherItems
-         dispatch hName with browserView,otherItems
-         switch it
-            case "unhandled"
-               put hName
-               break
-            default
-               
-         end switch
-   end switch
-end bevent_ExternalLink
 
 on flag_Event flagYaml
    -- called by wiki-client Livecode javascript

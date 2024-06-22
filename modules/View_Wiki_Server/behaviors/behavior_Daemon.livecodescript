@@ -33,6 +33,25 @@ local Drop_Delay = 60
 
 --> Working on
 -
+command daemon_StoreServerInfo requestArray
+   put requestArray into Request_Array
+   
+   # $HTTP_REFERER (not sure of difference with Host, server, script thingy...)
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   -- put daemon_ReceivedHeader ("Referer", requestArray) into $HTTP_REFERER
+   put wikiDomain into $HTTP_REFERER
+   
+   # $_POST_RAW (used by RevIgniter and controllers)
+   put daemon_GetRequestText (requestArray) into postData
+   put postData into $_POST_RAW
+   
+   # Caddy forwarding
+   put requestArray ["X-Forwarded-Host"] into forwardedHost -- rest.livecode.world
+   
+   -- put adfs into $_POST_RAW
+   -- put fsda into $_SERVER
+end daemon_StoreServerInfo
+
 command daemon_SendJSON socketOrRequestArray, someJSON, pSendCompressed
    put _NormalizeSocket (socketorRequestArray) into socketID
    put _OkHeaders ("application/json; charset=utf-8") into someHeader
@@ -407,14 +426,6 @@ end processRequest
 
 --> Daemon | Utils
 -
-command daemon_StoreServerInfo requestArray
-   put requestArray into Request_Array
-   
-   -- put adfs into $_POST_RAW
-   -- put fsda into $_SERVER
-   put daemon_ReceivedHeader ("Referer", requestArray) into $HTTP_REFERER
-end daemon_StoreServerInfo
-
 getprop socket_Data
    -- get cleared regularly so not really useful
    return SocketData

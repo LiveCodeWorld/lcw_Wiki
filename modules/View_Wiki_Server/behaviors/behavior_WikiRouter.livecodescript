@@ -17,10 +17,19 @@ We use commands instead of functions as this allows before and after handlers to
 --> Variables
 -
 local PluginRouteData
+local Test_Data
 
 
 --> Working on
 -
+on testData_Clear
+   put empty into Test_Data
+end testData_Clear
+
+on display_TestData
+   display_Tool Test_Data, "Test Data", "Wiki", "lcw_Wiki"
+end display_TestData
+
 command route_POST someRoute, socketID, requestArray
    lcw_Notify "route_POST" && someRoute
    --
@@ -54,6 +63,135 @@ command get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
       return "Sent JSON. Socket still open."
    end if
 end get_WikiPageJson
+
+command route_GET someRoute, socketID, requestArray
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   --
+   put PluginRouteData [someRoute] into routeArray
+   
+   put PluginRouteData into Test_Data ["routes"]
+   put requestArray into Test_Data ["routes"][someRoute]
+   --
+   switch
+      case routeArray is an array
+         get_FromPlugineRouteData routeArray, socketID, wikiDomain, requestArray
+         return the result
+         
+      case someRoute = "/"
+         get_WikiDomain someRoute, socketID, requestArray
+         return the result
+      case someRoute = "/view/welcome-visitors"
+         get_FlagClick someRoute, socketID, requestArray
+         return the result
+         
+      case matchText (someRoute, "/(.+).json" , pageSLug)
+         get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+         return the result
+         
+      case someRoute = "/plugins/activity.js"
+         -- investigate why this route is popping up
+         put PluginRouteData ["/plugins/activity/activity.js"] into routeArray
+         put routeArray ["pluginName"] into pluginName
+         put routeArray ["relPath"] into shortJavascriptFile
+         get_PluginJavascript pluginName, shortJavascriptFile, socketID
+         return the result
+         
+      case someRoute begins with "/plugins/"
+         -- breakpoint -- should have been trapped by PluginRouteData
+         route_Plugin someRoute, socketID, requestArray
+         return the result
+         
+      case matchText (someRoute, "/assets/plugins/image/(.+)" , shortImageFile)
+         get_Image shortImageFile, wikiDomain, socketID, requestArray         
+         break
+      case someRoute = "/plugin/assets/list"
+         get_ListAssets wikiDomain, requestArray, socketID
+         return the result
+      case matchText (someRoute, "/assets/(.+)" , encodedPath)
+         put URLDecode (encodedPath) into assetPath
+         get_Asset assetPath, wikiDomain, socketID, requestArray 
+         return the result
+         
+      case someRoute = "/system/sitemap.json"
+         get_SiteMapJson wikiDomain, socketID
+         return the result
+      case someRoute = "/system/site-index.json"
+         get_SiteIndexJson wikiDomain, socketID
+         return the result
+         
+      case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
+         get_RecycledPageJson pageSLug, wikiDomain, socketID
+         return the result
+      case someRoute = "/recycler/system/slugs.json"
+         get_RecycledSlugsJson wikiDomain, socketID
+         return the result
+      case someRoute = "/view/welcome-visitors/view/changes.js.map"
+         get_WikiClientJsMap someRoute, socketID
+         return the result
+         
+      case someRoute = "/security/security.js"
+         get_SecurityJS socketID, someRoute, requestArray
+         return the result
+         
+      case someRoute = "/system/factories.json"
+         get_FactoriesJson socketID
+         return the result
+         
+      case someRoute = "/favicon.ico"
+      case someRoute = "/favicon.png"
+         get_LocalFavicon wikiDomain, socketID
+         return the result
+         
+      case someRoute begins with "/images/"
+         get_ClientPNG someRoute, socketID -- "/images/crosses.png"
+         return the result
+         
+      case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
+      case someRoute begins with "/theme/" -- "/theme/style.css"
+      case someRoute begins with "/style/" -- "/style/print.css" -- "/style/style.css"
+         get_CSS someRoute, socketID
+         return the result
+         
+      case someRoute = "/client.js"
+      case someRoute = "/client.max.js"
+      case someRoute = "/client.map"
+      case someRoute begins with "/js/"
+         get_WikiClientJavascript someRoute, socketID
+         return the result
+         
+      default
+         if _LinupTest (someRoute) is true then
+            get_WikiLineUp someRoute, socketID, requestArray
+            return the result
+         else
+            -- /plugin/assets/list
+            undefined_Get socketID, someRoute, requestArray
+            return the result
+         end if
+   end switch
+end route_GET
+
+private command _OldSwitch
+   switch
+      case someRoute = "/plugins/search.js"
+         -- why is this different?
+         breakpoint
+         put PluginRouteData ["/plugins/search/search.js"] into routeArray
+         
+         put routeArray ["pluginName"] into pluginName
+         put routeArray ["relPath"] into shortJavascriptFile
+         get_PluginJavascript pluginName, shortJavascriptFile, socketID
+         return the result
+      case someRoute = "/plugins/search.js.map"
+         -- why is this different?
+         breakpoint
+         return the result
+         
+      case someRoute = "/plugins/image/import.svg"
+         breakpoint
+         return the result
+   end switch
+end _OldSwitch
 
 
 --> Flag
@@ -743,129 +881,6 @@ command get_PluginHtml pluginName, relPath, socketID
       return the result
    end if
 end get_PluginHtml
-
-command route_GET someRoute, socketID, requestArray
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   --
-   put PluginRouteData [someRoute] into routeArray
-   --
-   switch
-      case routeArray is an array
-         get_FromPlugineRouteData routeArray, socketID, wikiDomain, requestArray
-         return the result
-      case someRoute = "/plugins/activity.js"
-         -- investigate why this route is popping up
-         put PluginRouteData ["/plugins/activity/activity.js"] into routeArray
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["relPath"] into shortJavascriptFile
-         get_PluginJavascript pluginName, shortJavascriptFile, socketID
-         return the result
-         
-      case someRoute = "/plugins/search.js"
-         -- why is this different?
-         breakpoint
-         put PluginRouteData ["/plugins/search/search.js"] into routeArray
-         
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["relPath"] into shortJavascriptFile
-         get_PluginJavascript pluginName, shortJavascriptFile, socketID
-         return the result
-      case someRoute = "/plugins/search.js.map"
-         -- why is this different?
-         breakpoint
-         return the result
-         
-      case someRoute = "/plugins/image/import.svg"
-         breakpoint
-         return the result
-         
-      case someRoute begins with "/plugins/"
-         -- breakpoint -- should have been trapped by PluginRouteData
-         route_Plugin someRoute, socketID, requestArray
-         return the result
-         
-      case matchText (someRoute, "/assets/plugins/image/(.+)" , shortImageFile)
-         get_Image shortImageFile, wikiDomain, socketID, requestArray         
-         break
-      case someRoute = "/plugin/assets/list"
-         get_ListAssets wikiDomain, requestArray, socketID
-         return the result
-      case matchText (someRoute, "/assets/(.+)" , encodedPath)
-         put URLDecode (encodedPath) into assetPath
-         get_Asset assetPath, wikiDomain, socketID, requestArray 
-         return the result
-         
-      case someRoute = "/system/sitemap.json"
-         get_SiteMapJson wikiDomain, socketID
-         return the result
-      case someRoute = "/system/site-index.json"
-         get_SiteIndexJson wikiDomain, socketID
-         return the result
-         
-      case matchText (someRoute, "/recycler/([^/]+)\.json", pageSLug) -- /recycler/livecode-sites.json
-         get_RecycledPageJson pageSLug, wikiDomain, socketID
-         return the result
-      case someRoute = "/recycler/system/slugs.json"
-         get_RecycledSlugsJson wikiDomain, socketID
-         return the result
-      case someRoute = "/view/welcome-visitors/view/changes.js.map"
-         get_WikiClientJsMap someRoute, socketID
-         return the result
-         
-      case someRoute = "/security/security.js"
-         get_SecurityJS socketID, someRoute, requestArray
-         return the result
-         
-      case someRoute = "/system/factories.json"
-         get_FactoriesJson socketID
-         return the result
-         
-      case someRoute = "/favicon.ico"
-      case someRoute = "/favicon.png"
-         get_LocalFavicon wikiDomain, socketID
-         return the result
-         
-      case someRoute begins with "/images/"
-         get_ClientPNG someRoute, socketID -- "/images/crosses.png"
-         return the result
-         
-      case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
-      case someRoute begins with "/theme/" -- "/theme/style.css"
-      case someRoute begins with "/style/" -- "/style/print.css" -- "/style/style.css"
-         get_CSS someRoute, socketID
-         return the result
-         
-      case someRoute = "/client.js"
-      case someRoute = "/client.max.js"
-      case someRoute = "/client.map"
-      case someRoute begins with "/js/"
-         get_WikiClientJavascript someRoute, socketID
-         return the result
-         
-      case matchText (someRoute, "/(.+).json" , pageSLug)
-         get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
-         return the result
-         
-      case someRoute = "/"
-         get_WikiDomain someRoute, socketID, requestArray
-         return the result
-      case someRoute = "/view/welcome-visitors"
-         -- case matchText (someRoute, "/view/welcome-visitors/view/(.+)" , pageSLug)
-         -- http://server.livecode.world/view/welcome-visitors
-         get_FlagClick someRoute, socketID, requestArray
-         return the result
-         
-      default
-         if _LinupTest (someRoute) is true then
-            get_WikiLineUp someRoute, socketID, requestArray
-            return the result
-         else
-            -- /plugin/assets/list
-            undefined_Get socketID, someRoute, requestArray
-            return the result
-         end if
-   end switch
-end route_GET
 
 command route_DELETE someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain

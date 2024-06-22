@@ -262,8 +262,7 @@ command post_ToController someRoute, socketID, requestArray
       put the long id of me into serverView
       daemon_SetServer serverView
       --
-      put daemon_GetRequestText (requestArray) into postData
-      put postData into $_POST_RAW
+      daemon_StoreServerInfo requestArray
       --
       dispatch hName to stack controllerStackName with requestArray
       --

@@ -102,6 +102,16 @@ on menu_Background wikiView
    set the wiki_IsTransparent of wikiView to (sBoolean is false)
 end menu_Background
 
+on menu_ExternalLinks wikiView
+   put the external_Links of wikiView into sboolean
+   set the external_Links of wikiView to (sBoolean is false)
+end menu_ExternalLinks
+
+getprop checked_ExternalLinks [wikiView]
+   put the external_Links of wikiView into sBoolean
+   return sBoolean
+end checked_ExternalLinks
+
 private on __
 end __
 

@@ -80,6 +80,21 @@ end platform_FetchPatternArray
 
 --> Platform
 -
+command platform_DeleteEmptyWikis browserView
+   lcw_Answer "Are you sure you want to delete these empty wiki folders?", browserView
+   --
+   wiki_TrashEmpty
+end platform_DeleteEmptyWikis
+
+command platform_RefreshEmptyWikis browserView
+   put wikiPage_EmptyLocalFolders() into pageArray
+   set the ghost_PageArray of browserView to pageArray
+   return pageArray
+end platform_RefreshEmptyWikis
+
+
+-->  Draft | Platform
+-
 command platform_CleanJournal browserView
    put the clicked_FlagArray of browserView into flagArray
    --
