@@ -218,9 +218,48 @@ These handlers wrap similar handlers in lib_Daemon to add logging to them.
 It requires this stack to be set as a behavior of lib_Daemon.
 */
 
+getprop log_Text
+   put _LogField() into logField
+   put the text of logField into logText
+   return logText
+end log_Text
+
+setprop log_Text logText
+   put _LogField() into logField
+   set the text of logField to logText
+end log_Text
+
+setprop log_Line [pLogName] logLine 
+   put the short id of _LogField() into fieldID
+   if pLogName is not empty then
+      put pLogName & ": " before logLine
+   end if
+   --
+   get word 1 to -1 of line 1 of logLine
+   put it & CR after field id fieldID of me
+   --
+   return logLine
+end log_Line
+
+getprop log_Hilite
+   return the hilite of _ToggleButton()
+end log_Hilite
+
+setprop log_Hilite sBoolean
+   set the hilite of _ToggleButton() to sBoolean
+end log_Hilite
+
 
 --> Private
 -
+private function _ToggleButton
+   return the long id of btn 1 of me
+end _ToggleButton
+
+private function _LogField
+   return the long id of fld 1 of me
+end _LogField
+
 private function _GetSocketArray socketID
    put daemon_GetSocketData() into sData
    put sData [socketID] into socketArray

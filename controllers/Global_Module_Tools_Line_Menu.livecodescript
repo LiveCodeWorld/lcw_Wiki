@@ -18,12 +18,12 @@ local LocalArray
 
 --> Display | Events
 -
-on mDoubleUp_ModuleTools displayView, shortFile
+on mDoubleUp_ModuleTools dView, shortFile
    if the optionKey is "Down" then breakpoint
    
-   put the title_Text of displayView into moduleName
-   put the displayed_ModuleFolder of displayView into moduleFolder
-   put the selected_Path of displayView into fPath
+   put the title_Text of dView into moduleName
+   put the displayed_ModuleFolder of dView into moduleFolder
+   put the selected_Path of dView into fPath
    replace comma with slash in fPath
    put moduleFolder & fPath into sFile
    -- 
@@ -62,12 +62,13 @@ end mDoubleUp_ModuleTools
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   put the display_View of tObject into displayView
-   put the displayed_Object of displayView into viewObject
+   put the display_View of tObject into dView
+   put the displayed_Object of dView into viewObject
    put the top_Line of tObject into shortFolder
    --
    put shortFolder into LocalArray ["shortFolder"]
-   put displayView into LocalArray ["displayView"]
+   put dView into LocalArray ["dView"]
+   put the selected_Path of tObject into LocalArray ["sPath"]
    --
    return viewObject
 end menu_Target
@@ -103,14 +104,39 @@ private function _GetMenu menuBit
 end _GetMenu
 
 private function _SelectedLine
-   put LocalArray ["displayView"] into displayView
-   return the selected_Line of displayView
+   put LocalArray ["dView"] into dView
+   return the selected_Line of dView
 end _SelectedLine
 
+private function _SelectedFile
+   put _SelectedLine() into shortFile
+   put _SelectedFolder() into mFolder
+   --
+   put mFolder & shortFile into sFile
+   if there is a file sFile then
+      return sFile
+   else
+      return empty
+   end if
+end _SelectedFile
+
+private function _SelectedFolder
+   put LocalArray ["sPath"] into sPath
+   put item 1 of sPath into shortFolder
+   put _ModuleFolder() into mFolder
+   --
+   put mFolder & shortFolder & slash into sFolder
+   if there is a folder sFolder then
+      return sFolder
+   else
+      return empty
+   end if
+end _SelectedFolder
+
 private function _FilePath
-   put LocalArray ["displayView"] into displayView
-   put the displayed_ModuleFolder of displayView into mFolder
-   put the selected_Path of displayView into pathBit
+   put LocalArray ["dView"] into dView
+   put the displayed_ModuleFolder of dView into mFolder
+   put the selected_Path of dView into pathBit
    replace comma with slash in pathBit
    --
    put mFolder & pathBit into sFile
@@ -118,8 +144,8 @@ private function _FilePath
 end _FilePath
 
 private function _ModuleFolder
-   put LocalArray ["displayView"] into displayView
-   put the displayed_ModuleFolder of displayView into mFolder
+   put LocalArray ["dView"] into dView
+   put the displayed_ModuleFolder of dView into mFolder
    return mFolder
 end _ModuleFolder
 
@@ -138,16 +164,35 @@ end disabled_RemoveBehavior
 
 --> Global | Module | Tools | Line | Menu
 -
+on menu_ScriptTools
+   put _SelectedFile() into sFile
+   put the name of stack sFile into bObject
+   --
+   display_Script bObject
+end menu_ScriptTools
+
+on menu_BehaviorDepScript viewObject
+   put _SelectedFile() into sFile
+   put the name of stack sFile into bObject
+   -- put the module_BehaviorPaths of bObject
+   display_ScriptDeps bObject
+end menu_BehaviorDepScript
+
+getprop disabled_BehaviorDepScript [viewObject]
+   put LocalArray ["sPath"] into sPath
+   return the number of items of sPath is not 2
+end disabled_BehaviorDepScript
+
 on menu_TrashMenu viewObject
    put _FilePath() into stackPath
    put the short name of stack stackPath into mName
    --
-   put LocalArray ["displayView"] into displayView
-   lcw_Answer "Trash Menu '[[mName]]?", displayView, mName
+   put LocalArray ["dView"] into dView
+   lcw_Answer "Trash Menu '[[mName]]?", dView, mName
    --
    module_TrashStack stackPath
    --
-   put the title_Text of displayView into moduleName
+   put the title_Text of dView into moduleName
    display_ModuleTools moduleName
    -- put the project_Name of stack moduleName into projectName
    -- display_Project projectName, true

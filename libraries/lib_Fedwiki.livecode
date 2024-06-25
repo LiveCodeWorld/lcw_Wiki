@@ -20,6 +20,7 @@ See also:
 - model_PageArray
 */
 
+
 --> Working on
 -
 function daemon_WikiDomain
@@ -1414,19 +1415,43 @@ function google_ConstructCreativeCommonsSearchUrl searchWords
    return it
 end google_ConstructCreativeCommonsSearchUrl
 
-function utf8_Encode someText
-   put unidecode(uniencode (someText),"UTF8") into encodedText
-   return encodedText
-end utf8_Encode
+command file_Deconstruct someFile, @someRoot, @shortName, @fileExtension
+   -- was "deconstruct_File"
+   -- should turn someRoot into someFolder and add "/" to end
+   
+   if someFile is empty then
+      put the effective filename of this stack into someFile
+   end if
+   put someFile into someRoot
+   put the itemdelimiter into originalDelim
+   
+   set the itemdelimiter to "/"
+   put last item of someFile into shortName
+   delete last item of someRoot
+   
+   if shortName contains "." then
+      set the itemdelimiter to "."
+      put last item of shortName into fileExtension
+      delete last item of shortName
+   else
+      put empty into fileExtension
+   end if
+   set the itemdelimiter to originalDelim
+end file_Deconstruct
 
-command utf8_Decode @someUTF8
-   put uniencode (someUTF8,"UTF8") into someU16
-   put unidecode (someU16, "ANSI") into someUTF8
-end utf8_Decode
+function kwote someText, pQuoteChar
+   if pQuoteChar is empty then put quote into pQuoteChar
+   return pQuoteChar & someText & pQuoteChar
+end kwote
 
-command xml_BlankError @xmlBit
-   if item 1 of xmlBit = "xmlerr" then put empty into xmlBit
-end xml_BlankError
+command line_DeleteTail @someIndex
+   repeat the number of lines of someIndex
+      get word 1 to -1 of line -1 of someIndex
+      if it is empty then
+         delete line -1 of someIndex
+      end if
+   end repeat
+end line_DeleteTail
 
 function html_ConstructImageDiv imageURL
    -- see fedwiki_ConstructImageHtml (imageURL, pCaption, pCaptionLinkURL, pLinkToImage)
@@ -1653,11 +1678,36 @@ command rest_SetJsonHeaders pOAuthToken, pVersionNum, pExtraHeaders
    return someHeader
 end rest_SetJsonHeaders
 
+command text_AddTrailing @someText, someChar
+   if char -1 of someText is not someChar then
+      put someChar after someText
+   end if
+end text_AddTrailing
+
+function text_Get someFile
+   put url ("binfile:" & someFile) into binaryData
+   put textDecode (binaryData, "UTF-8") into sText
+   -- put url ("file:" & someFile) into sText
+   return sText
+end text_Get
+
+command text_Set someFile, someText
+   put someFile into scriptFolder
+   set the itemdelimiter to slash
+   put empty into item -1 of scriptFolder
+   folder_CreateNested scriptFolder
+   --
+   put textEncode (word 1 to -1 of someText, "UTF-8") into binText
+   put binText into url ("binfile:" & someFile)
+   -- put word 1 to -1 of someText into url ("file:" & someFile)
+   return the result
+end text_Set
+
 function url_ListTopDomains domainNames
-   put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
-   put keys (domainNameArray) into topDomainNames
-   url_SortDomainIndex topDomainNames
-   return topDomainNames
+put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
+put keys (domainNameArray) into topDomainNames
+url_SortDomainIndex topDomainNames
+return topDomainNames
 end url_ListTopDomains
 
 function url_FileEnding droppedURL
@@ -1791,15 +1841,6 @@ command url_FilterDomainIndex @domainIndex, topDomain
    return someFilter
 end url_FilterDomainIndex
 
-command line_DeleteTail @someIndex
-   repeat the number of lines of someIndex
-      get word 1 to -1 of line -1 of someIndex
-      if it is empty then
-         delete line -1 of someIndex
-      end if
-   end repeat
-end line_DeleteTail
-
 command url_Deconstruct someUrl, @someProtocol, @urlDomain, @urlPath, @shortName, @fileExtension, @uName, @pWord
    /*
    -- from http://regexlib.com/REDetails.aspx?regexp_id=628
@@ -1856,31 +1897,16 @@ command url_Deconstruct someUrl, @someProtocol, @urlDomain, @urlPath, @shortName
    end if
 end url_Deconstruct
 
-command file_Deconstruct someFile, @someRoot, @shortName, @fileExtension
-   -- was "deconstruct_File"
-   -- should turn someRoot into someFolder and add "/" to end
-   
-   if someFile is empty then
-      put the effective filename of this stack into someFile
-   end if
-   put someFile into someRoot
-   put the itemdelimiter into originalDelim
-   
-   set the itemdelimiter to "/"
-   put last item of someFile into shortName
-   delete last item of someRoot
-   
-   if shortName contains "." then
-      set the itemdelimiter to "."
-      put last item of shortName into fileExtension
-      delete last item of shortName
-   else
-      put empty into fileExtension
-   end if
-   set the itemdelimiter to originalDelim
-end file_Deconstruct
+function utf8_Encode someText
+   put unidecode(uniencode (someText),"UTF8") into encodedText
+   return encodedText
+end utf8_Encode
 
-function kwote someText, pQuoteChar
-   if pQuoteChar is empty then put quote into pQuoteChar
-   return pQuoteChar & someText & pQuoteChar
-end kwote
+command utf8_Decode @someUTF8
+   put uniencode (someUTF8,"UTF8") into someU16
+   put unidecode (someU16, "ANSI") into someUTF8
+end utf8_Decode
+
+command xml_BlankError @xmlBit
+   if item 1 of xmlBit = "xmlerr" then put empty into xmlBit
+end xml_BlankError

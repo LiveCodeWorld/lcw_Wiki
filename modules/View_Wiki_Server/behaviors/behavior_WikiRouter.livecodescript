@@ -20,6 +20,114 @@ local PluginRouteData
 local TestRouteData
 
 
+--> Working on
+-
+command get_WikiPageJsonNotFound someRoute, socketID, requestArray
+   set the itemdelimiter to slash
+   put item -1 of someRoute into pageSlugToCreate
+   if char -5 to -1 of pageSlugToCreate = ".json" then
+      delete char -5 to -1 of pageSlugToCreate
+   end if
+   
+   # If not found, wiki-client tries pages remote server and then present a ghost-create page]
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
+   --
+   put wikiServer_GetPageArray (pageSlugToCreate) into pageArray
+   if pageArray is an array then
+      put json_FromArray (pageArray) into someJSON
+      daemon_SendJSON socketID, someJSON
+      return "Sent default page JSON. Socket still open."
+   else
+      put word 1 of the params && someRoute into logComment
+      daemon_SendNotFound socketID, logComment
+      return "Returned 404 page not found."
+   end if
+end get_WikiPageJsonNotFound
+
+
+--> Temp
+-
+private function _ExtraSwitch someRoute, wikiDomain, requestArray, socketID
+   breakpoint
+   switch 
+      case someRoute = "/plugins/activity.js"
+         -- investigate why this route is popping up
+         put PluginRouteData ["/plugins/activity/activity.js"] into routeArray
+         put routeArray ["pluginName"] into pluginName
+         put routeArray ["relPath"] into shortJavascriptFile
+         get_PluginJavascript pluginName, shortJavascriptFile, socketID
+         return the result
+         
+      case someRoute begins with "/plugins/"
+         -- breakpoint -- should have been trapped by PluginRouteData
+         route_Plugin someRoute, socketID, requestArray
+         return the result
+         
+      case someRoute = "/client.js"
+      case someRoute = "/client.max.js"
+      case someRoute = "/client.map"
+      default
+         breakpoint
+         -- /plugin/assets/list
+         undefined_Get socketID, someRoute, requestArray
+         return the result
+   end switch
+end _ExtraSwitch
+
+private command _OldSwitch
+   switch
+      case someRoute = "/plugins/search.js"
+         -- why is this different?
+         breakpoint
+         put PluginRouteData ["/plugins/search/search.js"] into routeArray
+         
+         put routeArray ["pluginName"] into pluginName
+         put routeArray ["relPath"] into shortJavascriptFile
+         get_PluginJavascript pluginName, shortJavascriptFile, socketID
+         return the result
+         
+      case someRoute = "/plugins/search.js.map"
+         -- why is this different?
+         breakpoint
+         return the result
+         
+      case someRoute = "/plugin/assets/list"
+         breakpoint
+         get_ListAssets wikiDomain, requestArray, socketID
+         return the result
+         
+      case someRoute = "/plugins/image/import.svg"
+         breakpoint
+         return the result
+   end switch
+end _OldSwitch
+
+
+--> Working on
+-
+command _SetFirstMultipart rPostData, @someImage, @shortFileName, @mimeType
+   -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
+   /*
+   -----------------------------57324694142348375092642508047
+   Content-Disposition: form-data; name="image"; filename="39e2e88aeea0aa7739a599333f5bb38d.jpg"
+   Content-Type: image/jpeg
+   */
+   
+   # Quick parsing hack assuming its an image in a single part
+   set the itemdelimiter to ":"
+   put line 1 of rPostData into boundaryLine
+   put token -1 of item 2 line 2 of rPostData into shortFileName
+   put word -1 of line 3 of rPostData into mimeType
+   --
+   delete line 1 to 3 of rPostData
+   put word 1 to -1 of rPostData into someImage
+   delete line -1 of someImage
+   --
+   return "Finished"
+end _SetFirstMultipart
+
+
 --> Not implemented
 -
 command get_Theme socketID, someRoute, requestArray
@@ -33,12 +141,8 @@ command get_SecurityJS socketID, someRoute, requestArray
 end get_SecurityJS
 
 
---> Working on
+--> Test
 -
-getprop plugin_RouteData
-   return PluginRouteData
-end plugin_RouteData
-
 getprop test_Data
    return TestRouteData
 end test_Data
@@ -61,6 +165,10 @@ command daemon_LoadPluginRouteData
       _LoadPluginRoutes pluginName
    end repeat
 end daemon_LoadPluginRouteData
+
+getprop plugin_RouteData
+   return PluginRouteData
+end plugin_RouteData
 
 command daemon_ClearPluginRouteData
    delete variable PluginRouteData
@@ -107,6 +215,16 @@ command route_GET someRoute, socketID, requestArray
    testData_Log someRoute, requestArray, routeArray
    --
    switch
+      case someRoute = "/system/sitemap.json"
+         get_SiteMapJson wikiDomain, socketID
+         return the result
+      case someRoute = "/system/site-index.json"
+         get_SiteIndexJson wikiDomain, socketID
+         return the result
+      case someRoute = "/system/factories.json"
+         get_FactoriesJson socketID
+         return the result
+         
       case routeArray is an array
          get_FromPlugineRouteData routeArray, socketID, wikiDomain, requestArray
          return the result
@@ -131,19 +249,10 @@ command route_GET someRoute, socketID, requestArray
          get_Theme socketID, someRoute, requestArray
          return the result
          
-      case someRoute = "/system/sitemap.json"
-         get_SiteMapJson wikiDomain, socketID
-         return the result
-      case someRoute = "/system/site-index.json"
-         get_SiteIndexJson wikiDomain, socketID
-         return the result
-      case someRoute = "/system/factories.json"
-         get_FactoriesJson socketID
-         return the result
-         
+         -- case someRoute begins with "/images/"
       case someRoute = "/images/noise.png"
       case someRoute = "/images/crosses.png"
-         -- case someRoute begins with "/images/"
+      case someroute = "/images/external-link-ltr-icon.png"
          -- "/images/crosses.png"
          get_ClientPNG someRoute, socketID
          return the result
@@ -171,11 +280,6 @@ command route_GET someRoute, socketID, requestArray
          get_WikiClientJsMap someRoute, socketID
          return the result
          
-      case someRoute = "/plugin/assets/list"
-         breakpoint
-         get_ListAssets wikiDomain, requestArray, socketID
-         return the result
-         
       case matchText (someRoute, "/(.+).json" , pageSLug)
          get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
          return the result
@@ -186,6 +290,9 @@ command route_GET someRoute, socketID, requestArray
       case someRoute = "/js/jquery-ui/1.13.2/jquery-ui.min.css"
          get_CSS someRoute, socketID
          return the result        
+         
+         
+      case someRoute = "/client.js" -- with flag-clci
       case someRoute begins with "/js/"
          get_WikiClientJavascript someRoute, socketID
          return the result
@@ -199,55 +306,6 @@ command route_GET someRoute, socketID, requestArray
          return _ExtraSwitch (someRoute, wikiDomain, requestArray, socketID)
    end switch
 end route_GET
-
-private function _ExtraSwitch someRoute, wikiDomain, requestArray, socketID
-   breakpoint
-   switch 
-      case someRoute = "/plugins/activity.js"
-         -- investigate why this route is popping up
-         put PluginRouteData ["/plugins/activity/activity.js"] into routeArray
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["relPath"] into shortJavascriptFile
-         get_PluginJavascript pluginName, shortJavascriptFile, socketID
-         return the result
-         
-      case someRoute begins with "/plugins/"
-         -- breakpoint -- should have been trapped by PluginRouteData
-         route_Plugin someRoute, socketID, requestArray
-         return the result
-         
-      case someRoute = "/client.js"
-      case someRoute = "/client.max.js"
-      case someRoute = "/client.map"
-      default
-         breakpoint
-         -- /plugin/assets/list
-         undefined_Get socketID, someRoute, requestArray
-         return the result
-   end switch
-end _ExtraSwitch
-
-private command _OldSwitch
-   switch
-      case someRoute = "/plugins/search.js"
-         -- why is this different?
-         breakpoint
-         put PluginRouteData ["/plugins/search/search.js"] into routeArray
-         
-         put routeArray ["pluginName"] into pluginName
-         put routeArray ["relPath"] into shortJavascriptFile
-         get_PluginJavascript pluginName, shortJavascriptFile, socketID
-         return the result
-      case someRoute = "/plugins/search.js.map"
-         -- why is this different?
-         breakpoint
-         return the result
-         
-      case someRoute = "/plugins/image/import.svg"
-         breakpoint
-         return the result
-   end switch
-end _OldSwitch
 
 
 --> Flag
@@ -285,88 +343,6 @@ command get_WikiDomain someRoute, socketID, requestArray, pPageTitle, pOwnedBy
    daemon_SendText socketID, someHTML
    return merge ("Sent [[pageSlug]] for [[wikiDomain]]")
 end get_WikiDomain
-
-command get_WikiPageJsonNotFound someRoute, socketID, requestArray
-   -- /jacob-soll.json
-   set the itemdelimiter to slash
-   put item -1 of someRoute into pageSlugToCreate
-   if char -5 to -1 of pageSlugToCreate = ".json" then
-      delete char -5 to -1 of pageSlugToCreate
-   end if
-   
-   # If not found, wiki-client tries pages remote server and then present a ghost-create page]
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
-   --
-   if the optionKey is "Down" then
-      switch wikiDomain
-         -- quick hack to provide custom tools per domain
-         -- could look for a charmed wiki page
-         case "transcript.thought.garden"
-            set the itemdelimiter to slash
-            put item -1 of sReferer into fromPageSlug
-            put wikiPage_Transcript (wikiDomain, pageSlugToCreate, fromPageSlug) into pageArray
-            --
-            put wikiFile_Construct (wikiDomain, pageSlugToCreate) into wikiFile
-            if there is not a file wikiFile then
-               pageArray_Set wikiDomain, pageSlugToCreate, pageArray, true
-               put fedwiki_ConstructTitle (pageSlugToCreate) into pageTitle
-               put "Created page [[" & pageTitle & "]]" into someMarkdown
-               put pageArray_Construct ("Success", someMarkdown, "markdown") into pageArray
-            end if
-            --
-            daemon_SendArray socketID, pageArray
-            return "Sent JSON. Socket still open."
-         default
-            if the shiftKey is "Down" then
-               mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
-               if pageID is a number then
-                  put mw_SummaryPageArray (pageTitle) into pageArray
-                  put "markdown" into pageArray ["plugin"]
-               else
-                  put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
-               end if
-            else
-               put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
-            end if
-            --
-            daemon_SendArray socketID, pageArray
-            return "Sent JSON. Socket still open."
-      end switch
-   else
-      put wikiServer_GetPageArray (pageSlugToCreate) into pageArray
-      if pageArray is an array then
-         put json_FromArray (pageArray) into someJSON
-         daemon_SendJSON socketID, someJSON
-         return "Sent default page JSON. Socket still open."
-      else
-         put word 1 of the params && someRoute into logComment
-         daemon_SendNotFound socketID, logComment
-         return "Returned 404 page not found."
-      end if
-   end if
-end get_WikiPageJsonNotFound
-
-command _SetFirstMultipart rPostData, @someImage, @shortFileName, @mimeType
-   -- "/plugin/image/upload/39e2e88aeea0aa7739a599333f5bb38d.jpg"
-   /*
-   -----------------------------57324694142348375092642508047
-   Content-Disposition: form-data; name="image"; filename="39e2e88aeea0aa7739a599333f5bb38d.jpg"
-   Content-Type: image/jpeg
-   */
-   
-   # Quick parsing hack assuming its an image in a single part
-   set the itemdelimiter to ":"
-   put line 1 of rPostData into boundaryLine
-   put token -1 of item 2 line 2 of rPostData into shortFileName
-   put word -1 of line 3 of rPostData into mimeType
-   --
-   delete line 1 to 3 of rPostData
-   put word 1 to -1 of rPostData into someImage
-   delete line -1 of someImage
-   --
-   return "Finished"
-end _SetFirstMultipart
 
 
 --> Plugin
@@ -1101,7 +1077,7 @@ command put_Action someRoute, requestArray, socketID
 end put_Action
 
 
---> Private
+--> Save
 -
 command save_AfterAction wikiDomain, pageSlug, pageArray, actionArray
    # Update the JSON file and dont delete site map
@@ -1342,3 +1318,33 @@ private function _LinupTest someRoute
       return false
    end if
 end _LinupTest
+
+private command _SetEndScript @htmlTemplate, pageTitle, pOwnedBy, pIsAuthenticated, pIsClaimed, pIsOwner, pSeedNeighbors, pUser
+   if pOwnedBy is empty then put "David Bovill" into pOwnedBy
+   --
+   replace "{{title}}" with pageTitle in htmlTemplate
+   --
+   wiki_SetTagOffsets htmlTemplate, "owned", startCharNum, endCharNum
+   put the result into innerHTML
+   if htmlTemplate is not empty then
+      curly_ReplaceText innerHTML, "ownedBy", pOwnedBy
+      put innerHTML into char startCharNum to endCharNum of htmlTemplate
+   end if
+   --
+   put pIsAuthenticated is true into pIsAuthenticated
+   curly_ReplaceText htmlTemplate, "authenticated", pIsAuthenticated
+   --
+   put pIsClaimed is true into pIsClaimed
+   curly_ReplaceText htmlTemplate, "owned", pIsClaimed
+   --
+   put pIsOwner is not false into pIsOwner
+   curly_ReplaceText htmlTemplate, "isOwner", pIsOwner
+   --
+   curly_ReplaceText htmlTemplate, "ownedBy", pOwnedBy
+   --
+   curly_ReplaceText htmlTemplate, "seedNeighbors", pSeedNeighbors
+   --
+   curly_ReplaceText htmlTemplate, "user", pUser
+end _SetEndScript
+
+

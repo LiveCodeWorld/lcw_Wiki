@@ -58,6 +58,51 @@ command draft_WikiPage wikiDomain, pageArray
 end draft_WikiPage
 
 
+--> Wiki | Functions
+-
+function wiki_CheckFolderColour wikiDomain
+   put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
+   put wikiFolder_Get (wikiDomain) into wikiFolder
+   switch
+      case there is not a folder gitWikiFolder
+         return "red"
+      case folder_IsSymLink (wikiFolder)
+         return "green"
+      case there is a folder wikiFolder
+         return "black" -- it's a normal folder
+      default
+         return "orange" -- not created
+   end switch
+end wiki_CheckFolderColour
+
+function wiki_Browser
+   -- put display_FindCloned ("View|Obeya|Studio", "Wiki") into browserView
+   put line 1 of wiki_ListBrowsers() into browserView
+   return browserView
+end wiki_Browser
+
+function wiki_ListBrowsers
+   return display_List ("View|Browser,View|Obeya|Studio")
+end wiki_ListBrowsers
+
+
+--> Display | Wiki
+-
+command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
+   _NormalizeWikiBrowser pBrowserView
+   if pStackLabel is empty then put wikiDomain into pStackLabel
+   put wiki_ConstructUrl (wikiDomain) into wikiURL
+   
+   # Start server
+   -- wikiServer_StartNode -- wikiServer_Start
+   -- if the result is not empty then wait 20 ticks
+   
+   # Display Browser
+   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
+   return the result
+end display_Wiki
+
+
 --> Display | Wiki | list
 -
 function display_ListWikiBrowsers pWikiDomain
@@ -74,20 +119,6 @@ command display_WikiPage wikiDomain, pSlug
    set the page_Slug of wikiView to pSlug
    return displayView
 end display_WikiPage
-
-private command _DisplayWikiPage wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
-   --
-   _DisplayPageArray pageArray, pSlug, wikiDomain
-   put the result into displayView
-   --
-   set the wiki_Domain of displayView to wikiDomain
-   set the page_Slug of displayView to pSlug
-   --
-   set the tool_MenuBit of displayView to "Wiki | Page"
-   return displayView
-end _DisplayWikiPage
-
 
 command display_WikiPrefArray
    put wikiPreference_GetArray() into prefArray
@@ -138,33 +169,10 @@ command display_WikiDomain wikiDomain
    end if
 end display_WikiDomain
 
-command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
-   -- display_LocalWiki
-   _NormalizeWikiBrowser pBrowserView
-   
-   if pStackLabel is empty then put wikiDomain into pStackLabel
-   put wiki_ConstructUrl (wikiDomain) into wikiURL
-   
-   # Start server
-   -- wikiServer_StartNode -- wikiServer_Start
-   -- if the result is not empty then wait 20 ticks
-   
-   # Display Browser
-   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
-   return the result
-end display_Wiki
-
 command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pWikiViewName
    if pWikiURL is empty then put "http://livecode.world" into pWikiURL
-   -- if pWikiURL is empty then put wiki_DefaultLocalUrl() into pWikiURL
-   --
    if pStackLabel is empty then put "Browser" into pStackLabel
-   if pWikiViewName is empty then
-      put "View|Wiki|Browser" into pWikiViewName
-      -- put "View|Browser" into pWikiViewName
-      -- put "View|Obeya|Studio" into pWikiViewName
-   end if
-   
+   if pWikiViewName is empty then put "View|Wiki|Browser" into pWikiViewName
    if pStackLabel is empty then put "Wiki" into pStackLabel
    if pStackStyle is empty then put "toplevel" into pStackStyle
    --
@@ -173,26 +181,10 @@ command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pW
    put the result into browserView
    
    # Set Menus
-   -- display_SetMenu browserView, "Browser"
    display_SetMenu browserView, "Obeya | Studio"
    --
    return browserView
 end display_WikiBrowser
-
-private command _NormalizeWikiBrowser @browserView
-   switch
-      case browserView = "New"
-         put empty into browserView
-         break
-      case exists (browserView) is false
-         put wiki_Browser() into browserView
-         break
-      default
-         # But is is a browser
-         put the browser_View of browserView into browserView
-   end switch
-   return exists (browserView)
-end _NormalizeWikiBrowser
 
 
 --> Display | Wiki | Page
@@ -204,18 +196,6 @@ command display_PageArray pageArray, pPageTitle
    display_SetInteractions displayView, "PageArray", "mDoubleUp_PageArray"
    return displayView
 end display_PageArray
-
-private command _DisplayPageArray pageArray, pTitle, pDomainTitle
-   put pageArray ["title"] into pTitle
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   display_Data pageArray, pTitle, pDomainTitle
-   put the result into displayView
-   set the page_Aray of displayView to pageArray
-   --
-   return displayView
-end _DisplayPageArray
 
 
 --> Display | SiteMapArray
@@ -253,21 +233,6 @@ command display_SiteMapArray sitemapArray, pTitle, pSincePeriod
    --
    return displayView
 end display_SiteMapArray
-
-function wiki_CheckFolderColour wikiDomain
-   put gitwiki_GetFolder (wikiDomain) into gitWikiFolder
-   put wikiFolder_Get (wikiDomain) into wikiFolder
-   switch
-      case there is not a folder gitWikiFolder
-         return "red"
-      case folder_IsSymLink (wikiFolder)
-         return "green"
-      case there is a folder wikiFolder
-         return "black" -- it's a normal folder
-      default
-         return "orange" -- not created
-   end switch
-end wiki_CheckFolderColour
 
 command display_WikiSiteMap wikiDomain, pDisplayView
    -- put "media.localhost:3000" into wikiDomain
@@ -344,19 +309,6 @@ on mDoubleUp_WikiLocalIndex dView, wikiDomain
       display_Wiki wikiDomain, browserView
    end if
 end mDoubleUp_WikiLocalIndex
-
-
---> Wiki | Browser
--
-function wiki_Browser
-   -- put display_FindCloned ("View|Obeya|Studio", "Wiki") into browserView
-   put line 1 of wiki_ListBrowsers() into browserView
-   return browserView
-end wiki_Browser
-
-function wiki_ListBrowsers
-   return display_List ("View|Browser,View|Obeya|Studio")
-end wiki_ListBrowsers
 
 
 --> Launch
@@ -742,6 +694,46 @@ end display_Podcasts
 
 --> Private
 -
+private command _DisplayWikiPage wikiDomain, pSlug
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   --
+   _DisplayPageArray pageArray, pSlug, wikiDomain
+   put the result into displayView
+   --
+   set the wiki_Domain of displayView to wikiDomain
+   set the page_Slug of displayView to pSlug
+   --
+   set the tool_MenuBit of displayView to "Wiki | Page"
+   return displayView
+end _DisplayWikiPage
+
+private command _DisplayPageArray pageArray, pTitle, pDomainTitle
+   put pageArray ["title"] into pTitle
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   display_Data pageArray, pTitle, pDomainTitle
+   put the result into displayView
+   set the page_Aray of displayView to pageArray
+   --
+   return displayView
+end _DisplayPageArray
+
+private command _NormalizeWikiBrowser @browserView
+   switch
+      case browserView = "New"
+         put empty into browserView
+         break
+      case exists (browserView) is false
+         put wiki_Browser() into browserView
+         break
+      default
+         # But is is a browser
+         put the browser_View of browserView into browserView
+   end switch
+   return exists (browserView)
+end _NormalizeWikiBrowser
+
 private command _UpdateFedrayDisplay @fedray, pIndexView
    -- if pIndexView exists then update the displayed index display
    -- but don't save to the server

@@ -20,6 +20,15 @@ local WikiServer_Data
 
 --> Working on
 -
+getprop server_Array
+   put the long id of me into serverObject
+   put revRuggedId (serverObject) into rServerObject
+   --
+   put wikiServer_GetData() into serverData -- dependency
+   put serverData [rServerObject] into serverArray
+   return serverArray
+end server_Array
+
 
 --> WikiServer | List
 -

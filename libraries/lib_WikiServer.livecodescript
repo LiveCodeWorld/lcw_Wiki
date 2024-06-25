@@ -477,10 +477,7 @@ command wikiServer_Restart pNotify, pNotifyText
    
    put wikiServer_View() into serverObject
    set the daemon_IsRunning of serverObject to false
-   -- wikiServer_StopLive serverObject, pCloseAll
-   -- put the result into serverObject
    resetAll
-   -- wikiServer_StartLive serverObject
    set the daemon_IsRunning of serverObject to true
    return serverObject
 end wikiServer_Restart

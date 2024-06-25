@@ -123,7 +123,7 @@ function wikiPage_ForkDomains wikiDomain, pForkDomains
 end wikiPage_ForkDomains
 
 function wikiPage_Help subDomain, curlyData, pScriptHelp, pForkDomains
-   -- subDomain = scriptType 
+   -- subDomain = scriptType
    put curlyData ["title"] into pageTitle
    put help_ConstructDomain (subDomain) into wikiDomain
    
@@ -823,34 +823,6 @@ private function _SkipSection sectionTitle, pAddAll
    put pAddAll is not true AND sectionTitle is among the items of "See also,Notes,Further Reading,References,Sources,External links" into sBoolean
    return sBoolean
 end _SkipSection
-
-command _SetEndScript @htmlTemplate, pageTitle, pOwnedBy, pIsAuthenticated, pIsClaimed, pIsOwner, pSeedNeighbors, pUser
-   if pOwnedBy is empty then put "David Bovill" into pOwnedBy
-   --
-   replace "{{title}}" with pageTitle in htmlTemplate
-   --
-   wiki_SetTagOffsets htmlTemplate, "owned", startCharNum, endCharNum
-   put the result into innerHTML
-   if htmlTemplate is not empty then
-      curly_ReplaceText innerHTML, "ownedBy", pOwnedBy
-      put innerHTML into char startCharNum to endCharNum of htmlTemplate
-   end if
-   --
-   put pIsAuthenticated is true into pIsAuthenticated
-   curly_ReplaceText htmlTemplate, "authenticated", pIsAuthenticated
-   --
-   put pIsClaimed is true into pIsClaimed
-   curly_ReplaceText htmlTemplate, "owned", pIsClaimed
-   --
-   put pIsOwner is not false into pIsOwner
-   curly_ReplaceText htmlTemplate, "isOwner", pIsOwner
-   --
-   curly_ReplaceText htmlTemplate, "ownedBy", pOwnedBy
-   --
-   curly_ReplaceText htmlTemplate, "seedNeighbors", pSeedNeighbors
-   --
-   curly_ReplaceText htmlTemplate, "user", pUser
-end _SetEndScript
 
 private command _AddDeleteEmpty @pageArray
    put "This tools wil safely delete all empty folders if finds. It checks first that the folder has no pages:" into sMarkdown

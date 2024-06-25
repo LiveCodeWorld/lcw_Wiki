@@ -17,6 +17,11 @@ local LocalArray
 
 --> Menu | Props
 -
+getprop menu_Target [tObject]
+   put the displayed_Object of tObject into wsView
+   return wsView
+end menu_Target
+
 getprop menu_CheckTarget [wsView]
    return exists (wsView)
 end menu_CheckTarget
@@ -46,6 +51,16 @@ end disabled_DisplayLoadedWikiEcoData
 
 --> Global | Wiki | Server | Menu
 -
+on menu_IsRunning wsView
+   put the daemon_IsRunning of wsView into sBoolean
+   set the daemon_IsRunning of wsView to (sBoolean is false)
+end menu_IsRunning
+
+getprop checked_IsRunning [wsView]
+   put the daemon_IsRunning of wsView into sBoolean
+   return sBoolean
+end checked_IsRunning
+
 on menu_DisplayCaddyTools
    display_CaddyTools
 end menu_DisplayCaddyTools

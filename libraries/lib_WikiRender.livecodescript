@@ -426,6 +426,30 @@ function _RenderExternal href, pLinkText
    return merge (hTemplate)
 end _RenderExternal
 
-
---> Deps
--
+private command _SetEndScript @htmlTemplate, pageTitle, pOwnedBy, pIsAuthenticated, pIsClaimed, pIsOwner, pSeedNeighbors, pUser
+   if pOwnedBy is empty then put "David Bovill" into pOwnedBy
+   --
+   replace "{{title}}" with pageTitle in htmlTemplate
+   --
+   wiki_SetTagOffsets htmlTemplate, "owned", startCharNum, endCharNum
+   put the result into innerHTML
+   if htmlTemplate is not empty then
+      curly_ReplaceText innerHTML, "ownedBy", pOwnedBy
+      put innerHTML into char startCharNum to endCharNum of htmlTemplate
+   end if
+   --
+   put pIsAuthenticated is true into pIsAuthenticated
+   curly_ReplaceText htmlTemplate, "authenticated", pIsAuthenticated
+   --
+   put pIsClaimed is true into pIsClaimed
+   curly_ReplaceText htmlTemplate, "owned", pIsClaimed
+   --
+   put pIsOwner is not false into pIsOwner
+   curly_ReplaceText htmlTemplate, "isOwner", pIsOwner
+   --
+   curly_ReplaceText htmlTemplate, "ownedBy", pOwnedBy
+   --
+   curly_ReplaceText htmlTemplate, "seedNeighbors", pSeedNeighbors
+   --
+   curly_ReplaceText htmlTemplate, "user", pUser
+end _SetEndScript

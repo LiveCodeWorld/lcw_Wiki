@@ -41,38 +41,6 @@ setprop daemon_Port sPort
    end if
 end daemon_Port
 
-getprop log_Text
-   put _LogField() into logField
-   put the text of logField into logText
-   return logText
-end log_Text
-
-setprop log_Text logText
-   put _LogField() into logField
-   set the text of logField to logText
-end log_Text
-
-setprop log_Line [pLogName] logLine 
-   put the short id of _LogField() into fieldID
-   -- put log_ConstructEntry (logLine, pLogName, true) into logLine
-   if pLogName is not empty then
-      put pLogName & ": " before logLine
-   end if
-   --
-   get word 1 to -1 of line 1 of logLine
-   put it & CR after field id fieldID of me
-   --
-   return logLine
-end log_Line
-
-getprop log_Hilite
-   return the hilite of _ToggleButton()
-end log_Hilite
-
-setprop log_Hilite sBoolean
-   set the hilite of _ToggleButton() to sBoolean
-end log_Hilite
-
 
 --> Events
 -

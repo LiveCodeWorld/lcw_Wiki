@@ -75,13 +75,6 @@ function wikiPlugin_GetPageJson pluginName, pShortFile
    end if
 end wikiPlugin_GetPageJson
 
-private function _CleanBinaryJson binaryJSON
-   put json_ToArray (binaryJSON) into pageArray
-   put pluginName into pageArray ["plugin"]
-   put json_FromArray (pageArray) into binaryJSON
-   return binaryJSON
-end _CleanBinaryJson
-
 function wikiPlugin_ConstructPagesFile pluginName, pShortFile
    if pShortFile is empty then
       put merge ("about-[[pluginName]]-plugin") into pShortFile
@@ -122,3 +115,59 @@ function wikiPlugin_ConstructFolder pluginName
    put node_WikiModulesFolder() & "wiki-plugin-" & pluginName & slash into pluginFolder
    return pluginFolder
 end wikiPlugin_ConstructFolder
+
+
+--> Private
+-
+private function _CleanBinaryJson binaryJSON
+   put json_ToArray (binaryJSON) into pageArray
+   put pluginName into pageArray ["plugin"]
+   put json_FromArray (pageArray) into binaryJSON
+   return binaryJSON
+end _CleanBinaryJson
+
+
+--> Deps
+-
+function directory_ListNestedPaths someFolder, pSetRelative
+   local NestedPaths
+   if there is not a folder someFolder then return empty
+   
+   # Walk
+   set the itemdelimiter to slash
+   text_AddTrailing someFolder, slash
+   if pSetRelative is true then
+      put the number of items of someFolder into baseFolderNum
+      _WalkAndList NestedPaths, someFolder, baseFolderNum
+   else
+      _WalkAndList NestedPaths, someFolder, baseFolderNum
+   end if
+   delete char -1 of NestedPaths
+   return NestedPaths
+end directory_ListNestedPaths
+
+private command _WalkAndList @NestedPaths, someFolder, pBaseFolderNum
+   -- recursive
+   put files (someFolder) into shortFiles
+   put someFolder into pathFolder
+   if pBaseFolderNum is a number then
+      set the itemdelimiter to slash
+      delete item 1 to pBaseFolderNum of pathFolder
+   end if
+   
+   # Add files (not folders) to NestedPaths
+   filter shortFiles without ".*"
+   repeat for each line shortFile in shortFiles
+      if char 1 of shortFile = "." then next repeat
+      put pathFolder & shortFile into foundPath
+      put foundPath & CR after NestedPaths
+   end repeat
+   
+   # Recurse
+   put folders (someFolder) into shortChildFolders
+   repeat for each line shortChildFolder in shortChildFolders
+      if char 1 of shortChildFolder = "." then next repeat
+      put someFolder & shortChildFolder & slash into childFolder
+      _WalkAndList NestedPaths, childFolder, pBaseFolderNum
+   end repeat
+end _WalkAndList

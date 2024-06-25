@@ -70,7 +70,7 @@ end wiki_SetPort
 -
 function wiki_ConstructUrl wikiDomain, pPort, pProtocol
    if wikiDomain is empty then return empty
-   if pPort is empty then put wiki_GetPort() into pPort
+   -- if pPort is empty then put wiki_GetPort() into pPort
    return url_Construct (wikiDomain, pPort, pProtocol)
 end wiki_ConstructUrl
 

@@ -33,15 +33,80 @@ local Drop_Delay = 60
 
 --> Working on
 -
-private command _NormalizeDaemonPort @pPort
-   if pPort is not a number then
-      put Listen_Port into pPort
-      if pPort is not a number then
-         -- put wikiServer_DefaultPort() into pPort
-         put Daemon_DefaultPort into pPort
-      end if
+getprop listen_Port
+   return daemon_GetListenPort()
+end listen_Port
+
+setprop listen_Port newPort
+   daemon_SetListenPort newPort
+   return newPort
+end listen_Port
+
+function daemon_GetListenPort
+   put Listen_Port into sPort
+   if sPort is not a number then
+      -- put wikiServer_DefaultPort() into sPort
+      put Daemon_DefaultPort into sPort
+   end if
+   return sPort
+end daemon_GetListenPort
+   
+command daemon_SetListenPort @sPort
+   _NormalizeDaemonPort sPort
+   put sPort into Listen_Port
+   return sPort
+end daemon_SetListenPort
+
+private command _NormalizeDaemonPort @sPort
+   if sPort is not a number then
+      put daemon_GetListenPort() into sPort
    end if
 end _NormalizeDaemonPort
+
+private function _DaemonIsRunning
+   -- not foolproof
+   
+   put daemon_GetListenPort() into sPort
+   put sPort is among the lines of the openStacks into isRunning
+   -- put the server_Array of me is an array into isRunning
+   return isRunning
+end _DaemonIsRunning
+
+getprop daemon_IsRunning
+   return _DaemonIsRunning()
+end daemon_IsRunning
+
+setprop daemon_IsRunning [pPort] someBoolean
+   put the long id of me into serverObject
+   
+   if someBoolean is true then
+      put _DaemonIsRunning() into daemonIsRunning
+      daemon_SetListenPort pPort
+      --
+      if daemonIsRunning is false then
+         daemon_Start pPort
+         put the result into boundPort
+         dispatch "wikiServer_Register" to me with serverObject,pPort,boundPort
+      end if
+   else
+      switch pPort
+         case pPort is "reset"
+            resetAll
+            break
+         case pPort is true
+            socket_CloseOpen
+            break
+         default
+            daemon_Stop
+      end switch
+      --
+      dispatch "wikiServer_UnRegister" with serverObject
+   end if
+   
+   set the log_Hilite of serverObject to someBoolean
+   --
+   return serverObject
+end daemon_IsRunning
 
 command daemon_StoreServerInfo requestArray
    put requestArray into Request_Array
@@ -100,7 +165,7 @@ command daemon_SendOK socketOrRequestArray, contentToSend, pContentType, pCookie
 end daemon_SendOK
 
 on socketTimeout pSocketID
-   wikiServer_Restart true, the params
+   dispatch "wikiServer_Restart" with true,the params
 end socketTimeout
 
 
@@ -181,22 +246,6 @@ command daemon_SendRedirect redirectURL, socketID, pDescriptiveContent
    return the result
 end daemon_SendRedirect
 
-command daemon_SendHeaderArray someRoute, headerArray, socketID, pSendCompressed
-   put daemon_GetRouteData (someRoute) into routeData
-   
-   put daemon_ConstructDefaultHeader() into defaultHeaderArray
-   delete variable headerArray ["Content-Length"] -- because it is always added below
-   union headerArray with defaultHeaderArray
-   put "HTTP/1.1 200 OK" into someHeader
-   put CRLF & daemon_DeconstructHeaderArray (headerArray) after someHeader
-   
-   -- daemon_SendRaw someHeader, routeData, socketID
-   -- daemon_Send someHeader, routeData, socketID, pSendCompressed -- adds "Content-Length"
-   daemon_SendAndCloseSocket someHeader, routeData, socketID
-   --
-   return the result
-end daemon_SendHeaderArray
-
 command daemon_SendCompressed someHeader, contentToSend, socketID
    -- always adds "Content-Length:" header
    put CRLF & "Content-Encoding: gzip" after someHeader
@@ -223,28 +272,6 @@ command daemon_SendRaw someHeader, contentToSend, socketID
    return headersAndContent
 end daemon_SendRaw
 
-private function _DaemonIsRunning
-   put the server_Array of me into serverArray
-   put serverArray is an array into daemonIsRunning
-   -- put listen_Port is among the lines of the opensockets into daemonIsRunning
-   return daemonIsRunning
-end _DaemonIsRunning
-
-getprop server_Array
-   put the long id of me into serverObject
-   put revRuggedId (serverObject) into rServerObject
-   --
-   put wikiServer_GetData() into serverData
-   put serverData [rServerObject] into serverArray
-   return serverArray
-end server_Array
-
-command daemon_SetListenPort @pPort
-   _NormalizeDaemonPort pPort
-   put pPort into Listen_Port
-   return pPort
-end daemon_SetListenPort
-
 
 --> Props | Temporary
 -
@@ -255,15 +282,6 @@ end bound_Port
 setprop bound_Port boundPort
    put boundPort into Bound_Port
 end bound_Port
-
-getprop listen_Port
-   return Listen_Port
-end listen_Port
-
-setprop listen_Port newPort
-   daemon_SetListenPort newPort
-   return newPort
-end listen_Port
 
 
 --> Daemon | Start and Stop
@@ -306,42 +324,6 @@ That's what the web server is going to key off of when searching for the content
 getprop daemon_Server
    return _DaemonServer()
 end daemon_Server
-
-getprop daemon_IsRunning
-   return _DaemonIsRunning()
-end daemon_IsRunning
-
-setprop daemon_IsRunning [pPort] someBoolean
-   put the long id of me into serverObject
-   
-   if someBoolean is true then
-      put _DaemonIsRunning() into daemonIsRunning
-      daemon_SetListenPort pPort
-      --
-      if daemonIsRunning is false then
-         daemon_Start pPort
-         put the result into boundPort
-         dispatch "wikiServer_Register" to me with serverObject,pPort,boundPort
-      end if
-   else
-      switch pPort
-         case pPort is "reset"
-            resetAll
-            break
-         case pPort is true
-            socket_CloseOpen
-            break
-         default
-            daemon_Stop
-      end switch
-      --
-      dispatch "wikiServer_UnRegister" with serverObject
-   end if
-   
-   set the log_Hilite of serverObject to someBoolean
-   --
-   return serverObject
-end daemon_IsRunning
 
 getprop request_Referer
    put $HTTP_REFERER into sReferer
@@ -404,7 +386,10 @@ on processRequest pSocketID, theData
    # Store
    daemon_StoreServerInfo requestArray
    
-   put _DaemonRouter() into routerObject
+   -- put the daemon_Router of me into routerObject
+   -- if exists (routerObject) is false then
+   put the long id of me into routerObject
+   -- end if
    dispatch "daemon_RouteRequest" to routerObject with requestArray
    switch it
       -- could do stuff here
@@ -901,18 +886,40 @@ private function _DaemonServer
    return the long id of me
 end _DaemonServer
 
-private function _DaemonRouter
-   -- this allows dispatching to any control in the Livecode environment and does not bug out
-   -- check if dispatching is significantly slower than using the message hierarchy
-   
-   put the daemon_Router of me into routerObject
-   if exists (routerObject) is false then put the long id of me into routerObject
-   return routerObject
-end _DaemonRouter
-
 
 --> Deps
 -
+command lcw_Notify someMessage, pTitle, pMergeValue
+   -- needs to work cross platform
+   replace quote with empty in someMessage
+   replace "'" with empty in someMessage
+   text_ReQuote someMessage, pMergeValue
+   --
+   try
+      if pTitle is empty then put "LiveCode World Notification" into pTitle
+      put "osascript -e" && "'" & "display notification" && quote & someMessage & quote into someShell
+      put "with title" && quote & pTitle & quote after someShell
+      put "'" after someShell
+      put shell (someShell) into shellResult
+   catch e
+      put someMessage
+   end try
+end lcw_Notify
+
+command socket_CloseOpen
+   repeat for each line someSocket in the opensockets
+      close socket someSocket
+   end repeat
+end socket_CloseOpen
+ 
+command text_ReQuote @someText, pMergeValue
+   replace "'" with quote in someText
+   if pMergeValue is not empty then
+      put pMergeValue into var
+      put merge (someText) into someText
+   end if
+end text_ReQuote
+
 function json_FromArray pArray, pForceRootType, pPretty
    -- put jsonExport (pArray) into someJSON -- not the same
    

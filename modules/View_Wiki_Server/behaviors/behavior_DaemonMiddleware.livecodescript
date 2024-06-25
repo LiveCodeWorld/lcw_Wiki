@@ -25,13 +25,56 @@ local MiddlewareArray
 
 --> Working on
 -
+-- command option_NotFound wikiDomain, sReferer, pageSlugToCreate, socketID
+   if the optionKey is "Down" then
+      switch wikiDomain
+         # Custom tools per domain (quick hack)
+         case "transcript.thought.garden"
+            option_ThoughtTranscript wikiDomain, sReferer, pageSlugToCreate, socketID
+            return "Sent JSON. Socket still open."
+         default
+            if the shiftKey is "Down" then
+               mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
+               if pageID is a number then
+                  put mw_SummaryPageArray (pageTitle) into pageArray
+                  put "markdown" into pageArray ["plugin"]
+               else
+                  put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
+               end if
+            else
+               put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
+            end if
+            --
+            daemon_SendArray socketID, pageArray
+            return "Sent JSON. Socket still open."
+      end switch
+   else
+      pass option_NotFound
+   end if
+end option_NotFound
+
+command option_ThoughtTranscript wikiDomain, sReferer, pageSlugToCreate, socketID
+   set the itemdelimiter to slash
+   put item -1 of sReferer into fromPageSlug
+   put wikiPage_Transcript (wikiDomain, pageSlugToCreate, fromPageSlug) into pageArray
+   --
+   put wikiFile_Construct (wikiDomain, pageSlugToCreate) into wikiFile
+   if there is not a file wikiFile then
+      pageArray_Set wikiDomain, pageSlugToCreate, pageArray, true
+      put fedwiki_ConstructTitle (pageSlugToCreate) into pageTitle
+      put "Created page [[" & pageTitle & "]]" into someMarkdown
+      put pageArray_Construct ("Success", someMarkdown, "markdown") into pageArray
+   end if
+   --
+   daemon_SendArray socketID, pageArray
+end option_ThoughtTranscript
 before route_GET someRoute, socketID, requestArray
    switch
-       case someRoute = "/lcw_BrowserUrl"
+      case someRoute = "/lcw_BrowserUrl"
          get_LcwBookmarklet someRoute, socketID, requestArray
          return "Sent JSON. Socket still open."
          exit to top
-       case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
+      case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
          # Flag Click (see get_FlagClick)
          get_WikiServerToolPage someRoute, requestArray, socketID
          break
