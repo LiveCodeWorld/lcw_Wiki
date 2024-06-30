@@ -257,6 +257,26 @@ end menu_WikiServerTools
 private on ____
 end ____
 
+on menu_Deps
+   put "behavior_MenuGroupDev" into sName
+   put view_GetTemplateObject ("View|Menu|Group") into mGroup
+   --
+   if the behavior_InHierarchy [sName] of mGroup is true then
+      set the behavior_Remove of mGroup to sName
+      lcw_Notify "Removed behavior!"
+   else
+      set the behavior_Add of mGroup to sName
+      lcw_Notify "Added behavior!"
+   end if
+end menu_Deps
+
+getprop checked_Deps
+   put "behavior_MenuGroupDev" into sName
+   put view_GetTemplateObject ("View|Menu|Group") into mGroup
+   --
+   return the behavior_InHierarchy [sName] of mGroup
+end checked_Deps
+
 on menu_ScriptDebugMode
    revIDEToggle "Script Debug Mode"
 end menu_ScriptDebugMode
@@ -286,9 +306,9 @@ getprop checked_SupressErrors
    return gRevSuppressErrors
 end checked_SupressErrors
 
-on menu_MessageWatcher.M wikiView
+on menu_MessageWatcher wikiView
    revIDEOpenPalette "message watcher"
-end menu_MessageWatcher.M
+end menu_MessageWatcher
 
 on menu_SuspendDevelopmentTools wikiView
    revIDESuspendDevelopmentTools

@@ -127,6 +127,13 @@ on menu_Shrink wikiView, pageSlug
    set the page_Rect [pageSlug] of wikiView to sRect
 end menu_Shrink
 
+on menu_StackRect wikiView
+   put the stack_Name of wikiView into sName
+   put line 1 of the screenRects into sRect
+   rect_SubtractMargins sRect, 60
+   set the rect of stack sName to sRect
+end menu_StackRect
+
 on menu_Scale wikiView, sSale
    -- put wikijs_SetPageScale (sSale) into sJavascript
    -- set the browser_Javascript of wikiView to sJavascript

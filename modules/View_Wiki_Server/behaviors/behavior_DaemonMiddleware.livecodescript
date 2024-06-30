@@ -68,6 +68,7 @@ command option_ThoughtTranscript wikiDomain, sReferer, pageSlugToCreate, socketI
    --
    daemon_SendArray socketID, pageArray
 end option_ThoughtTranscript
+
 before route_GET someRoute, socketID, requestArray
    switch
       case someRoute = "/lcw_BrowserUrl"

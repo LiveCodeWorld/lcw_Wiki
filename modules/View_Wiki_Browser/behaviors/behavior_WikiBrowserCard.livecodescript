@@ -53,8 +53,9 @@ end _FixLayout
 on wikiBrowser_SetProps
    put _WikiView() into wikiView
    --
-   get the behavior_StackNames of wikiView
-   set the behavior_StackNames of wikiView to "behavior_ViewWikiBrowser,behavior_WikiJavascript"
+   -- get the behavior_StackNames of wikiView
+   -- set the behavior_StackNames of wikiView to "behavior_ViewWikiBrowser,behavior_WikiJavascript"
+   set the behavior_Hierarchy of wikiView to "default"
    --
    set the flag_Handler of wikiView to "default"
    set the wiki_EditMode of wikiView to true
@@ -99,15 +100,23 @@ private function _MenuBarView
 end _MenuBarView
 
 private function _WikiView
-   constant viewName = "View|Wiki|Browser"
-   --
-   if exists (widget viewName of me) is false then return empty
-   return the long id of widget viewName of me
+   repeat for each line cID in the childControlIDs of me
+      put the long id of control id cID of me into sObject
+      if word 1 of sObject is not "widget" then next repeat
+      if the kind of sObject = "com.livecode.widget.browser" then
+         return sObject
+      end if
+   end repeat
+   return empty
 end _WikiView
 
 
 --> Object | Props
 -
+getprop displayed_Object
+   return _WikiView()
+end displayed_Object
+
 getprop menu_Target
    return _WikiView()
 end menu_Target

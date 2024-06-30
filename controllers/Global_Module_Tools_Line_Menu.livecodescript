@@ -171,11 +171,30 @@ on menu_ScriptTools
    display_Script bObject
 end menu_ScriptTools
 
+on menu_ListModuleDepkeys viewObject
+   put _SelectedFile() into sFile
+   put the name of stack sFile into bObject
+   --
+   put the module_BehaviorDepkeys of bObject into depKeys
+   if depKeys is empty then
+      lcw_AnswerWarning "No deps for this behavior!", viewObject
+   else
+      # Collect and display script
+      put the name of bObject into sTitle
+      put hkey_CollectFromObjects (depKeys, true) into newDepScript
+      display_Text newDepScript, sTitle, "Deps Outside Module"
+   end if
+end menu_ListModuleDepkeys
+
 on menu_BehaviorDepScript viewObject
    put _SelectedFile() into sFile
    put the name of stack sFile into bObject
-   -- put the module_BehaviorPaths of bObject
-   display_ScriptDeps bObject
+   --
+   -- display_ScriptDeps bObject
+   put the module_BehaviorDepHkeyArray [true] of bObject into hKeyArray
+   set the script_HkeyArray of bObject to hKeyArray
+   --
+   display_ScriptHkeyArrayDeps hkeyArray, bObject
 end menu_BehaviorDepScript
 
 getprop disabled_BehaviorDepScript [viewObject]

@@ -41,6 +41,17 @@ on menu_MenubarDataLine dView
    put itemArray ["mTitle"]
 end menu_MenubarDataLine
 
+on menu_MenuButtonTitle dView
+   put the top_Data [1] of dView into itemArray
+   put itemArray ["m mTitle"] into mTitle
+   put itemArray ["m mName"] into mName
+   put lcw_Ask ("Set the menuButton_Title of menu '[[var]]'?", mTitle, dView, mName) into mTitle
+   --
+   put _buttonObject (dView) into btnObject
+   breakpoint
+   set the menuButton_Title [mName] of btnObject to mTitle
+end menu_MenuButtonTitle
+
 private on _
 end _
 
