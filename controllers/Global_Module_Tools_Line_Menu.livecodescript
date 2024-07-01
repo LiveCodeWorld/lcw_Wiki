@@ -122,10 +122,15 @@ end _SelectedFile
 
 private function _SelectedFolder
    put LocalArray ["sPath"] into sPath
-   put item 1 of sPath into shortFolder
    put _ModuleFolder() into mFolder
    --
-   put mFolder & shortFolder & slash into sFolder
+   if the number of items of sPath = 1 then
+      put mFolder into sFolder
+   else
+      put item 1 of sPath into shortFolder
+      put mFolder & shortFolder & slash into sFolder
+   end if
+   
    if there is a folder sFolder then
       return sFolder
    else
@@ -170,6 +175,16 @@ on menu_ScriptTools
    --
    display_Script bObject
 end menu_ScriptTools
+
+on menu_EditScript viewObject
+   put _SelectedFile() into sFile
+   edit the script of stack sFile
+end menu_EditScript
+
+getprop disabled_EditScript
+   put _SelectedFile() into sFile
+   return exists (stack sFile) is false
+end disabled_EditScript
 
 on menu_ListModuleDepkeys viewObject
    put _SelectedFile() into sFile
