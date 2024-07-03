@@ -18,6 +18,11 @@ local LocalArray
 
 --> Menu | Props
 -
+getprop menu_Target [tObject]
+   put the displayed_Object of tObject into wikiView
+   return wikiView
+end menu_Target
+
 getprop menu_CheckTarget [wikiView]
    put the lineup_Titles of wikiView into pageTitles
    put pageTitles into LocalArray ["pageTitles"]

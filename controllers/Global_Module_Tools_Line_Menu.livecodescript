@@ -173,7 +173,7 @@ on menu_ScriptTools
    put _SelectedFile() into sFile
    put the name of stack sFile into bObject
    --
-   display_Script bObject
+   display_ScriptTools bObject
 end menu_ScriptTools
 
 on menu_EditScript viewObject

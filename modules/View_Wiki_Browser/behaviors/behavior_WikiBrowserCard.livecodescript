@@ -1,4 +1,4 @@
-﻿script "behavior_WikiBrowserCard"
+﻿script "behavior_WikiBrowserCard" with behavior "behavior_WikiJavascript"
 --> MetaData
 -
 copyright: David Bovill
@@ -95,12 +95,15 @@ end view_RectOnCard
 --> Private | Object | Functions
 -
 private function _MenuBarView
+   put the card_Object of me into cardObject -- bug: sometimes becomes the target (when the target is a browser widget)
    if exists (group "View|Menu|Group" of me) is false then return empty
-   return the long id of group "View|Menu|Group" of me
+   put the long id of group "View|Menu|Group" of cardObject into mGroup
+   return mGroup
 end _MenuBarView
 
 private function _WikiView
-   repeat for each line cID in the childControlIDs of me
+   put _CardObject() into cardObject
+   repeat for each line cID in the childControlIDs of cardObject
       put the long id of control id cID of me into sObject
       if word 1 of sObject is not "widget" then next repeat
       if the kind of sObject = "com.livecode.widget.browser" then
@@ -109,6 +112,14 @@ private function _WikiView
    end repeat
    return empty
 end _WikiView
+
+private function _CardObject
+   -- hack to fix me bug
+   -- put ideCoreCardOfcontrol() into cardObject 
+   put the long id of cd 1 of the defaultstack into cardObject
+   -- put the card_Object of me into cardObject -- bug with me of widget?
+   return cardObject
+end _CardObject
 
 
 --> Object | Props
@@ -122,7 +133,8 @@ getprop menu_Target
 end menu_Target
 
 getprop menubar_View
-   return _MenuBarView()
+   put _MenuBarView() into mGroup
+   return mGroup
 end menubar_View
 
 getprop wiki_View

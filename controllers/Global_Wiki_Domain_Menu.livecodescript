@@ -49,13 +49,48 @@ on menu_PerformativeDictionary wikiView
    _DisplayData pArray
 end menu_PerformativeDictionary
 
+on menu_RefreshTitles wikiView
+   put the menubar_View of wikiView into mGroup
+   --   
+   put the menubar_Titles of mGroup into menubarTitles
+   put the menuButton_Names of mGroup into mNames
+   set the menubar_Titles of mGroup to mNames
+end menu_RefreshTitles
+
+on menu_DefaultMenubarTable wikiView
+   put the menubar_View of wikiView into mGroup
+   --   
+   set the menubar_DefaultTable of mGroup to "Browser-Default"
+end menu_DefaultMenubarTable
+
+on menu_DefaultTitle wikiView, mTitle
+   get the norm_Title [mTitle] of wikiView
+   
+   put the menubar_View of wikiView into mGroup
+   --   
+   put the menubar_DefaultTitles of wikiView into mTitles
+   put lineOffset (mTitle, mTitles)
+end menu_DefaultTitle
+
+getprop defaultTitle_Params [wikiView]
+   put the menubar_View of wikiView into mGroup
+   put the menuButton_Names of mGroup into mNames
+   return mNames
+   
+   put the menubar_DefaultTitles of wikiView into mTitles
+   return mTitles
+end defaultTitle_Params
+
 private on _
 end _
 
-on menu_Behavior dView
-   put the behavior of dView into bObject
-   edit the script of bObject
-end menu_Behavior
+on submenu_Menu
+   return "Global | Menu | Group | Menu"
+end submenu_Menu
+
+on submenu_Server
+   return "Global | Wiki | Browser | Server | Menu"
+end submenu_Server
 
 on menu_ModuleTools dView
    put the view_Name of dView into viewName

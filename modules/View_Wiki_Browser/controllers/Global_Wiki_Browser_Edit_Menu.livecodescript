@@ -18,6 +18,11 @@ local LocalArray
 
 --> Menu | Props
 -
+getprop menu_Target [tObject]
+   put the displayed_Object of tObject into wikiView
+   return wikiView
+end menu_Target
+
 getprop menu_CheckTarget [wikiView]
    return true
 end menu_CheckTarget
