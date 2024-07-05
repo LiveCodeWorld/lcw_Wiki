@@ -1644,21 +1644,6 @@ function line_GetCommon index1, index2
    return commonIndex
 end line_GetCommon
 
-command line_SetUnique @someIndex, pCaseSensitive
-   if pCaseSensitive is false then
-      split someIndex by CR and tab
-      put the keys of someIndex into uniqueIndex
-      put word 1 to -1 of uniqueIndex into someIndex
-   else
-      repeat for each line someLine in someIndex
-         put word 1 to -1 of someLine into someLine
-         if someLine is empty then next repeat
-         put empty into indexArray [someLine]
-      end repeat
-      put keys (indexArray) into someIndex
-   end if
-end line_SetUnique
-
 command rest_SetJsonHeaders pOAuthToken, pVersionNum, pExtraHeaders
    put "Content-type: application/json" into someHeader
    put CR & "Accept: application/json" after someHeader
