@@ -25,32 +25,36 @@ local MiddlewareArray
 
 --> Working on
 -
+before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
+   wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
+end get_WikiPageJson
+
 -- command option_NotFound wikiDomain, sReferer, pageSlugToCreate, socketID
-   if the optionKey is "Down" then
-      switch wikiDomain
-         # Custom tools per domain (quick hack)
-         case "transcript.thought.garden"
-            option_ThoughtTranscript wikiDomain, sReferer, pageSlugToCreate, socketID
-            return "Sent JSON. Socket still open."
-         default
-            if the shiftKey is "Down" then
-               mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
-               if pageID is a number then
-                  put mw_SummaryPageArray (pageTitle) into pageArray
-                  put "markdown" into pageArray ["plugin"]
-               else
-                  put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
-               end if
+if the optionKey is "Down" then
+   switch wikiDomain
+      # Custom tools per domain (quick hack)
+      case "transcript.thought.garden"
+         option_ThoughtTranscript wikiDomain, sReferer, pageSlugToCreate, socketID
+         return "Sent JSON. Socket still open."
+      default
+         if the shiftKey is "Down" then
+            mediawiki_NormaliseTitle pageSlugToCreate, pageTitle, pageID
+            if pageID is a number then
+               put mw_SummaryPageArray (pageTitle) into pageArray
+               put "markdown" into pageArray ["plugin"]
             else
                put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
             end if
-            --
-            daemon_SendArray socketID, pageArray
-            return "Sent JSON. Socket still open."
-      end switch
-   else
-      pass option_NotFound
-   end if
+         else
+            put wikiDialogue_Get (pageSlugToCreate, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
+         end if
+         --
+         daemon_SendArray socketID, pageArray
+         return "Sent JSON. Socket still open."
+   end switch
+else
+   pass option_NotFound
+end if
 end option_NotFound
 
 command option_ThoughtTranscript wikiDomain, sReferer, pageSlugToCreate, socketID
@@ -114,10 +118,6 @@ command wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
          -- pass on to behavior
    end switch
 end wikiBehavior_CustomGET
-
--- before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
-wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
-end get_WikiPageJson
 
 command get_LcwBookmarklet someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain

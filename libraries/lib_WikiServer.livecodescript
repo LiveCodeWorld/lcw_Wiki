@@ -21,6 +21,35 @@ local WikiServer_NodePort
 
 --> Working on
 -   
+function wikiServer_NodeIsRunning
+   return wikiServer_ListProcessIds() is not empty
+   -- return "wiki" is among the lines of the openprocesses
+end wikiServer_NodeIsRunning
+
+function wikiServer_ListProcessIds
+   -- put "wiki --security_legacy" into wikiCommand
+   put ps_Grep ("wiki") into pids
+   return pids
+end wikiServer_ListProcessIds
+
+private function ps_Grep pCommand
+   put "grep" && pCommand into grepCommand
+   put "ps aux |" && grepCommand into someShell
+   put shell (someShell) into shellResult
+   --
+   repeat for each line sLine in shellResult
+      if word -2 to -1 of sLine = grepCommand then next repeat
+      --
+      put word 2 of sLine into pid
+      put pid & comma after pids
+   end repeat
+   delete char -1 of pids
+   return pids
+end ps_Grep
+
+
+--> Wikiserver
+-
 function wikiServer_DefaultPort
    -- put the daemon_Port of pWikiServer into pPort
    return 9090
@@ -71,11 +100,6 @@ function wikiServer_IsRunning
    put serverObjects is not empty into isRunning
    return isRunning
 end wikiServer_IsRunning
-
-function wikiServer_NodeIsRunning
-   return wikiServer_ListProcessIds() is not empty
-   -- return "wiki" is among the lines of the openprocesses
-end wikiServer_NodeIsRunning
 
 function wikiServer_ProxyFarmIsRunning
    put caddy_IsRunning() AND wikiServer_NodeIsRunning() AND wikiServer_IsRunning() into sBoolean
@@ -357,71 +381,6 @@ command wikiServer_StopLive pWikiServers, pCloseAll
    return pWikiServer
 end wikiServer_StopLive
 
-
---> WikiServer | Files (see lib_AtopiaDomainOwnership)
--
-function wikiServer_OwnerExists wikiDomain
-   put wikiFile_ConstructOwner (wikiDomain) into ownerFile
-   return there is a file ownerFile
-end wikiServer_OwnerExists
-
-command wikiServer_SetFriendlyData wikiDomain, pUserName, pSecret
-   put wikiServer_FriendlyOwnerData (pUserName, pSecret) into ownerData
-   wikiServer_SetOwnerData wikiDomain, ownerData
-   put the result into ownerFile
-   return ownerFile
-end wikiServer_SetFriendlyData
-
-function wikiServer_GetOwnerData wikiDomain
-   put wikiFile_ConstructOwner (wikiDomain) into ownerFile
-   if there is a file ownerFile then
-      put jsonArray_FromFile (ownerFile) into ownerData
-      return ownerData
-   else
-      return empty
-   end if
-end wikiServer_GetOwnerData
-
-command wikiServer_SetOwnerData wikiDomain, pOwnerData
-   if pOwnerData is not an array then
-      put wikiServer_FriendlyOwnerData() inot pOwnerData
-   end if
-   
-   put wikiFile_ConstructOwner (wikiDomain) into ownerFile
-   jsonArray_ToFile ownerFile, pOwnerData
-   return ownerFile
-end wikiServer_SetOwnerData
-
-function wikiServer_FriendlyOwnerData pUserName, pSecret
-   if pUserName is empty then put lcw_GetAuthor() into pUserName
-   if pSecret is empty then put system_GetAdminPassword() into pSecret
-   --
-   put wikiServer_ConstructOwnerData (pUserName, pSecret, "friendly") into ownerData
-   return ownerData
-end wikiServer_FriendlyOwnerData
-
-function wikiServer_ConstructOwnerData pUserName, pSecret, pSecurityType
-   -- only "friendly" for now
-   if pUserName is empty then put lcw_GetAuthor() into pUserName
-   if pSecret is empty then put system_GetAdminPassword() into pSecret
-   
-   switch pSecurityType
-      case "friendly"
-      default
-         put pUserName into ownerData ["name"]
-         put pSecret into ownerData ["friend"]["secret"]
-   end switch
-   return ownerData
-end wikiServer_ConstructOwnerData
-
-function wikiServer_ConstructFriendlyJson pUserName, pSecret
-   if pUserName is empty then put lcw_GetAuthor() into pUserName
-   if pSecret is empty then put system_GetAdminPassword() into pSecret
-   --
-   replace "'" with quote in ownerJSON
-   return ownerJSON
-end wikiServer_ConstructFriendlyJson
-
 function wikiServer_GetFavicon wikiDomain
    put wikiFile_Favicon (wikiDomain) into faviconFile
    if there is a file faviconFile then
@@ -601,33 +560,6 @@ function wikiServer_TerminalCommand
    --
    return someShell
 end wikiServer_TerminalCommand
-
-
---> Wiki
--
-function wikiServer_ListProcessIds
-   -- put "wiki --security_legacy" into wikiCommand
-   put ps_Grep ("wiki") into pids
-   return pids
-end wikiServer_ListProcessIds
-
-
---> Deps
--
-function ps_Grep pCommand
-   put "grep" && pCommand into grepCommand
-   put "ps aux |" && grepCommand into someShell
-   put shell (someShell) into shellResult
-   --
-   repeat for each line sLine in shellResult
-      if word -2 to -1 of sLine = grepCommand then next repeat
-      --
-      put word 2 of sLine into pid
-      put pid & comma after pids
-   end repeat
-   delete char -1 of pids
-   return pids
-end ps_Grep
 
 
 --> Private

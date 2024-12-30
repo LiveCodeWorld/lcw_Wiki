@@ -52,7 +52,7 @@ on menu_UpdateEtcHosts dView
    filter localHosts with "*localhost" -- just in case
    --
    breakpoint
-   put hosts_ConstructText (localHosts) into hostsText
+   put hosts_AddLocalDomainsToText (localHosts) into hostsText
    hosts_Set hostsText
 end menu_UpdateEtcHosts
 

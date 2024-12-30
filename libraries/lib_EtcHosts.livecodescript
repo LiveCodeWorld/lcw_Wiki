@@ -5,13 +5,31 @@ copyright: David Bovill
 license: GPLv3
 name: lib_EtcHosts
 type: library
-version: 0.1
+version: 0.2
 
 /*Some help*/
 
 
 --> Working on
 -
+function hosts_ListFiles
+   -- return shell ("ls /etc/host*")
+   put files ("/etc/") into hostFiles
+   filter hostFiles with "hosts*"
+   return hostFiles
+end hosts_ListFiles
+   
+command hosts_RestoreBackup pSystemPassword
+   if there is a file "/etc/hosts" then return "Error, cannot use hosts_RestoreBackup as etc/hosts file exists!"
+   if there is not a file "/etc/hosts_backup" then return "Error, cannot use hosts_RestoreBackup as etc/hosts_backup file is missing!"
+   
+   _NormalizeSystemPassword pSystemPassword
+   --
+   put merge ("echo '[[pSystemPassword]]' | sudo -S mv /etc/hosts_backup /etc/hosts") into someShell
+   put shell (someShell) into sResult
+   return sResult
+end hosts_RestoreBackup
+
 private command _NormalizeSystemPassword @pSystemPassword
    if pSystemPassword is empty then
       put system_GetAdminPassword() into pSystemPassword
@@ -57,7 +75,7 @@ end hosts_Rename
    
 command hosts_Add localDomainsToAdd, pSystemPassword, pLaunch
    _NormalizeSystemPassword pSystemPassword
-   put hosts_ConstructText (localDomainsToAdd, pSystemPassword) into hostsText
+   put hosts_AddLocalDomainsToText (localDomainsToAdd, pSystemPassword) into hostsText
    if item 1 of hostsText = "Error" then return hostsText
    --
    if pLaunch is true then
@@ -95,20 +113,25 @@ function hosts_NewText localDomains
    return hostText
 end hosts_NewText
 
-function hosts_ConstructText pLocalDomainsToAdd, pSystemPassword
+function hosts_AddLocalDomainsToText pLocalDomainsToAdd, pSystemPassword
    _NormalizeSystemPassword pSystemPassword
    --
    replace comma with CR in pLocalDomainsToAdd
    --
-   put hosts_Get (pSystemPassword) into hostsText
-   if hostsText contains "Password:Sorry, try again." then
-      return "Error, wrong passowd"
+   if there is a file "/etc/hosts" then
+      put hosts_Get (pSystemPassword) into hostsText
+      switch hostsText
+         case hostsText contains "Password:Sorry, try again."
+            return "Error, wrong passowd"
+         default
+            put hosts_GetArray (hostsText) into hostsArray
+            put _MaxExistingDomains (hostsArray) into dNum
+            --
+            put hostsArray ["domains"] into domainArray
+      end switch
+      --
    end if
-   --
-   put hosts_GetArray (hostsText) into hostsArray
-   put _MaxExistingDomains (hostsArray) into dNum
-   --
-   put hostsArray ["domains"] into domainArray
+   
    repeat for each line localDomain in pLocalDomainsToAdd
       switch
          case localDomain is "localhost"
@@ -125,7 +148,7 @@ function hosts_ConstructText pLocalDomainsToAdd, pSystemPassword
    --
    put hosts_TextFromArray (hostsArray) into hostText
    return hostText
-end hosts_ConstructText
+end hosts_AddLocalDomainsToText
 
 function hosts_TextFromArray hostsArray
    put LF into lineDelimChar
@@ -196,7 +219,28 @@ end hosts_GetArray
 
 --> Etc | Hosts
 -
-command hosts_Backup pSystemPassword 
+command hosts_Backup pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   --
+   put "/etc/hosts" into hostsFile
+   put "/etc/hosts_backup" into hostsBackupFile
+   get "echo '[[pSystemPassword]]' | sudo -S cp" && kwote (hostsFile, "'") && kwote (hostsBackupFile, "'")
+   put merge (it) into someShell
+   --
+   put shell (someShell) into sResult
+   if sResult = "Password:" then
+      return empty
+   else
+      -- Password:mv: rename /etc/hosts to /etc/hosts_backup: No such file or directory
+      return sResult 
+   end if
+end hosts_Backup
+
+command hosts_MoveToBackup pSystemPassword
+   -- does nothing if no /etc/hosts
+   -- otherwise moves it to "/etc/hosts_backup"
+   -- overwrites old backup if it exists
+   
    _NormalizeSystemPassword pSystemPassword
    --
    put "/etc/hosts" into hostsFile
@@ -204,9 +248,14 @@ command hosts_Backup pSystemPassword
    get "echo '[[pSystemPassword]]' | sudo -S mv" && kwote (hostsFile, "'") && kwote (hostsBackupFile, "'")
    put merge (it) into someShell
    --
-   put shell (someShell) into shellResult
-   return shellResult 
-end hosts_Backup
+   put shell (someShell) into sResult
+   if sResult = "Password:" then
+      return empty
+   else
+      -- Password:mv: rename /etc/hosts to /etc/hosts_backup: No such file or directory
+      return sResult 
+   end if
+end hosts_MoveToBackup
 
 function hosts_Get pSystemPassword
    _NormalizeSystemPassword pSystemPassword

@@ -54,6 +54,18 @@ command wikipedia_FixText @sText
 end wikipedia_FixText
 
 
+--> WikiFolder | Model | Local
+-
+function wikiFolder_Get wikiDomain
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
+   if there is a folder wikiFolder then 
+      return wikiFolder
+   else
+      return empty
+   end if
+end wikiFolder_Get
+
+
 --> WikiFolder | Fast | WikiRouter
 -
 function wikiFolder_FromRouter wikiDomain
@@ -97,34 +109,6 @@ function wikiFolder_FindLocalHost ecoFolder, farmFolder
 end wikiFolder_FindLocalHost
 
 
---> WikiFolder | List
--
-function wikiFolder_ListDomains farmFolder, pNum
-   -- see also "wikiFolder_ListNotEmpty"
-   text_AddTrailing farmFolder, slash
-   put folder_ListShort (farmFolder) into shortWikiFolders
-   repeat for each line shortFolder in shortWikiFolders
-      set the cursor to busy
-      put farmFolder & shortFolder & slash into wikiFolder
-      
-      switch shortFolder
-         case "commons"
-            -- put wikiFolder_HasNoPages (wikiFolder, pNum) = empty
-            next repeat
-            break
-         default
-            # Skip if no pages
-            put wikiFolder_HasNoPages (wikiFolder, pNum) into noPages
-            if noPages is true then next repeat
-            put shortFolder & CR after wikiDomains
-      end switch
-   end repeat
-   delete char -1 of wikiDomains
-   url_SortDomainIndex wikiDomains
-   return wikiDomains
-end wikiFolder_ListDomains
-
-
 --> WikiFolder
 -
 function wikiFolder_NumberOfPages wikiFolder, pUseSymLinked
@@ -142,31 +126,8 @@ function wikiFolder_NumberOfPages wikiFolder, pUseSymLinked
 end wikiFolder_NumberOfPages
 
 
---> WikiFolder | Model | Local
--
-function wikiFolder_Get wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   if there is a folder wikiFolder then 
-      return wikiFolder
-   else
-      return empty
-   end if
-end wikiFolder_Get
-
-
 --> WikiFolder | List
 -
-function wikiFolder_ListTopLevel   
-   # List Toplevel
-   put wikiDomain_List() into wikiDomains
-   put url_ListTopLevelDomains (wikiDomains) into toplevelDomains
-   
-   # Strip notThese
-   put wikiFolder_NotThese() into notThese
-   put _StripNotThese (toplevelDomains, notThese) into goodShortFolders
-   return goodShortFolders
-end wikiFolder_ListTopLevel
-
 function wikiFolder_ListShort pRootFolder, pNotTheseShortFolders
    if pRootFolder is empty then put ecoData_GetFarmFolder() into pRootFolder
    if pNotTheseShortFolders is empty then put "commons" into pNotTheseShortFolders
@@ -177,6 +138,44 @@ function wikiFolder_ListShort pRootFolder, pNotTheseShortFolders
    url_SortDomainIndex goodShortFolders
    return goodShortFolders
 end wikiFolder_ListShort
+
+function wikiFolder_ListDomains farmFolder, pNum
+   -- see also "wikiFolder_ListNotEmpty" in lib_WikiEmpty
+   text_AddTrailing farmFolder, slash
+   put folder_ListShort (farmFolder) into shortWikiFolders
+   repeat for each line shortFolder in shortWikiFolders
+      set the cursor to busy
+      put farmFolder & shortFolder & slash into wikiFolder
+      
+      switch shortFolder
+         case "commons"
+            -- put wikiFolder_HasNoPages (wikiFolder, pNum) = empty
+            next repeat
+            break
+         default
+            # Skip if no pages
+            put wikiFolder_HasNoPages (wikiFolder, pNum) into noPages
+            if noPages is true then
+               next repeat
+            end if
+            put shortFolder & CR after wikiDomains
+      end switch
+   end repeat
+   delete char -1 of wikiDomains
+   url_SortDomainIndex wikiDomains
+   return wikiDomains
+end wikiFolder_ListDomains
+
+function wikiFolder_ListTopLevel   
+   # List Toplevel
+   put wikiDomain_List() into wikiDomains
+   put url_ListTopLevelDomains (wikiDomains) into toplevelDomains
+   
+   # Strip notThese
+   put wikiFolder_NotThese() into notThese
+   put _StripNotThese (toplevelDomains, notThese) into goodShortFolders
+   return goodShortFolders
+end wikiFolder_ListTopLevel
 
 command wikiFolder_TidyList @shortWikiFolders
    put wikiFolder_NotThese() into notThese

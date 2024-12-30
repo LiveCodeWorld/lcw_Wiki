@@ -4,14 +4,121 @@
 license: GPLv3
 name: lib_DisplayWiki
 type: library
-version: 0.3
+version: 0.4
 
 /*
+A lot of experimental interfaces for displaying wiki structure and file organisation.
 */
 
 
 --> Working on
 -
+command display_EtcHosts
+   put hosts_ListFiles() into hostFiles
+   --
+   -- put display_FindView ("/etc/hosts")
+   put display_FindIndexView ("/etc/hosts") into dView
+   
+   if "hosts" is among the lines of hostFiles then
+      if pSystemPassword is empty then put system_GetAdminPassword() into sPassword
+      put hosts_Get (sPassword) into hostsText
+      --
+      display_Text hostsText, "Current", "/etc/hosts", dView
+   else
+      display_Text hostFiles, "Backup Files", "/etc/hosts", dView
+   end if
+   put the result into dView
+   --
+   set the title_Menu of dView to "Global | Hosts | Menu"
+   return dView
+end display_EtcHosts
+
+command display_WikiPiOwner wikiDomain, pPiLocalHost, pDisplayView
+   put wikiDomain into sTitle
+   if pPiLocalHost is empty then
+      put pihole_DomainToPiName (wikiDomain) into pPiLocalHost
+      if pPiLocalHost is empty then
+         return "Error, no pihole entry for:" && wikiDomain
+      end if
+   end if
+   
+   # Fetch Owner.json
+   put wikiPi_FetchOwnerData (wikiDomain, pPiLocalHost) into ownerData
+   if ownerData is empty then
+      put empty into ownerData ["name"]
+      put empty into ownerData ["friend"]
+   end if
+   
+   put "@" & pPiLocalHost after sTitle
+   display_Tool ownerData, sTitle, "Wiki Owner", pDisplayView
+   put the result into dView
+   return dVIEW
+end display_WikiPiOwner
+
+command display_WikiOwner wikiDomain, pPiLocalHost, pDisplayView
+   if pPiLocalHost is empty then
+      breakpoint
+      -- display_OwnerJson
+      put wikiServer_GetOwnerData (wikiDomain) into ownerData
+      put "Local" && wikiDomain into sTitle
+   else
+      display_WikiPiOwner wikiDomain, pPiLocalHost, pDisplayView
+      put wikiDomain & "@" & pPiLocalHost into sTitle
+    end if
+   display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
+   
+   put the result into dView
+   return dVIEW
+end display_WikiOwner
+
+command display_WikiPiLocalData tldDomain
+   put wikiPi_LocalDomainData (tldDomain) into localDomainData
+   array_MakeExpandable localDomainData
+   --
+   put pihole_DomainToPiName (tldDomain) into localHostName
+   put tldDomain & "@" & localHostName into sTitle
+   display_Tool localDomainData, sTitle, "Wiki Local Data", "lcw_Wiki"
+   -- display_Data localDomainData, tldDomain, "wikiPi_LocalDomainData (tldDomain)"
+   put the result into dView
+   return dView
+end display_WikiPiLocalData
+
+command display_WikiPiSlugs piLocalHostName, pWikiDomain
+   put wikiPi_ListPageSlugs (piLocalHostName, pWikiDomain) into pageSlugs
+   --
+   if wikiFolders is empty then
+      put "All Short Folders" into pTitle
+   else
+      put pWikiDomain & "@" & piLocalHostName into pTitle
+   end if
+   display_Tool pageSlugs, pTitle, "WikiPi Pageslugs", "lcw_Wiki"
+   put the result into dView
+   return dView
+end display_WikiPiSlugs
+
+command display_WikiPiShortFolders piLocalHostName, pWikiDomain
+   put wikiPi_ListShortFolders (piLocalHostName, pWikiDomain) into wikiFolders
+   --
+   if wikiFolders is empty then
+      put "All Short Folders" into pTitle
+   else
+      put pWikiDomain & "@" & piLocalHostName into pTitle
+   end if
+   display_Tool wikiFolders, pTitle, "WikiPi Folders", "lcw_Wiki"
+   put the result into dView
+   return dView
+end display_WikiPiShortFolders
+
+command display_LocalWikis pDisplayView, pTitle, pFilter
+   if pTitle is empty then put "All" into pTitle
+   --
+   put wikiDomain_List (pFilter) into wikiFolders
+   --
+   display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
+   --
+   return the result
+end display_LocalWikis
+
 command display_ScriptDependencyData sObject
    put the script_HkeyArray of sObject into hKeyArray
    put dep_ConstructData (hkeyArray, sObject) into depData
@@ -56,6 +163,61 @@ command draft_WikiPage wikiDomain, pageArray
    --
    return wikiBrowser
 end draft_WikiPage
+
+
+--> Display | Wiki | Garden
+-
+command display_WikiAndSubdomains wikiDomain
+   put wikiDomain_List (wikiDomain) into wikiFolders
+   --
+   -- display_LocalWikis dView, wikiDomain, wikiDomain
+   display_Tool wikiFolders, wikiDomain, "Local Wiki Domains", "lcw_Wiki"
+   put the result into dView
+   return dView
+end display_WikiAndSubdomains
+
+command display_WikiFarm pTopLevel, pDisplayView
+   put wikiFarm_ListDomains() into farmDomains
+   --
+   if pTopLevel is true then
+      put url_ListTopLevelDomains (farmDomains) into farmDomains
+      put "Top Level Domains" into sTitle
+   else
+      put "Farm" into sTitle
+   end if
+   
+   display_Tool farmDomains, sTitle, "Local Wiki", "lcw_Wiki", empty, pDisplayView
+   put the result into dView
+   return dView
+end display_WikiFarm
+
+command display_WikiGardens
+   -- put wikiGarden_ListUniqueNames (true) into gardenNames
+   ecoData_ConstructLoadAndStore
+   put the result into ecoData
+   put ecoData_ListGardenNames (ecoData) into gardenNames
+   
+   put CR & "-" after gardenNames
+   put CR & "Farm" after gardenNames
+   
+   display_Tool gardenNames, "Gardens", "Wiki Gardens", "lcw_Wiki"
+   put the result into dView
+   
+   set the eco_Data of dView to ecoData
+   return dView
+end display_WikiGardens
+
+command display_WikiGarden gardenName, pReIndex
+   if pReIndex is true then
+      ecoData_ConstructLoadAndStore
+   end if
+   
+   put wikiGarden_ListShortFolders (gardenName) into shortFolders
+   --
+   display_Tool shortFolders, gardenName, "Local Wiki Garden", "lcw_Wiki"
+   put the result into dView
+   return dView
+end display_WikiGarden
 
 
 --> Wiki | Functions
@@ -125,14 +287,6 @@ command display_WikiPrefArray
    display_Tool prefArray, "prefArray", "Localhost"
    return the result
 end display_WikiPrefArray
-
-command display_WikiOwner wikiDomain, pDisplayView
-   -- display_OwnerJson
-   put wikiServer_GetOwnerData (wikiDomain) into ownerData
-   display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
-   put the result into dView
-   return dVIEW
-end display_WikiOwner
 
 
 --> Display
@@ -393,16 +547,6 @@ end display_AstralMediaPhotos
 
 --> Display | Wiki | List
 -
-command display_LocalWikis pDisplayView, pTitle, pFilter
-   if pTitle is empty then put "All" into pTitle
-   --
-   put wikiDomain_List (pFilter) into wikiFolders
-   --
-   display_WikiFolders wikiFolders, "Wiki | Local", pDisplayView, pFilter, pTitle, "Local Wikis"
-   put the result into dView
-   return dView
-end display_LocalWikis
-
 command display_NonSymLinked pDisplayView, pFilter, pTitle
    breakpoint
    if pTitle is empty then put "Non-symlinked" into pTitle
@@ -476,16 +620,6 @@ command display_GitWikis gitWikiShortFolders, pDisplayView, pWikiFilter, pTitle
    put the result into dView
    return dView
 end display_GitWikis
-
-command display_EtcHosts pSystemPassword
-   if pSystemPassword is empty then
-      put lcw_Ask ("Enter system password...") into pSystemPassword
-   end if
-   put hosts_Get (pSystemPassword) into hostsText
-   --
-   display_Text hostsText, "Current", "/etc/hosts"
-   return the result
-end display_EtcHosts
 
 command display_LocalWithoutAstral dView, pFilter
    put ecoData_GetFarmFolder() into wikiFolder

@@ -14,6 +14,29 @@ local Node_ModulesFolder
 local Wiki_ModulesFolder
 
 
+--> Working on
+-
+function wikiFolder_ConstructStatus wikiDomain, pWikiFolder
+   if pWikiFolder is empty then
+      put wikiFolder_FromRouter (wikiDomain) into pWikiFolder
+      put pWikiFolder & "status/" into statusFolder
+   else
+      text_AddTrailing pWikiFolder, slash
+      text_AddTrailing wikiDomain, slash
+      put pWikiFolder & wikiDomain & "status/" into statusFolder
+   end if
+   return statusFolder
+end wikiFolder_ConstructStatus
+
+function wikiFolder_ConstructRecycled wikiDomain, pWikiFolder
+   if pWikiFolder is empty then
+      put wikiFolder_FromRouter (wikiDomain) into pWikiFolder
+   end if
+   put pWikiFolder & "recycle/" into recycleFolder
+   return recycleFolder
+end wikiFolder_ConstructRecycled
+
+
 --> WikiUrl
 -
 command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineUpNum
@@ -81,8 +104,8 @@ end wikiFolder_ConstructLocalHost
 
 --> Wikifile | Owner
 -
-function wikiFile_ConstructOwner wikiDomain
-   put wikiFolder_ConstructStatus (wikiDomain) into statusFolder
+function wikiFile_ConstructOwner wikiDomain, pWikiFolder
+   put wikiFolder_ConstructStatus (wikiDomain, pWikiFolder) into statusFolder
    put statusFolder & "owner.json" into faviconFile
    return faviconFile
 end wikiFile_ConstructOwner
@@ -352,18 +375,6 @@ function wikiFolder_ConstructAssets wikiDomain
    put wikiFolder & "assets/" into assetsFolder
    return assetsFolder
 end wikiFolder_ConstructAssets
-
-function wikiFolder_ConstructStatus wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   put wikiFolder & "status/" into statusFolder
-   return statusFolder
-end wikiFolder_ConstructStatus
-
-function wikiFolder_ConstructRecycled wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   put wikiFolder & "recycle/" into recycleFolder
-   return recycleFolder
-end wikiFolder_ConstructRecycled
 
 
 --> Nvm & Node | Paths

@@ -22,24 +22,63 @@ getprop menu_Target [tObject]
    end if
 end menu_Target
 
--- getprop menu_CheckTarget [browserView]
-try
-   put wiki_NodeServerIsRunning() into LocalArray ["wikiStarted"]
-   return exists (browserView)
-catch e
-   return false
-end try
-end menu_CheckTarget
+function hosts_Exists
+   put hosts_GetArray(hostsText)
+end hosts_Exists
 
 
 --> Global | Wiki | Menu
 -
-on menu_DisplayCaddyTools
-   display_CaddyTools
-end menu_DisplayCaddyTools
+on menu_ToggleEtcHosts
+   put "ls -la /etc/hosts" into someShell
+   put shell (someShell)
+end menu_ToggleEtcHosts
+
+on menu_ToggleProxyFarm
+   toggle_ProxyFarm
+end menu_ToggleProxyFarm
+
+getprop checked_ToggleProxyFarm
+   return wikiServer_ProxyFarmIsRunning()
+end checked_ToggleProxyFarm
+
+on menu_ToggleLiveServer
+   toggleServer_LiveOnly
+end menu_ToggleLiveServer
+
+getprop checked_ToggleLiveServer
+   return wikiServer_OnlyIsRunning()
+end checked_ToggleLiveServer
+
+private on _
+end _
+
+on menu_DisplayEtcHosts
+   display_EtcHosts
+end menu_DisplayEtcHosts
+
+on menu_DisplayPiholeTools
+   display_PiholeTools
+end menu_DisplayPiholeTools
+
+on menu_DisplayGardens
+   display_WikiGardens
+end menu_DisplayGardens
+
+on menu_DisplayWikiFarm
+   display_WikiFarm
+end menu_DisplayWikiFarm
 
 private on __
 end __
+
+on menu_DisplayThought dView
+   display_LocalWikis dView, "Local Thought Domains", "*thought*"
+end menu_DisplayThought
+
+on menu_DisplayCaddyTools
+   display_CaddyTools
+end menu_DisplayCaddyTools
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Menu")

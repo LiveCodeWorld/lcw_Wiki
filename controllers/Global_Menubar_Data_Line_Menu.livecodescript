@@ -33,6 +33,14 @@ private function _buttonObject dView
    return btnObject
 end _buttonObject
 
+command _Refresh dView
+   put the displayed_Object of dView into viewObject
+   put the title_Text of viewObject into sName
+   put the stack_Name of viewObject into sName
+   --
+   display_MenuBarData sName, dView
+end _Refresh
+
 
 --> Global | Menubar | Data | Line | Menu
 -
@@ -48,8 +56,9 @@ on menu_MenuButtonTitle dView
    put lcw_Ask ("Set the menuButton_Title of menu '[[var]]'?", mTitle, dView, mName) into mTitle
    --
    put _buttonObject (dView) into btnObject
-   breakpoint
    set the menuButton_Title [mName] of btnObject to mTitle
+   --
+   _Refresh dView
 end menu_MenuButtonTitle
 
 private on _

@@ -312,7 +312,8 @@ on menu_WikiServerSimple dView
 end menu_WikiServerSimple
 
 private function _ServerIsRunning
-   put LocalArray ["sPort"] is among the lines of the opensockets into isRunning
+   get the opensockets
+   put LocalArray ["sPort"] is among the lines of it into isRunning
    return isRunning
 end _ServerIsRunning
 

@@ -30,7 +30,21 @@ function wikiDomain_GardenFolder wikiDomain
    return wikiFolder
 end wikiDomain_GardenFolder
 
-function wikiDomain_List pFilterDomain
+
+--> WikiDomain | List
+-
+function wikiDomain_SubList wikiDomain, pReLoad
+   put wikiDomain_List (wikiDomain, pReLoad) into subDomains
+   filter subDomains with ("*." & wikiDomain)
+   return subDomains
+end wikiDomain_SubList
+
+function wikiDomain_List pFilterDomain, pReLoad
+   if pReLoad is true then
+      ecoData_ConstructLoadAndStore
+      put the result into ecoData
+   end if
+   
    put wikiGarden_GetDomainData() into gardenDomainData
    put keys (gardenDomainData) into wikiDomains
    
@@ -39,6 +53,9 @@ function wikiDomain_List pFilterDomain
    return wikiDomains
 end wikiDomain_List
 
+
+--> WikiDomain
+-
 function wikiDomain_Folder wikiDomain
    put wikiGarden_GetDomainData() into gardenDomainData
    put gardenDomainData [wikiDomain]["folder"] into wikiFolder

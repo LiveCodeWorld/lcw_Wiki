@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Obeya | Studio | Menu
 type: controller
-version: 0.1
+version: 0.2
 
 /*Here you can describe this menu.
 Full help text should be provided on the linked wiki.*/
@@ -92,7 +92,8 @@ getprop displayDomain_Param [browserView]
 end displayDomain_Param
 
 getprop displayDomain_Params
-   put wikiGarden_ListAllDomains ("*.localhost") into wikiDomains
+   put wikiGarden_ListDomains ()into wikiDomains
+   -- ("*.localhost") into wikiDomains
    return "ChatGPT,Localhost,-," & wikiDomains
 end displayDomain_Params
 

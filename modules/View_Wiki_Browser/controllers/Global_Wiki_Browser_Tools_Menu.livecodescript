@@ -73,6 +73,19 @@ end _GetPageArray
 
 --> Global | Wiki | Browser | Tools | Menu
 -
+on menu_PiholeSubdomain wikiView, subDomain
+   lcw_Answer "Add subdomain to pihole?", wikiView
+   
+   put the domain_Name of wikiView into domainName
+   put "platform.earth" into domainName
+   pihole_AddCustomSubDomain subDomain, domainName
+end menu_PiholeSubdomain
+
+getprop piholeSubdomain_Params
+   put wikiFarm_ListSubdomains ("platform.earth") into subDomains
+   return subDomains
+end piholeSubdomain_Params
+
 on menu_AddBookmarks wikiView
    put the bookmark_Data of wikiView into bookmarkData
    wikiBookmark_SetData bookmarkData

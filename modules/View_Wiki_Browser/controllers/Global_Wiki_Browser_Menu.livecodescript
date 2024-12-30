@@ -39,20 +39,6 @@ getprop menu_Target [tObject]
    return wikiView
 end menu_Target
 
-getprop displayDomain_Param [wikiView]
-   return LocalArray ["tldDomain"]
-end displayDomain_Param
-
-getprop displayDomain_Params
-   if LocalArray ["nodeIsRunning"] then
-      put wikiFarm_ListDomains() into wikiDomains
-      put url_ListTopLevelDomains (wikiDomains) into wikiDomains
-   else
-      put wikiFolder_ListTopLevel() into wikiDomains
-   end if
-   return "Ask,-" &CR& wikiDomains &CR& "-,ChatGPT"
-end displayDomain_Params
-
 getprop subdomain_Params [wikiView]
    return LocalArray ["subDomains"]
 end subdomain_Params
@@ -67,9 +53,9 @@ getprop disabled_Subdomain [wikiView]
             put LocalArray ["tldDomain"] into tldDomain
             put wikiFarm_ListSubdomains (tldDomain) into subDomains
          else
-            put wikiDomain_ListTop() into subDomains
-            url_FilterDomains subDomains, wikiDomain
+            put wikiDomain_SubList (wikiDomain) into subDomains
          end if
+         
          put subDomains into LocalArray ["subDomains"]
          if subDomains is empty then
             return "delete"
@@ -112,6 +98,20 @@ on menu_DisplayDomain wikiView, wikiDomain
    end switch
 end menu_DisplayDomain
 
+getprop displayDomain_Param [wikiView]
+   return LocalArray ["tldDomain"]
+end displayDomain_Param
+
+getprop displayDomain_Params
+   if LocalArray ["nodeIsRunning"] then
+      put wikiFarm_ListDomains() into wikiDomains
+      put url_ListTopLevelDomains (wikiDomains) into wikiDomains
+   else
+      put wikiFolder_ListTopLevel() into wikiDomains
+   end if
+   return "Ask,-" &CR& wikiDomains &CR& "-,ChatGPT"
+end displayDomain_Params
+
 on menu_Subdomain wikiView, subDomain
    if the shiftKey is "Down" then
       if the controlKey is "Down" then
@@ -132,7 +132,7 @@ on menu_Fedwiki.1 wikiView
 end menu_Fedwiki.1
 
 on menu_Livecode.2 wikiView
-   display_Wiki "livecode.world", wikiView
+   display_Wiki "livecode.wiki", wikiView
 end menu_Livecode.2
 
 on menu_Thought.3 wikiView

@@ -45,6 +45,54 @@ function dot_GetArray hkey
 end dot_GetArray
 
 
+--> PageItem
+-
+function pageItem_GetFirstImage itemHTML
+   -- "data-imagestyle='fullwiki'"
+   
+   -- lets do a bit of hacking first
+   put html_ExtractOpeningTag ("img", itemHTML) into imgTag
+   xhtml_TidyNode imgTag
+   --
+   put html_GetImageArray (imgTag) into imageArray
+   if imageArray is an array is false then return empty
+   --
+   --  display_Data imageArray, "html_GetImageArray()"
+   put imageArray ["data-imagestyle"] into dataImagestyle
+   put "<div style='padding: 12px; background:#eee; width:96%; align=centered;'>" into oldStandardDiv
+   switch
+      case dataImagestyle is not empty
+      case sHTML contains oldStandardDiv
+         return imageArray ["src"]
+      default
+         return imageArray ["src"]
+         -- return empty
+   end switch
+end pageItem_GetFirstImage
+
+function pageItem_ParseCode firstCode
+   put firstCode into codeArray ["text"]
+   
+   put line 1 of firstCode into firstLine
+   put firstLine into codeArray ["code"]
+   
+   # Find lines that look like " [[toPi]]       = pi5.local" 
+   filter firstCode with regex pattern (" +\[\[.+\]\] += *")
+   
+   # Assume each line has a one word key (token 3)
+   set the itemdelimiter to "="
+   repeat for each line sLine in firstCode
+      put token 3 of word 1 to -1 of item 1 of sLine into firstKey
+      put word 1 to -1 of item 2 of sLine into firstValue
+      put firstValue into paramArray [firstKey]
+   end repeat
+   --
+   put paramArray into codeArray ["params"]
+   return codeArray
+end pageItem_ParseCode
+
+
+
 --> PageArray | List
 -
 function pageArray_ListReferenceDomains pageArray
@@ -130,6 +178,14 @@ end pageArray_ForkLinks
 
 --> PageArray | First
 -
+function pageArray_GetFirstCode pageArray
+   put pageArray_FindItemType ("code", pageArray) into firstItemNum
+   if firstItemNum = 0 then return empty
+   
+   put pageArray ["story"][firstItemNum]["text"] into sText
+   return sText
+end pageArray_GetFirstCode
+
 function pageArray_GetFirstRoster pageArray
    put pageArray_FindItemType ("roster", pageArray) into firstRosterItemNum
    if firstRosterItemNum = 0 then return empty

@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Module | Tools | Line | Menu
 type: controller
-version: 0.1
+version: 0.2
 
 /*Here you can describe this menu.
 Full help text should be provided on the linked wiki.*/
@@ -26,10 +26,29 @@ on mDoubleUp_ModuleTools dView, shortFile
    put the selected_Path of dView into fPath
    replace comma with slash in fPath
    put moduleFolder & fPath into sFile
+   --
+   if there is not a file sFile then breakpoint
    -- 
    set the itemDelimiter to "."
    put item -1 of sFile into fExt
+   --
+   if the optionKey is "Down" then breakpoint
+   
    switch
+      case fExt = "md"
+      case fExt = "html"
+         code_OpenFile sFile
+         break
+      case fExt = "array"
+         display_ArrayFile sFile
+         put the result into dView
+         set the displayed_ModuleFolder of dView to moduleFolder
+         break    
+      case fExt = "json"
+         display_JsonFile sFile
+         put the result into dView
+         set the displayed_ModuleFolder of dView to moduleFolder
+         break
       case there is a stack sFile
          if fExt = "livecode" then
             set the loc of stack sFile to the screenloc
@@ -42,16 +61,6 @@ on mDoubleUp_ModuleTools dView, shortFile
       case fExt = "livecode"
       case fExt = "livecodescript"
          breakpoint
-      case fExt = "json"
-         display_JsonFile sFile
-         put the result into dView
-         set the displayed_ModuleFolder of dView to moduleFolder
-         break
-      case fExt = "array"
-         display_ArrayFile sFile
-         put the result into dView
-         set the displayed_ModuleFolder of dView to moduleFolder
-         break    
       default
          put sFile
          breakpoint
@@ -148,6 +157,11 @@ private function _FilePath
    return sFile
 end _FilePath
 
+private function _AssetFolder
+   put _ModuleFolder() into mFolder
+   return mFolder & "assets/"
+end _AssetFolder
+
 private function _ModuleFolder
    put LocalArray ["dView"] into dView
    put the displayed_ModuleFolder of dView into mFolder
@@ -169,6 +183,30 @@ end disabled_RemoveBehavior
 
 --> Global | Module | Tools | Line | Menu
 -
+on menu_Refresh tiddlyView
+   put the view_Name of tiddlyView into moduleName
+   display_ModuleTools moduleName
+end menu_Refresh
+
+on menu_OpenAssetFolder
+   put _AssetFolder() into assetFolder
+   --
+   code_OpenFile assetFolder
+end menu_OpenAssetFolder
+
+on menu_DeleteFile tiddlyView
+   put _SelectedFile() into sFile
+   put _SelectedLine() into shortFile
+   --
+   lcw_Answer "Delete file '[[shortFile]]'?", dView, shortFile
+   delete file sFile
+   --
+   menu_Refresh tiddlyView
+end menu_DeleteFile
+
+on _
+end _
+
 on menu_ScriptTools
    put _SelectedFile() into sFile
    put the name of stack sFile into bObject
@@ -196,7 +234,7 @@ on menu_ListModuleDepkeys viewObject
    else
       # Collect and display script
       put the name of bObject into sTitle
-      put hkey_CollectFromObjects (depKeys, true) into newDepScript
+      put script_CollectFromObjects (depKeys, true) into newDepScript
       display_Text newDepScript, sTitle, "Deps Outside Module"
    end if
 end menu_ListModuleDepkeys
@@ -252,8 +290,8 @@ on menu_ViewProperty viewObject
    put the viewProp of viewObject
 end menu_ViewProperty
 
-on _
-end _
+on __
+end __
 
 on submenu_Controller
    return _GetMenu ("Controllers")
