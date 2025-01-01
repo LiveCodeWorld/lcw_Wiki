@@ -30,14 +30,6 @@ function daemon_WikiDomain
 end daemon_WikiDomain
 
 command transport_Echo
-   /*
-   put $_SERVER into tServerArray
-   put tServerArray ["PATH_TRANSLATED"] into pathTranslated
-   -- PATH_TRANSLATED /var/www/rest.livecode.world/index.lc
-   put "# PATH_TRANSLATED" & CR after someMarkdown
-   put pathTranslated & CR after someMarkdown
-   */
-   
    put "# HTTP_REFERER" & CR after someMarkdown
    put $HTTP_REFERER & CR after someMarkdown
    

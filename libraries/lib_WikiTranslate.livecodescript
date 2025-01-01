@@ -29,7 +29,8 @@ function wikiPage_ConstructTranslation sLang, sTranslation, wikiDomain, pageSlug
    put transport_ConstructHiddenArray (wikiDomain, pageSlug, pageTitle) into hiddenArray
    put sLang into hiddenArray ["sLang"]
    put urlEncode (sTranslation) into hiddenArray ["eTranslation"]
-   put "http://rest.livecode.world/augmented/add_Audio" into hiddenArray ["postURL"]
+   put "http://" & platform_RestDomain() & "/augmented/add_Audio" into postURL 
+   put postURL into hiddenArray ["postURL"]
    --
    put wikiSnippet_CurlyGet ("text-to-speech-form", hiddenArray) into formHTML
    pageArray_AddHTML pageArray, formHTML
@@ -346,7 +347,7 @@ private command _AddMissingButtonSection @pageArray, folderPageSlug, wikiDomain,
    -- curly_ReplacePageArray pageArray, "folderPageTitle", folderPageTitle
    put folderPageTitle into valueArray ["folderPageTitle"]
    
-   put "http://rest.livecode.world/transcribe/create_Missing" into postURL
+   put "http://" & platform_RestDomain() & "/transcribe/create_Missing" into postURL
    put empty into sLabel
    put wikiDomain into valueArray ["wikiDomain"]
    --
@@ -389,7 +390,7 @@ private command _AddStemSection @pageArray, foundTitles, folderPageSlug, wikiDom
    if stemKeys is empty then return empty
    
    pageArray_AddMarkdown pageArray, "# Stem Titles"
-   put "http://rest.livecode.world/transcribe/join_Missing" into postURL
+   put "http://" & platform_RestDomain() & "/transcribe/join_Missing" into postURL
    put empty into sLabel
    repeat for each key stemTitle in seriesArray 
       put fedwiki_ConstructSlug (stemTitle) into stemSlug

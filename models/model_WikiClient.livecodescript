@@ -30,12 +30,6 @@ function wikiClient_GetFactoriesJson pForceUpdate
 end wikiClient_GetFactoriesJson
 
 function wikiClient_ConstructFactoriesJson
-   /*
-   put url "http://livecode.world/system/factories.json" into factoriesJSON
-   put json_ToArray (factoriesJSON) into fArray
-   display_Data fArray, "factoriesJSON", "factories.json"
-   */
-   
    put wikiPlugin_List() into shortPluginFolders
    put node_WikiModulesFolder() into wikiModulesFolder
    put 1 into indexNum

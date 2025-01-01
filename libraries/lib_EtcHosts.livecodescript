@@ -7,10 +7,39 @@ name: lib_EtcHosts
 type: library
 version: 0.2
 
-/*Some help*/
+/*
+This library is for manipulating the /etc/hosts file.
+
+This is useful for setting up federated wiki farms on your laptop.
+*/
 
 
 --> Working on
+-
+command shell_DoSudo someShell, pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   
+   get "echo '[[pSystemPassword]]' | sudo -S [[someShell]]"
+   put merge (it) into someShell
+   --
+   put shell (someShell) into shellResult
+   return shellResult
+end shell_DoSudo
+
+private command _NormalizeSystemPassword @pSystemPassword
+   if pSystemPassword is empty then
+      put system_GetAdminPassword() into pSystemPassword
+      if pSystemPassword is empty then
+         put lcw_Ask ("Enter system password...") into pSystemPassword
+         system_SetAdminPassword pSystemPassword
+      end if
+   else
+      system_SetAdminPassword pSystemPassword
+   end if
+end _NormalizeSystemPassword
+
+
+--> Hosts
 -
 function hosts_ListFiles
    -- return shell ("ls /etc/host*")
@@ -29,18 +58,6 @@ command hosts_RestoreBackup pSystemPassword
    put shell (someShell) into sResult
    return sResult
 end hosts_RestoreBackup
-
-private command _NormalizeSystemPassword @pSystemPassword
-   if pSystemPassword is empty then
-      put system_GetAdminPassword() into pSystemPassword
-      if pSystemPassword is empty then
-         put lcw_Ask ("Enter system password...") into pSystemPassword
-         system_SetAdminPassword pSystemPassword
-      end if
-   else
-      system_SetAdminPassword pSystemPassword
-   end if
-end _NormalizeSystemPassword
 
 command hosts_Delete sDomain, pSystemPassword
    _NormalizeSystemPassword pSystemPassword

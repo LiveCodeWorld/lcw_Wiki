@@ -43,17 +43,43 @@ end _DeconstructTitle
 -
 on menu_AddPiDomains dView
    _DeconstructTitle dView, wikiDomian, piHost
-   put url_GetTLD (wikiDomian) into tldDomian
-   lcw_Answer "Add domain and subdomains of '[[tldDomian]]' to '[[piHost]]'?", dView, tldDomian, piHost
+   put url_GetTLD (wikiDomian) into tldDomain
+   lcw_Answer "Add domain and subdomains of '[[tldDomain]]' to '[[piHost]]'?", dView, tldDomain, piHost
+   --
    put the displayed_Index of dView into subDomains
+   line_Delete tldDomain, subDomains
    --
-   wikipi_AddDomains tldDomian, pPiHost, pSubDomains
+   wikipi_AddDomains tldDomain, piHost, subDomains
    --
-   menu_Refresh dView
+   -- menu_Refresh dView
+   display_PiholeSubdomains tldDomain
 end menu_AddPiDomains
 
 private on _
 end _
+
+on menu_FilterDisplayed dView
+   _DeconstructTitle dView, wikiDomian, piHost
+   --
+   put the displayed_Index of dView into wikiFolders
+   put lcw_Ask ("Filter displayed wiki-folders...", "*livecode.world", dView) into sFilter
+   filter wikiFolders with sFilter into filteredFolders
+   --
+   put sFilter & "@" & piHost into newTitle
+   set the displayed_Index [newTitle] of dView to filteredFolders
+end menu_FilterDisplayed
+
+on menu_AllWikiFolders dView
+   _DeconstructTitle dView, wikiDomian, piHost
+   --
+   display_WikiPiShortFolders piHost
+end menu_AllWikiFolders
+
+on menu_TopLevelFolders dView
+   _DeconstructTitle dView, wikiDomian, piHost
+   --
+   display_WikiPiShortFolders piHost, "TLD"
+end menu_TopLevelFolders
 
 on menu_Refresh dView
    _DeconstructTitle dView, tldDomian, piLocalHostName

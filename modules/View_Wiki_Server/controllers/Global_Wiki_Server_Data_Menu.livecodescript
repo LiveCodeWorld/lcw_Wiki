@@ -41,7 +41,8 @@ end disabled_WikiGardenRefresh
 --> Global | Wiki | Server | Data | Menu
 -
 on menu_DisplayPerformativeDictionary
-   put pageArray_Get ("rest.livecode.world", "performative-dictionary") into pageArray
+   put platform_WikiDomain ("rest") into wikiDomain
+   put pageArray_Get (wikiDomain, "performative-dictionary") into pageArray
    put pageArray_RefDictionary (pageArray) into storyArray
    --
    display_Data storyArray

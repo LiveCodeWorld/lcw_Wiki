@@ -21,7 +21,8 @@ Everything at the bottom of this code is in process of being moved to it's own l
 -
 function fedwikipedia_ConstructSourceArray pageTitle, pageSlug, wikipediaUrl, wikipediaRevisionID, lookUpArray
    -- for old Transport Again
-   put "https://livecode.world/mediawiki/transportAgain" into transportURL
+   put platform_RestURL ("mediawiki/transportAgain") into transportURL
+   --
    put the milliseconds into dateTransported
    put "https://github.com/LiveCodeWorld/lib_MediaWiki" into repoURL
    put fedwiki_ConstructCreateSourceArray (transportURL, wikipediaUrl, dateTransported, repoURL, wikipediaRevisionID) into pSourceArray
@@ -57,7 +58,8 @@ function mw_SummaryPageArray mwTitle, pLang, pAddToc
    put mediawiki_ConstructSummaryPageArray (firstSection, summaryArray) into pageArray
    
    # Add TOC Button
-   put "http://rest.livecode.world/mediawiki/tocButtons" into postURL
+   put platform_RestURL ("mediawiki/tocButtons") into postURL
+   
    put empty into bgColor
    put mwTitle into valueArray ["pageTitle"]
    pageArray_AddButton pageArray, "Table of Contents", postURL, valueArray, "", "right", bgColor
@@ -166,7 +168,9 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    put fedwikipedia_ConstructPageTocArray (sandboxArray) into tocArray
    
    fedwikipedia_ConstructTocLookupArray tocArray, lookUpArray, markdownTOC
-   if lookUpArray is an array then put "http://rest.livecode.world/mediawiki/importSection" into lookUpArray ["default"]["transport"]
+   if lookUpArray is an array then
+      put platform_RestURL ("mediawiki/importSection") into lookUpArray ["default"]["transport"]
+   end if
    
    -- need to make a "query" call to get a nice clean text
    mediawiki_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, true, true, pApiStem

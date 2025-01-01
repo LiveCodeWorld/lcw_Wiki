@@ -15,6 +15,16 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
+function wikiPage_ForkDomains wikiDomain, pForkDomains
+   put url_GetTLD (wikiDomain) into forkDomains
+   put CR & "fedwiki.org" after forkDomains
+   if pForkDomains is not empty then
+      replace comma with CR in pForkDomains
+      put CR & pForkDomains after forkDomains
+   end if
+   return forkDomains
+end wikiPage_ForkDomains
+
 function wikiPage_EditOrCreate wikiDomain, pageSlug, pPageTitle
    if pPageTitle is empty then
       put fedwiki_ConstructTitle (pageSlug) into pPageTitle
@@ -83,7 +93,8 @@ function wikiPageEditImages pageArray
          put "wide" into sSize
          pageArray_AddImage pageArray, imageURL, cText, linkURL, sLat, sLong, sSize
          --
-         pageArray_AddForm pageArray, "Edit Image", "http://rest.livecode.world/echo", sSize, "size", bColour, "Images", 22, hiddenArray
+         put platform_RestUrl ("echo") into restURL
+         pageArray_AddForm pageArray, "Edit Image", restURL, sSize, "size", bColour, "Images", 22, hiddenArray
          pageArray_AddPageFold pageArray, "-"
          --
          add 1 to newItemNum
@@ -111,16 +122,6 @@ function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
    
    return pageArray
 end wikiPage_EditPage
-
-function wikiPage_ForkDomains wikiDomain, pForkDomains
-   put url_GetTLD (wikiDomain) into forkDomains
-   put CR & "fedwiki.org" after forkDomains
-   if pForkDomains is not empty then
-      replace comma with CR in pForkDomains
-      put CR & pForkDomains after forkDomains
-   end if
-   return forkDomains
-end wikiPage_ForkDomains
 
 function wikiPage_Help subDomain, curlyData, pScriptHelp, pForkDomains
    -- subDomain = scriptType
@@ -481,7 +482,7 @@ command wikiPage_AddCreateButtons @editPageArray, wikiDomain, pageSlug
    put pageArray ["story"] into storyArray
    put item 2 of the extents of storyArray into maxNum
    put 1 into imageNum
-   put "http://rest.livecode.world/augmented/create_Image" into postURL
+   put platform_RestUrl ("augmented/create_Image") into postURL
    
    set the itemdelimiter to ":"
    repeat with indexNum = 1 to maxNum
@@ -511,15 +512,26 @@ end wikiPage_AddCreateButtons
 command wikiPage_AddTransporters @pageArray
    pageArray_AddMarkdown pageArray, "# Transporters"
    
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/mediawiki/summary"
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/compact_Refs"
-   
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/addFedwiki"
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/fork_Cleaner"
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/echo"
-   
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/add_GreenBorder"
-   pageArray_AddTransport pageArray, "POST http://rest.livecode.world/fedwiki/remove_GreenBorder"
+   put "POST" && platform_RestUrl ("mediawiki/summary") into postBit
+   pageArray_AddTransport pageArray, postBit
+   --
+   put "POST" && platform_RestUrl ("fedwiki/compact_Refs") into postBit
+   pageArray_AddTransport pageArray, postBit
+   --
+   put "POST" && platform_RestUrl ("fedwiki/addFedwiki") into postBit
+   pageArray_AddTransport pageArray, postBit
+   --
+   put "POST" && platform_RestUrl ("fedwiki/fork_Cleaner") into postBit
+   pageArray_AddTransport pageArray, postBit
+   --
+   put "POST" && platform_RestUrl ("echo") into postBit
+   pageArray_AddTransport pageArray, postBit
+   --
+   put "POST" && platform_RestUrl ("fedwiki/add_GreenBorder") into postBit
+   pageArray_AddTransport pageArray, postBit
+   --
+   put "POST" && platform_RestUrl ("fedwiki/remove_GreenBorder") into postBit
+   pageArray_AddTransport pageArray, postBit
 end wikiPage_AddTransporters
 
 
@@ -651,9 +663,15 @@ function wikiPage_TocButtons pageTitle, pFirstPara
    end repeat
    --
    pageArray_AddMarkdown pageArray, "# Media"
-   pageArray_AddForm pageArray, "Find Images", "http://rest.livecode.world/mediawiki/gallery", pageTitle, "title", "lightpink", "Mediawiki", 22
-   pageArray_AddForm pageArray, "Pages", "http://rest.livecode.world/mediawiki/related", pageTitle, "title", "lightgreen", "Find Related", 24
-   pageArray_AddForm pageArray, "Openverse", "http://rest.livecode.world/openverse", pageTitle, "search_Term", "orange", "Find Image", 24
+   --
+   put platform_RestUrl ("mediawiki/gallery") into restURL
+   pageArray_AddForm pageArray, "Find Images", restURL, pageTitle, "title", "lightpink", "Mediawiki", 22
+   --
+   put platform_RestUrl("mediawiki/related") into restURL
+   pageArray_AddForm pageArray, "Pages", restURL, pageTitle, "title", "lightgreen", "Find Related", 24
+   --
+   put platform_RestUrl ("openverse") into restURL
+   pageArray_AddForm pageArray, "Openverse", restURL, pageTitle, "search_Term", "orange", "Find Image", 24
    --
    fedwikipedia_ConstructTocLookupArray tocArray, lookUpArray, markdownTOC
    put "# See also" && CR&CR before markdownTOC
@@ -914,7 +932,7 @@ end _Activity
 private command _AddMissingSites wikiDomains, @pageArray
    put wikiDomain_List() into existingDomains
    set the wholematches to true
-   put "http://rest.livecode.world/fedwiki/create_Wiki" into postURL
+   put platform_RestUrl("fedwiki/create_Wiki")  into postURL
    repeat for each line wikiDomain in wikiDomains
       if wikiDomain is among the lines of existingDomains then
          put wikiDomain & CR after foundWikiFolders

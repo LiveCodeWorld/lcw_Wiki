@@ -189,7 +189,8 @@ end wikicommons_AddSectionToPageArray
 function wikicommons_ConstructSectionForm pageSlug, sectionNum, sectionTitle, pSize
    if pSize is empty then put 42 into pSize
    --
-   put merge ("<form action='http://rest.livecode.world/mediawiki/importSection'><input name=section_title size=[[pSize]] value='[[sectionTitle]]'>") into formTemplate
+   put platform_RestUrl ("mediawiki/importSection/") into restUrl
+   put merge ("<form action='[[restUrl]]'><input name=section_title size=[[pSize]] value='[[sectionTitle]]'>") into formTemplate
    put CR & "<input name=url type=hidden value='https://en.wikipedia.org/w/index.php?title=[[pageSlug]]&action=edit&section=[[sectionNum]]'>" after formTemplate
    put CR & "<input type=submit value=create></form>" after formTemplate
    replace "'" with quote in formTemplate

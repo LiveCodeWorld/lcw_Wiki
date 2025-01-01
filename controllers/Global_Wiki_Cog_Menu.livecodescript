@@ -40,7 +40,7 @@ getprop setUrl_Params [wikiView]
 end setUrl_Params
 
 getprop setUrl_Param
-   return "livecode.world"
+   return "livecode.wiki"
 end setUrl_Param
 
 

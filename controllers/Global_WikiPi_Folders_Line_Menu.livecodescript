@@ -37,7 +37,7 @@ on mDoubleUp_WikiPiFolders dView, wikiDomain
    put pageJson_Get (wikiDomain) into pageJSON
    if pageJSON is empty then
       breakpoint
-      display_WikiAndSubdomains tldDomian
+      display_LocalWikiDomains tldDomian
       --
       display_PiholeSubdomains tldDomian
    else
@@ -62,13 +62,40 @@ on menu_DisplayPageSlugs dView
    display_WikiPiSlugs piLocalHostName, wikiDomain
 end menu_DisplayPageSlugs
 
+on menu_DisplayPiSubdomains dView
+   _DeconstructTitle dView, filterBit, piLocalHostName
+   put the selected_Line of dView into wikiDomain
+   put url_GetTLD (wikiDomain) into tldDomain
+   --
+   display_WikiPiShortFolders piLocalHostName, tldDomain
+end menu_DisplayPiSubdomains
+
 private on _
 end _
 
-on menu_Behavior dView
-   put the behavior of dView into bObject
-   edit the script of bObject
-end menu_Behavior
+on menu_RenameFolder dView
+   _DeconstructTitle dView, filterBit, piLocalHostName
+   put the selected_Line of dView into oldName
+   --
+   put oldName into newName
+   replace "livecode.world" with "livecode.wiki" in newName
+   put lcw_Ask ("Rename wiki folder...", newName, dView) into newName
+   --
+   set the cursor to watch
+   set the itemdelimiter to "."
+   switch
+      case newName = oldName
+      case the number of items of newName < 2
+         breakpoint
+         break
+      default
+         wikiPi_Renamefolder oldName, newName, piLocalHostName
+         --
+         put wikiPi_ListShortFolders (piLocalHostName) into wikiFolders
+         filter wikiFolders with filterBit
+         set the displayed_Index of dView to wikiFolders
+   end switch
+end menu_RenameFolder
 
 on menu_ModuleTools dView
    put the view_Name of dView into viewName

@@ -357,10 +357,6 @@ private function _MergeScaffold tName, wikiDomain, pageSlug, pageTitle
 end _MergeScaffold
 
 private function _RosterImageLines allDomains, pMyDomain, pWhiteSpace
-   /*
-   <img class="remote" src="//builder.livecode.world/favicon.png" title="builder.livecode.world" data-site="builder.livecode.world" data-slug="welcome-visitors">
-   */
-   
    if pWhiteSpace is empty then put "  " into pWhiteSpace
    repeat for each line wikiDomain in allDomains
       if wikiDomain = pMyDomain then

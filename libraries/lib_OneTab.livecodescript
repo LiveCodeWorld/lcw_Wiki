@@ -181,15 +181,7 @@ private command _ConstructOneTabPageArray @pageArray, parseArray, tabTitle, head
 end _ConstructOneTabPageArray
 
 command transport_Video @pageArray, videoURL, urlText
-   /*
-   put "http://rest.livecode.world/youtube/transport_Video" into restURL
-   put transporter_ConstructDroppedJSON (videoURL) into dropJSON
-   fedwiki_PostJSON dropJSON, restURL
-   put the result into pageJSON
-   put json_ToArray (pageJSON) into fetchedPageArray
-   */
-   
-   switch
+    switch
       case matchText (videoURL, "https\://www\.youtube\.com/watch\?v\=(.+)", videoIDBit)
          put youtube_GetVideoID (videoURL) into videoID
          put "[" & videoURL && "youtube]" into word -1 of urlText
@@ -230,7 +222,7 @@ command transport_Mediawiki @pageArray, linkUrl, urlText
    put _ConstructMarkDownLink (linkUrl, urlText) into markDownLink
    put markDownLink & CR after MarkDownLinks
    --
-   put "http://rest.livecode.world/mediawiki/form" into postURL
+   put platform_RestUrl ("mediawiki/form") into postURL
    put linkUrl into hiddenKeyValueArray ["url"]
    --
    pageArray_AddButton pageArray, urlText, postURL, hiddenKeyValueArray, "", "right"
@@ -243,21 +235,21 @@ function transport_ParseURL droppedURL
       case droppedURL begins with "https://www.youtube.com/"
       case droppedURL begins with "https://vimeo.com/"
       case droppedURL begins with "https://www.ted.com/talks/"
-         put "http://rest.livecode.world/youtube/transport_Video" into resultArray ["url"]
+         put platform_RestUrl ("transport_Video") into resultArray ["url"]
          put "transport_Video" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "https://audioboom.com/posts/"
-         put "http://rest.livecode.world/audioboom" into resultArray ["url"]
+         put platform_RestUrl ("audioboom") into resultArray ["url"]
          put "transport_AudioBoom" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "https://player.fm/series/"         
-         put "http://rest.livecode.world/bbc/playerfm" into resultArray ["url"]
+         put platform_RestUrl ("playerfm") into resultArray ["url"]
          put "transport_PlayerFM" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "http://www.radiolab.org/story/"
       case droppedURL begins with "http://www.bbc.co.uk/programmes/"
       case droppedURL begins with "https://www.theguardian.com/science/audio/" -- plenty of other podcast urls
-         put "http://rest.livecode.world/bbc" into resultArray ["url"]
+         put platform_RestUrl ("bbc") into resultArray ["url"]
          put "transport_Podcast" into resultArray ["handler"]
          return resultArray
       case droppedURL begins with "http://www.openstreetmap.org/"
@@ -265,15 +257,15 @@ function transport_ParseURL droppedURL
       case droppedURL begins with "https://www.google.co.uk/maps/place/"
       case droppedURL begins with "https://www.google.com/maps/place/"
       case matchtext (droppedURL, "^https://tools.wmflabs.org/geohack/geohack.php\?pagename=(.+)&params=(.+)", pageName, geoInfo)
-         put "http://rest.livecode.world/map" into resultArray ["url"]
+         put platform_RestUrl ("map") into resultArray ["url"]
          put "transport_Map" into resultArray ["handler"]
          return resultArray
       case matchText (droppedURL, "https://www.one-tab.com/page/(.+)", oneTabID)
-         put "http://rest.livecode.world/onetab" into resultArray ["url"]
+         put platform_RestUrl ("onetab") into resultArray ["url"]
          put "transport_OneTab" into resultArray ["handler"]
          return resultArray
       case matchText (droppedURL, "https://(.+).wikipedia.org/(.+)", lastBit)
-         put "http://rest.livecode.world/mediawiki" into resultArray ["url"]
+         put platform_RestUrl ("mediawiki") into resultArray ["url"]
          put "transport_Mediawiki" into resultArray ["handler"]
          return resultArray
       case matchtext (droppedURL, "https://matrix.org/_matrix/media/v1/download/matrix.org/(.+)", matrixAssetID)

@@ -5,9 +5,12 @@ copyright: David Bovill
 license: GPLv3
 name: lib_WikiPi
 type: library
-version: 0.1
+version: 0.2
 
-/*Some help*/
+/*
+This library is for handlers that manipulate the structure of federated wiki files 
+on a standard RasperryPi based wiki-farm.
+*/
 
 
 --> Working on
@@ -195,6 +198,21 @@ end wikiPi_ConstructLocalDomainData
 
 --> WikiPi
 -
+command wikiPi_Renamefolder oldName, newName, piHostName, pSshUser, pFarmDir
+   if pFarmDir is empty then put "~/.wiki/" into pFarmDir
+   put pFarmDir & oldName into oldDir
+   put pFarmDir & newName into newDir
+   -- 
+   shell_BashParamEscape oldDir
+   shell_BashParamEscape newDir
+   --
+   put "mv" && oldDir && newDir into remoteCommand
+   --
+   ssh_DoRemoteShell piHostName, remoteCommand, pSshUser
+   put the result into someData
+   return someData
+end wikiPi_Renamefolder
+
 function wikiPi_ListPageSlugs localHostName, wikiDomain
    put "~/.wiki/" & wikiDomain & "/pages/" into serverPath
    put server_ListShortFiles (localHostName, serverPath) into pageSlugs

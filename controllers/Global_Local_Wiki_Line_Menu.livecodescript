@@ -57,16 +57,16 @@ end addTopLevelDomain_Params
 private on _
 end _
 
-on menu_DisplaySubdomains dView
+-- on menu_DisplaySubdomains dView
    put the selected_Line of dView into wikiDomain
    put wikiDomain_SubList (wikiDomain) into subDomains
    put wikiDomain_List (pFilter) into wikiFolders
-   
+   --
 end menu_DisplaySubdomains
 
 on menu_WikiAndSubdomains dView
    put the selected_Line of dView into wikiDomain
-   display_WikiAndSubdomains wikiDomain
+   display_LocalWikiDomains wikiDomain
 end menu_WikiAndSubdomains
 
 on menu_AddSubdomainsToPihole dView

@@ -92,7 +92,8 @@ on menu_IdentifyServerError displayView
    --
    put pageArray_GetFormValue ("rssURL", pageArray) into rssURL
    put rssURL into jsonArray ["rssURL"]
-   put "http://rest.livecode.world/podcast/testRSS" into restUrl
+   --
+   put "http://" & platform_RestDomain() & "/podcast/testRSS" into restUrl
    --
    put rss_GetPageArray (rssURL) into pageArray
    put pageArray ["story"] into storyArray

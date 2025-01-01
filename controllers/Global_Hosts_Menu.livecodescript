@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Hosts | Menu
 type: controller
-version: 0.1
+version: 0.2
 
 /*Here you can describe this menu.
 Full help text should be provided on the linked wiki.*/
@@ -83,6 +83,39 @@ getprop disabled_RestoreHostsFile
    end if
 end disabled_RestoreHostsFile
 
+on menu_DeleteHostsFile
+   display_EtcHosts
+   lcw_Answer "Are you sure you want to delete the /etc/hosts file?"
+   
+   /*
+   # Problem
+   -- for some reason an empty file is recreated
+   -- revDeleteFile "/etc/hosts"
+   delete file "/etc/hosts"
+   */
+   shell_DoSudo "rm /etc/hosts"
+   put the result into sResult
+   --
+   display_EtcHosts
+end menu_DeleteHostsFile
+
+getprop disabled_DeleteHostsFile
+   if there is a file "/etc/hosts" then
+      return "false"
+   else
+      return "delete"
+   end if
+end disabled_DeleteHostsFile
+
+private function _HostsEmpty
+   -- it usually exists
+   if there is a file "/etc/hosts" then
+      return "false"
+   else
+      return "delete"
+   end if
+end _HostsEmpty
+
 private on _
 end _
 
@@ -101,7 +134,8 @@ private on __
 end __
 
 on menu_BasicEtcHosts dView
-   put hosts_NewText ("rest.livecode.world") into hostsText
+   put platform_WikiDomain ("rest") into wikiDomain
+   put hosts_NewText (wikiDomain) into hostsText
    --
    set the displayed_Index ["Basic /etc/hosts?"] of dView to hostsText
 end menu_BasicEtcHosts

@@ -25,6 +25,29 @@ local MiddlewareArray
 
 --> Working on
 -
+before route_POST someRoute, socketID, requestArray
+   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
+   put platform_RestDomain() into restDomain
+   --
+   switch
+      case someRoute = "/plugin/assets/upload"
+         post_AssetUpload someRoute, socketID, requestArray
+         
+         /*
+         Content-Length: 896
+         Content-Type: multipart/form-data; boundary=---------------------------203997199227640630043106494643
+         Host: code.platform.earth
+         Origin: http://code.platform.earth
+         Referer: http://code.platform.earth/view/welcome-visitors/view/lit
+         */
+         break
+      case wikiDomain = restDomain
+         post_LCW someRoute, socketID, requestArray -- someRoute = /podcast/rss
+      default
+         -- pass on to behavior
+   end switch
+end route_POST
+
 before get_WikiPageJson someRoute, socketID, requestArray, pageSLug, wikiDomain
    wikiBehavior_CustomGET wikiDomain, pageSlug, socketID, requestArray
 end get_WikiPageJson
@@ -358,31 +381,6 @@ command post_AssetUpload someRoute, socketID, requestArray
       return "Error, image file exists:" && imageFile
    end if
 end post_AssetUpload
-
-
---> POST
--
-before route_POST someRoute, socketID, requestArray
-   put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-   switch
-      case someRoute = "/plugin/assets/upload"
-         post_AssetUpload someRoute, socketID, requestArray
-         
-         /*
-         Content-Length: 896
-         Content-Type: multipart/form-data; boundary=---------------------------203997199227640630043106494643
-         Host: code.platform.earth
-         Origin: http://code.platform.earth
-         Referer: http://code.platform.earth/view/welcome-visitors/view/lit
-         */
-         break
-      case wikiDomain = "rest.livecode.world"
-         -- someRoute = /podcast/rss
-         post_LCW someRoute, socketID, requestArray
-      default
-         -- pass on to behavior
-   end switch
-end route_POST
 
 
 --> Deps

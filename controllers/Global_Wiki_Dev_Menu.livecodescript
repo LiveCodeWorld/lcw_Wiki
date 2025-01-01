@@ -147,7 +147,7 @@ on menu_DisplayPages mTarget, topDomain
    --
    switch topDomain
       case "Worldscape"
-         put "http://space.thought.garden/view/welcome-visitors/view/changes-to-this-site/view/worldscape/video.livecode.world/projection-mapping/view/funkhaus" into someURL
+         put "http://space.thought.garden/view/welcome-visitors/view/changes-to-this-site/view/worldscape/video.livecode.wiki/projection-mapping/view/funkhaus" into someURL
          set the browser_URL of wikiView to someURL
          break
       case "Jelly Fish"

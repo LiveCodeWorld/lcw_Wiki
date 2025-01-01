@@ -17,7 +17,8 @@ See also "lib_PageArray", "model_PageArray" and "lib_FedwikiCreate"
 function dot_FetchHandlerGraphData hName, pJsonType
    -- https://graphviz.org/docs/outputs/json/
    if pJsonType is empty then put "json" into pJsonType -- "json0,dot_json,xdot_json"
-   put merge ("curl -s 'http://rest.livecode.world/graph/viz/[[hName]]' | dot -T[[pJsonType]]") into someShell
+   put platform_RestDomain() into restDomain
+   put merge ("curl -s 'http://[[restDomain]]/graph/viz/[[hName]]' | dot -T[[pJsonType]]") into someShell
    put shell (someShell) into dotJSON
    put json_ToArray (dotJSON) into hGraphData
    return hGraphData

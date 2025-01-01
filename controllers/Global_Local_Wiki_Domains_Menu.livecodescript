@@ -35,7 +35,12 @@ end menu_CheckTarget
 --> Global | Local | Wiki | Domains | Menu
 -
 on menu_LocalWikiDomains dView
-   put the params
+   put the title_Text of dView into tldDomain
+   -- put url_GetTLD (tldDomain) into tldDomain
+   --
+   -- put wikiFarm_ListSubdomains (tldDomain)
+   put wikiDomain_List (tldDomain, true) into localSubDomains
+   set the displayed_Index of dView to localSubDomains
 end menu_LocalWikiDomains
 
 private on _

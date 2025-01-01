@@ -520,7 +520,7 @@ command daemon_RouteRequest requestArray
          -- seems to iterate through each elemnt of neighbourhood
          -- but domain is not shown in "daemon_ReceivedHeader"
          put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
-         if wikiDomain = "rest.livecode.world" then
+         if wikiDomain = platform_RestDomain() then
             put daemon_GetRequestText (requestArray) into routeData
             put daemon_ReceivedHeader ("Referer", requestArray) into sReferer
          end if

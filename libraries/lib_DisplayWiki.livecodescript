@@ -97,13 +97,23 @@ command display_WikiPiSlugs piLocalHostName, pWikiDomain
 end display_WikiPiSlugs
 
 command display_WikiPiShortFolders piLocalHostName, pWikiDomain
-   put wikiPi_ListShortFolders (piLocalHostName, pWikiDomain) into wikiFolders
+   switch word 1 of pWikiDomain
+      case "TLD"
+      case "Top"
+         put "tld@" & piLocalHostName into pTitle   
+         put empty into pWikiDomain  
+         put wikiPi_ListShortFolders (piLocalHostName, pWikiDomain) into wikiFolders
+         put url_ListTopDomains (wikiFolders) into wikiFolders
+         break
+      case empty
+         put "all@" & piLocalHostName into pTitle   
+         put wikiPi_ListShortFolders (piLocalHostName, pWikiDomain) into wikiFolders
+         break
+      default
+         put pWikiDomain & "@" & piLocalHostName into pTitle
+         put wikiPi_ListShortFolders (piLocalHostName, pWikiDomain) into wikiFolders
+   end switch
    --
-   if wikiFolders is empty then
-      put "All Short Folders" into pTitle
-   else
-      put pWikiDomain & "@" & piLocalHostName into pTitle
-   end if
    display_Tool wikiFolders, pTitle, "WikiPi Folders", "lcw_Wiki"
    put the result into dView
    return dView
@@ -139,7 +149,8 @@ command draft_HandlerHelp hKey
    --
    put help_FromHkey (hKey) into pageArray
    --
-   draft_WikiPage "handler.livecode.world", pageArray
+   put "handler." & platform_WikiDomain() into handlerDomain
+   draft_WikiPage handlerDomain, pageArray
    put the result into dView
    return dView
 end draft_HandlerHelp
@@ -167,14 +178,15 @@ end draft_WikiPage
 
 --> Display | Wiki | Garden
 -
-command display_WikiAndSubdomains wikiDomain
-   put wikiDomain_List (wikiDomain) into wikiFolders
+command display_LocalWikiDomains wikiDomain
+   -- domain and subdoamins (display_LocalWikiDomains)
+   put wikiDomain_List (wikiDomain, true) into wikiFolders   
    --
    -- display_LocalWikis dView, wikiDomain, wikiDomain
    display_Tool wikiFolders, wikiDomain, "Local Wiki Domains", "lcw_Wiki"
    put the result into dView
    return dView
-end display_WikiAndSubdomains
+end display_LocalWikiDomains
 
 command display_WikiFarm pTopLevel, pDisplayView
    put wikiFarm_ListDomains() into farmDomains
@@ -324,7 +336,7 @@ command display_WikiDomain wikiDomain
 end display_WikiDomain
 
 command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pWikiViewName
-   if pWikiURL is empty then put "http://livecode.world" into pWikiURL
+   if pWikiURL is empty then put "http://" & platform_WikiDomain() into pWikiURL
    if pStackLabel is empty then put "Browser" into pStackLabel
    if pWikiViewName is empty then put "View|Wiki|Browser" into pWikiViewName
    if pStackLabel is empty then put "Wiki" into pStackLabel

@@ -58,7 +58,7 @@ end menu_DisplaySubdomains
 
 on menu_WikiAndSubdomains dView
    put the selected_Line of dView into wikiDomain
-   display_WikiAndSubdomains wikiDomain
+   display_LocalWikiDomains wikiDomain
 end menu_WikiAndSubdomains
 
 on menu_AddSubdomainsToPihole dView

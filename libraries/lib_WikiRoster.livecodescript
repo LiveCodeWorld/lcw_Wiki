@@ -514,7 +514,7 @@ private command _DeleteBadArray @refItemStoryArray, badArray
    put 1 into newItemNum
    repeat with itemNum = 1 to item 2 of the extents of refItemStoryArray
       put refItemStoryArray [itemNum] into itemArray
-      put itemArray ["site"] into refDomain -- "livecode.world"
+      put itemArray ["site"] into refDomain
       if refDomain is not among the lines of badDomainNames then
          put itemArray into filteredArray [newItemNum]
          add 1 to newItemNum
@@ -532,7 +532,7 @@ private function _FindExtraMissingArray refItemStoryArray, rosterDomains
    
    repeat with itemNum = 1 to item 2 of the extents of refItemStoryArray
       put refItemStoryArray [itemNum] into itemArray
-      put itemArray ["site"] into refDomain -- "livecode.world"
+      put itemArray ["site"] into refDomain
       
       -- remove from missing
       delete variable missingArray [refDomain]

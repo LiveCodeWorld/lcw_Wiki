@@ -129,6 +129,7 @@ command wikiFarm_MoveGardenBack gardenName
 end wikiFarm_MoveGardenBack
 
 function wikiFarm_ListSubdomains wikiDomain
+   -- use wikiDomain_List()?
    put wikiFarm_GetDomains() into subDomains
    url_FilterDomains subDomains, wikiDomain
    line_Delete wikiDomain, subDomains

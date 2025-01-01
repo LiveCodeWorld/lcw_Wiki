@@ -578,7 +578,7 @@ end pageArray_AddAudio
 command pageArray_AddTransport @pageArray, pTransportLine, pID
    if pTransportLine is  empty then return 0
    if pTransportLine is empty then
-      put "POST https://rest.livecode.world/imagine" into pTransportLine
+      put "POST https://" & platform_RestDomain() & "/imagine" into pTransportLine
    end if
    put itemArray_ConstructTransport (pTransportLine, pID) into itemArray
    itemArray_Add itemArray, pageArray
