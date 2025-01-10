@@ -421,10 +421,10 @@ end wikiServer_ListSecurityTypes
 
 --> WikiServer | Start
 -
-command wikiServer_StartWithXterm pXtermBrowser, pLog
+command wikiServer_StartWithXterm pXtermBrowser
    put wikiServer_TerminalCommand() into someShell -- not working with Shell
    --
-   display_Xterm pXtermBrowser, someShell, "paste"
+   display_Xterm someShell, pXtermBrowser, "paste"
    return pXtermBrowser
 end wikiServer_StartWithXterm
 

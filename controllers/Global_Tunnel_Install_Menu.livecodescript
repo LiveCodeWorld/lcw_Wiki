@@ -118,11 +118,10 @@ private on ___
 end ___
 
 on menu_InstallLocalTunnel xtermView
-   -- put shell ("npm install -g localtunnel")
-   display_Xterm xtermView
+   display_Xterm "npm install -g localtunnel", xtermView
    put the result into xtermView
    --
-   ttyd_Paste "npm install -g localtunnel", xtermView
+   -- ttyd_Paste "npm install -g localtunnel", xtermView
 end menu_InstallLocalTunnel
 
 on menu_SetLocalTunnel xtermView

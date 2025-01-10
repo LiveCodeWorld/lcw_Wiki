@@ -31,11 +31,11 @@ end menu_CheckTarget
 --> Global | Wiki | Install | Menu
 -
 on menu_InstallWiki xtermView
-   -- put shell ("npm install -g wiki")
-   display_Xterm xtermView
+   put shell ("npm install -g wiki") into someShell
+   display_Xterm someShell, xtermView
    put the result into xtermView
    --
-   ttyd_Paste "npm install -g wiki", xtermView
+   -- ttyd_Paste "npm install -g wiki", xtermView
 end menu_InstallWiki
 
 private on _

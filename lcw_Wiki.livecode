@@ -17,8 +17,18 @@ end project_Deps
 
 --> Custom
 -
--- command project_PostInit
-   if the shiftKey is "Up" then      
+command project_PostInit
+   # Needed for wiki browser javascript
+   revIDEToggle "Suppress Errors"
+   
+   # These no longer seem to be set by default
+   -- ide_SetAfterActionCompile true
+   -- ide_SetHanderFieldBehavior true
+   
+   # Display Project
+   display_Project "lcw_Wiki"
+   --
+   if the shiftKey is "Down" then      
       # Start proxy servers and load gardens
       try
          wikiServer_StartLocalProxy
@@ -28,8 +38,6 @@ end project_Deps
       end try
       
       # Go to Wiki
-      breakpoint
-      revIDEToggle "Suppress Errors"
       go to stack "View|Wiki|Browser"
    end if
 end project_PostInit

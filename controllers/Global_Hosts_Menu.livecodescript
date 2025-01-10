@@ -127,7 +127,7 @@ on menu_DisplayEtcHosts
 end menu_DisplayEtcHosts
 
 on menu_EditEtcHosts
-   code_OpenFile "/etc/hosts"
+   code_EditFile "/etc/hosts"
 end menu_EditEtcHosts
 
 private on __

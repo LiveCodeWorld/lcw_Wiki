@@ -88,7 +88,7 @@ on menu_NodeServer wikiView
 end menu_NodeServer
 
 on menu_StartCaddy
-   toggleServer_Caddy
+   caddy_ToggleProxy
 end menu_StartCaddy
 
 getprop checked_StartCaddy

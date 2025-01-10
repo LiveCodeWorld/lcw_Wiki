@@ -60,13 +60,13 @@ private on ____
 end ____
 
 on menu_Xterm
-   display_Xterm true
+   display_Xterm
 end menu_Xterm
 
 on menu_XtermClear browserView
    put line 1 of xterm_ListBrowsers() into xtermView
    if exists (xtermView) is false then
-      display_Xterm true
+      display_Xterm empty, browserView
       put the result into xtermView
    end if
    --
@@ -266,13 +266,13 @@ on menu_TestFaasd
 end menu_TestFaasd
 
 on menu_Xterm
-   display_Xterm true
+   display_Xterm
 end menu_Xterm
 
 on menu_XtermClear browserView
    put line 1 of xterm_ListBrowsers() into xtermView
    if exists (xtermView) is false then
-      display_Xterm true
+      display_Xterm empty, browserView
       put the result into xtermView
    end if
    --

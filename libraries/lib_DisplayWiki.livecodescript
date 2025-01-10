@@ -13,6 +13,44 @@ A lot of experimental interfaces for displaying wiki structure and file organisa
 
 --> Working on
 -
+command display_TiddlyWiki shortFileOrUrl, pTiddlyView
+   put "View|TiddlyWiki" into viewName
+   --
+   if word 1 of shortFileOrUrl is among the items of "http,https" then
+      put "browser_URL" into propName
+      put shortFileOrUrl into propValue
+   else      
+      put "browser_File" into propName
+      
+      # Set browser file
+      put the module_HtmlFile [shortFileOrUrl] of stack viewName into tiddlyFile
+      if there is not a file tiddlyFile then
+         breakpoint
+         put empty into propValue
+      else
+         put tiddlyFile into propValue
+      end if
+   end if
+   
+   if exists (pTiddlyView) then
+      # Set behavior as it might just be a browser
+      put module_GetBehavior (viewName) into bObject
+      if exists (bObject) then
+         set the behavior of tiddlyView to bObject
+      end if
+   end if
+   
+   # Display
+   put shortFileOrUrl into sLabel
+   display_ModuleInstance viewName, propValue, sLabel, pTiddlyView, propName
+   put the result into tiddlyView
+   
+   # For fun let's set the card colour
+   put the card_Object of tiddlyView into cardObject
+   set the backgroundcolor of cardObject to colour_GetRandom()
+   return tiddlyView
+end display_TiddlyWiki
+
 command display_EtcHosts
    put hosts_ListFiles() into hostFiles
    --

@@ -37,7 +37,7 @@ on mDoubleUp_ModuleTools dView, shortFile
    switch
       case fExt = "md"
       case fExt = "html"
-         code_OpenFile sFile
+         code_EditFile sFile
          break
       case fExt = "array"
          display_ArrayFile sFile
@@ -191,7 +191,7 @@ end menu_Refresh
 on menu_OpenAssetFolder
    put _AssetFolder() into assetFolder
    --
-   code_OpenFile assetFolder
+   code_EditFile assetFolder
 end menu_OpenAssetFolder
 
 on menu_DeleteFile tiddlyView

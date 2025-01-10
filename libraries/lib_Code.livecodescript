@@ -66,7 +66,7 @@ serve-web    Run a server that displays the editor UI in browsers.
 
 --> Code
 -
-command code_OpenFile sPath
+command code_EditFile sPath
    /*
    To open a file in Visual Studio Code, use:
    code <file-path>
@@ -92,7 +92,7 @@ command code_OpenFile sPath
    put "code" && kwote (sPath) into sShell
    put shell (sShell) into sResult
    return sResult
-end code_OpenFile
+end code_EditFile
 
 --> Deps
 -

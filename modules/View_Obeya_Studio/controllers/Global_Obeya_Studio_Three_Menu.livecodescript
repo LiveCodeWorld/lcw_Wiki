@@ -31,7 +31,7 @@ on menu_ShowTerminal browserView
    put the other_Browser of browserView into oBrowser
    put "cd $(npm prefix -g); npm i wiki-plugin-" & shortPluginName into sShellCommand
    --
-   display_Xterm oBrowser, sShellCommand
+   display_Xterm sShellCommand, oBrowser
 end menu_ShowTerminal
 
 on menu_ShowChatGpt browserView
@@ -43,6 +43,17 @@ on menu_ShowAsana browserView
    put the other_Browser of browserView into oBrowser
    set the browser_URL of oBrowser to "https://app.asana.com/0/1206580415766932/1206580454304519"
 end menu_ShowAsana
+
+on menu_ShowTiddly browserView, shortFileOrUrl
+   put the other_Browser of browserView into oBrowser
+   --
+   display_TiddlyWiki shortFileOrUrl, oBrowser
+end menu_ShowTiddly
+
+getprop showTiddly_Params
+   put the module_ShortHtmlFiles of stack "View|TiddlyWiki" into shortTiddlyFiles
+   return shortTiddlyFiles
+end showTiddly_Params
 
 private on _
 end _
