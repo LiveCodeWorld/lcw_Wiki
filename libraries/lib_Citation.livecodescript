@@ -68,7 +68,7 @@ end zotero_FetchCitationArray
 --> Zotero | REST
 -
 -- function zotero_PostJSON restPath, someJSON
-put merge ("https://app.asana.com/api/[[ApiVersionNum]]/") & restPath into restURL
+put merge ("https://app.asana.com/api/ApiVersionNum/") & restPath into restURL
 put asana_GetAuthenticationToken() into oAuthToken
 put jsonrpc_POST (someJSON, restUrl, oAuthToken) into someJSON
 return someJSON
@@ -97,10 +97,3 @@ end zotero_SetAuthenticationToken
 
 --> Deps
 -
-function secret_Get secretName
-   -- for server use only
-   if the environment is not "server" then pass "secret_Get"
-   --
-   put rigFetchConfigItem (secretName) into someSecret
-   return someSecret
-end secret_Get

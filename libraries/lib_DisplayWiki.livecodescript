@@ -10,46 +10,122 @@ version: 0.4
 A lot of experimental interfaces for displaying wiki structure and file organisation.
 */
 
-
---> Working on
+--> Variables
 -
+constant TiddlyModuleName = "View|TiddlyWiki"
+
+function tiddly_File shortFile
+   put tiddly_ConstructFile (shortFile) into tiddlyFile
+   if there is not a file tiddlyFile then
+      # Use a default
+      put tiddly_ConstructFile ("index.html") into defaultTiddlyFile
+      return defaultTiddlyFile
+   else
+      return tiddlyFile
+   end if
+end tiddly_File
+
+function tiddly_TemplateFile shortTemplateFile
+   put "template/" & shortTemplateFile into relPath
+   return tiddly_File (relPath)
+end tiddly_TemplateFile
+
+function tiddly_ConstructFile sFilePath
+   put the module_HtmlFile [sFilePath] of stack TiddlyModuleName into tiddlyFile
+   return tiddlyFile
+end tiddly_ConstructFile
+
+command display_TiddlyTemplate shortTemplateFile, pTiddlyView
+   put tiddly_TemplateFile (shortTemplateFile) into tFile
+   
+   # Set behavior if pTiddlyView exists
+   _SetBehaviorIfExists pTiddlyView
+   
+   # Display tiddlyView create if it doesnt exist
+   _DisplayTiddly tFile, shortTemplateFile, pTiddlyView, "browser_File"
+   put the result into tiddlyView
+   
+   return tiddlyView
+end display_TiddlyTemplate
+
 command display_TiddlyWiki shortFileOrUrl, pTiddlyView
-   put "View|TiddlyWiki" into viewName
-   --
-   if word 1 of shortFileOrUrl is among the items of "http,https" then
+   put url_GetProtocol (shortFileOrUrl) into sProtocol
+   if sProtocol is among the items of "http,https" then
       put "browser_URL" into propName
       put shortFileOrUrl into propValue
    else      
       put "browser_File" into propName
-      
-      # Set browser file
-      put the module_HtmlFile [shortFileOrUrl] of stack viewName into tiddlyFile
-      if there is not a file tiddlyFile then
-         breakpoint
-         put empty into propValue
-      else
-         put tiddlyFile into propValue
-      end if
+      put tiddly_File (shortFileOrUrl) into propValue
    end if
    
+   # Set behavior if pTiddlyView exists
+   _SetBehaviorIfExists pTiddlyView
+   
+   # Display tiddlyView create if it doesnt exist
+   _DisplayTiddly propValue, shortFileOrUrl, pTiddlyView, propName
+   put the result into tiddlyView
+   
+   return tiddlyView
+end display_TiddlyWiki
+
+
+--> Working on
+-
+command draft_HandlerHelp hKey
+   put hkey_ArrayFile (hKey) into hkeyArrayFile
+   if there is not a file hkeyArrayFile then
+      graph_Hkey hKey
+   end if
+   --
+   put help_FromHkey (hKey) into pageArray
+   --
+   put "handler." & platform_WikiDomain() into handlerDomain
+   draft_WikiPage handlerDomain, pageArray
+   put the result into dView
+   return dView
+end draft_HandlerHelp
+
+command draft_WikiPage wikiDomain, pageArray
+   put pageArray ["title"] into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   
+   # Find Wiki Browser
+   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
+   if exists (wikiBrowser) is true then
+      object_GoTo wikiBrowser
+   else
+      display_Wiki wikiDomain
+      put the result into wikiBrowser
+      wait 40 ticks
+   end if
+   
+   # Display Ghost
+   set the ghost_PageArray of wikiBrowser to pageArray
+   --
+   return wikiBrowser
+end draft_WikiPage
+
+private command _SetBehaviorIfExists pTiddlyView
+   -- could add behavior instead of set
    if exists (pTiddlyView) then
       # Set behavior as it might just be a browser
-      put module_GetBehavior (viewName) into bObject
+      put module_GetBehavior (TiddlyModuleName) into bObject
       if exists (bObject) then
          set the behavior of tiddlyView to bObject
       end if
    end if
-   
+end _SetBehaviorIfExists
+
+private command _DisplayTiddly propValue, sLabel, pTiddlyView, propName
    # Display
-   put shortFileOrUrl into sLabel
-   display_ModuleInstance viewName, propValue, sLabel, pTiddlyView, propName
+   display_ModuleInstance TiddlyModuleName, propValue, sLabel, pTiddlyView, propName
    put the result into tiddlyView
    
    # For fun let's set the card colour
    put the card_Object of tiddlyView into cardObject
    set the backgroundcolor of cardObject to colour_GetRandom()
    return tiddlyView
-end display_TiddlyWiki
+end _DisplayTiddly
 
 command display_EtcHosts
    put hosts_ListFiles() into hostFiles
@@ -102,7 +178,7 @@ command display_WikiOwner wikiDomain, pPiLocalHost, pDisplayView
    else
       display_WikiPiOwner wikiDomain, pPiLocalHost, pDisplayView
       put wikiDomain & "@" & pPiLocalHost into sTitle
-    end if
+   end if
    display_Tool ownerData, wikiDomain, "Wiki Owner", pDisplayView
    
    put the result into dView
@@ -178,40 +254,6 @@ command display_ScriptDependencyData sObject
    set the displayed_Object of dView to sObject
    return dView
 end display_ScriptDependencyData
-
-command draft_HandlerHelp hKey
-   put hkey_ArrayFile (hKey) into hkeyArrayFile
-   if there is not a file hkeyArrayFile then
-      graph_Hkey hKey
-   end if
-   --
-   put help_FromHkey (hKey) into pageArray
-   --
-   put "handler." & platform_WikiDomain() into handlerDomain
-   draft_WikiPage handlerDomain, pageArray
-   put the result into dView
-   return dView
-end draft_HandlerHelp
-
-command draft_WikiPage wikiDomain, pageArray
-   put pageArray ["title"] into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   
-   # Find Wiki Browser
-   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
-   if exists (wikiBrowser) is true then
-      object_GoTo wikiBrowser
-   else
-      display_Wiki wikiDomain
-      put the result into wikiBrowser
-      wait 40 ticks
-   end if
-   
-   # Display Ghost
-   set the ghost_PageArray of wikiBrowser to pageArray
-   --
-   return wikiBrowser
-end draft_WikiPage
 
 
 --> Display | Wiki | Garden
