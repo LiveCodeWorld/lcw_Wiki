@@ -16,28 +16,6 @@ This is useful for setting up federated wiki farms on your laptop.
 
 --> Working on
 -
-command shell_DoSudo someShell, pSystemPassword
-   _NormalizeSystemPassword pSystemPassword
-   
-   get "echo '[[pSystemPassword]]' | sudo -S [[someShell]]"
-   put merge (it) into someShell
-   --
-   put shell (someShell) into shellResult
-   return shellResult
-end shell_DoSudo
-
-private command _NormalizeSystemPassword @pSystemPassword
-   if pSystemPassword is empty then
-      put system_GetAdminPassword() into pSystemPassword
-      if pSystemPassword is empty then
-         put lcw_Ask ("Enter system password...") into pSystemPassword
-         system_SetAdminPassword pSystemPassword
-      end if
-   else
-      system_SetAdminPassword pSystemPassword
-   end if
-end _NormalizeSystemPassword
-
 
 --> Hosts
 -
@@ -47,17 +25,6 @@ function hosts_ListFiles
    filter hostFiles with "hosts*"
    return hostFiles
 end hosts_ListFiles
-   
-command hosts_RestoreBackup pSystemPassword
-   if there is a file "/etc/hosts" then return "Error, cannot use hosts_RestoreBackup as etc/hosts file exists!"
-   if there is not a file "/etc/hosts_backup" then return "Error, cannot use hosts_RestoreBackup as etc/hosts_backup file is missing!"
-   
-   _NormalizeSystemPassword pSystemPassword
-   --
-   put merge ("echo '[[pSystemPassword]]' | sudo -S mv /etc/hosts_backup /etc/hosts") into someShell
-   put shell (someShell) into sResult
-   return sResult
-end hosts_RestoreBackup
 
 command hosts_Delete sDomain, pSystemPassword
    _NormalizeSystemPassword pSystemPassword
@@ -89,7 +56,7 @@ command hosts_Rename fromDomain, toDomain, pSystemPassword
    hosts_Set newText, pSystemPassword
    return newText
 end hosts_Rename
-   
+
 command hosts_Add localDomainsToAdd, pSystemPassword, pLaunch
    _NormalizeSystemPassword pSystemPassword
    put hosts_AddLocalDomainsToText (localDomainsToAdd, pSystemPassword) into hostsText
@@ -236,43 +203,74 @@ end hosts_GetArray
 
 --> Etc | Hosts
 -
-command hosts_Backup pSystemPassword
-   _NormalizeSystemPassword pSystemPassword
-   --
-   put "/etc/hosts" into hostsFile
-   put "/etc/hosts_backup" into hostsBackupFile
-   get "echo '[[pSystemPassword]]' | sudo -S cp" && kwote (hostsFile, "'") && kwote (hostsBackupFile, "'")
-   put merge (it) into someShell
-   --
-   put shell (someShell) into sResult
-   if sResult = "Password:" then
-      return empty
+command hosts_ToggleEmpty pSystemPassword
+   if hosts_IsMinimal() then
+      hosts_CopyToRecent pSystemPassword
+      hosts_RestoreBackup pSystemPassword, true
    else
-      -- Password:mv: rename /etc/hosts to /etc/hosts_backup: No such file or directory
-      return sResult 
+      hosts_SetMinimal pSystemPassword
    end if
-end hosts_Backup
+end hosts_ToggleEmpty
+
+command hosts_SetMinimal pSystemPassword
+   hosts_CopyToRecent pSystemPassword
+   --
+   put hosts_NewText() into emptyHosts
+   hosts_Set emptyHosts, pSystemPassword
+   return the result
+end hosts_SetMinimal
+
+
+--> Hosts | Write
+-
+command hosts_RestoreBackup pSystemPassword, pOverwrite
+   if _BackupMissing() then
+      return "Error, cannot use hosts_RestoreBackup as etc/hosts_CopyToBackup file is missing!"
+   end if
+   if pOverwrite is not true then
+      if _HostsExists() then
+         return "Error, cannot use hosts_RestoreBackup as etc/hosts file exists!"
+      end if
+   end if
+   
+   put hosts_File() into hostsFile
+   put hosts_BackUpFile() into hostsBackupFile
+   --
+   _MoveFromTo hostsBackupFile, hostsFile, pSystemPassword
+   return the result
+end hosts_RestoreBackup
 
 command hosts_MoveToBackup pSystemPassword
    -- does nothing if no /etc/hosts
-   -- otherwise moves it to "/etc/hosts_backup"
+   -- otherwise moves it to "/etc/hosts_CopyToBackup"
    -- overwrites old backup if it exists
    
-   _NormalizeSystemPassword pSystemPassword
+   put hosts_File() into hostsFile
+   put hosts_BackUpFile() into hostsBackupFile
    --
-   put "/etc/hosts" into hostsFile
-   put "/etc/hosts_backup" into hostsBackupFile
-   get "echo '[[pSystemPassword]]' | sudo -S mv" && kwote (hostsFile, "'") && kwote (hostsBackupFile, "'")
-   put merge (it) into someShell
-   --
-   put shell (someShell) into sResult
-   if sResult = "Password:" then
-      return empty
-   else
-      -- Password:mv: rename /etc/hosts to /etc/hosts_backup: No such file or directory
-      return sResult 
-   end if
+   _MoveFromTo hostsFile, hostsBackupFile, pSystemPassword
+   return the result
 end hosts_MoveToBackup
+
+command hosts_CopyToRecent pSystemPassword
+   put hosts_RecentFile() into hostsRecentFile
+   --
+   _CopyFromHostsTo hostsRecentFile, pSystemPassword
+   return the result
+end hosts_CopyToRecent
+
+command hosts_CopyToBackup pSystemPassword
+   put hosts_BackUpFile() into hostsBackupFile
+   --
+   _CopyFromHostsTo hostsBackupFile, pSystemPassword
+   return the result
+end hosts_CopyToBackup
+
+function hosts_IsMinimal pSystemPassword
+   put hosts_Get (pSystemPassword) into hostsText
+   put hosts_NewText() into emptyHosts
+   return word 1 to -1 of hostsText = word 1 to -1 of emptyHosts
+end hosts_IsMinimal
 
 function hosts_Get pSystemPassword
    _NormalizeSystemPassword pSystemPassword
@@ -294,7 +292,7 @@ end hosts_Get
 command hosts_Set hostsText, pSystemPassword
    _NormalizeSystemPassword pSystemPassword
    --
-   hosts_Backup pSystemPassword
+   hosts_CopyToBackup pSystemPassword
    --
    put the tempname into tTempPath
    put hostsText into url ("binfile:" & tTempPath)
@@ -307,8 +305,94 @@ command hosts_Set hostsText, pSystemPassword
 end hosts_Set
 
 
+--> Hosts | File
+-
+function hosts_File
+   put "/etc/hosts" into hostsFile
+   return hostsFile
+end hosts_File
+
+function hosts_RecentFile
+   -- a place for temporary storage of hosts file
+   put "/etc/hosts.recent" into hostsRecentFile
+   return hostsRecentFile
+end hosts_RecentFile
+
+function hosts_BackUpFile
+   -- a place for backup storage of hosts file
+   put "/etc/hosts.backup" into hostsBackupFile
+   return hostsBackupFile
+end hosts_BackUpFile
+
+
 --> Private
 -
+command shell_DoSudo someShell, pSystemPassword
+   _NormalizeSystemPassword pSystemPassword
+   --
+   put "echo '" & pSystemPassword & "' | sudo -S" && someShell into sudoShell
+   put shell (sudoShell) into shellResult
+   if sResult = "Password:" then
+      return empty
+   else
+      return sResult 
+   end if
+end shell_DoSudo
+
+private command _NormalizeSystemPassword @pSystemPassword
+   if pSystemPassword is empty then
+      put system_GetAdminPassword() into pSystemPassword
+      if pSystemPassword is empty then
+         put lcw_Ask ("Enter system password...") into pSystemPassword
+         system_SetAdminPassword pSystemPassword
+      end if
+   else
+      system_SetAdminPassword pSystemPassword
+   end if
+end _NormalizeSystemPassword
+
+private command _MoveFromTo fromFile, toFile, pSystemPassword
+   put _ConstructShell ("mv", fromFile, toFile) into someShell
+   shell_DoSudo someShell, pSystemPassword
+   --
+   return the result
+end _MoveFromTo
+
+private command _CopyFromHostsTo sFile, pSystemPassword
+   put hosts_File() into hostsFile
+   --   
+   put _ConstructShell ("cp", hostsFile, sFile) into someShell
+   shell_DoSudo someShell, pSystemPassword
+   --
+   return the result
+end _CopyFromHostsTo
+
+private command _CopyToHostsFrom sFile, pSystemPassword
+   put hosts_File() into hostsFile
+   --   
+   put _ConstructShell ("cp", sFile, hostsFile) into someShell
+   shell_DoSudo someShell, pSystemPassword
+   --
+   return the result
+end _CopyToHostsFrom
+
+private function _ConstructShell sCommand, fromFile, toFile
+   put sCommand && kwote (fromFile, "'") && kwote (toFile, "'") into someShell
+   return someShell
+end _ConstructShell
+
+private function _HostsExists
+   put hosts_File() into hostsFile
+   return there is a file hostsFile
+end _HostsExists
+
+private function _BackupMissing
+   -- if there is not a file "/etc/hosts_CopyToBackup"
+   put hosts_BackUpFile() into hostsBackupFile
+   put there is not a file hostsBackupFile into isMissing
+   return isMissing
+end _BackupMissing
+
 private function _MaxExistingDomains hostsArray
    put hostsArray ["domains"]into domainsArray
    repeat for each key localDomainName in domainsArray

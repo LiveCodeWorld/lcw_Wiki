@@ -10,66 +10,7 @@ version: 0.4
 A lot of experimental interfaces for displaying wiki structure and file organisation.
 */
 
---> Variables
--
-constant TiddlyModuleName = "View|TiddlyWiki"
-
-function tiddly_File shortFile
-   put tiddly_ConstructFile (shortFile) into tiddlyFile
-   if there is not a file tiddlyFile then
-      # Use a default
-      put tiddly_ConstructFile ("index.html") into defaultTiddlyFile
-      return defaultTiddlyFile
-   else
-      return tiddlyFile
-   end if
-end tiddly_File
-
-function tiddly_TemplateFile shortTemplateFile
-   put "template/" & shortTemplateFile into relPath
-   return tiddly_File (relPath)
-end tiddly_TemplateFile
-
-function tiddly_ConstructFile sFilePath
-   put the module_HtmlFile [sFilePath] of stack TiddlyModuleName into tiddlyFile
-   return tiddlyFile
-end tiddly_ConstructFile
-
-command display_TiddlyTemplate shortTemplateFile, pTiddlyView
-   put tiddly_TemplateFile (shortTemplateFile) into tFile
-   
-   # Set behavior if pTiddlyView exists
-   _SetBehaviorIfExists pTiddlyView
-   
-   # Display tiddlyView create if it doesnt exist
-   _DisplayTiddly tFile, shortTemplateFile, pTiddlyView, "browser_File"
-   put the result into tiddlyView
-   
-   return tiddlyView
-end display_TiddlyTemplate
-
-command display_TiddlyWiki shortFileOrUrl, pTiddlyView
-   put url_GetProtocol (shortFileOrUrl) into sProtocol
-   if sProtocol is among the items of "http,https" then
-      put "browser_URL" into propName
-      put shortFileOrUrl into propValue
-   else      
-      put "browser_File" into propName
-      put tiddly_File (shortFileOrUrl) into propValue
-   end if
-   
-   # Set behavior if pTiddlyView exists
-   _SetBehaviorIfExists pTiddlyView
-   
-   # Display tiddlyView create if it doesnt exist
-   _DisplayTiddly propValue, shortFileOrUrl, pTiddlyView, propName
-   put the result into tiddlyView
-   
-   return tiddlyView
-end display_TiddlyWiki
-
-
---> Working on
+--> Draft
 -
 command draft_HandlerHelp hKey
    put hkey_ArrayFile (hKey) into hkeyArrayFile
@@ -105,28 +46,9 @@ command draft_WikiPage wikiDomain, pageArray
    return wikiBrowser
 end draft_WikiPage
 
-private command _SetBehaviorIfExists pTiddlyView
-   -- could add behavior instead of set
-   if exists (pTiddlyView) then
-      # Set behavior as it might just be a browser
-      put module_GetBehavior (TiddlyModuleName) into bObject
-      if exists (bObject) then
-         set the behavior of tiddlyView to bObject
-      end if
-   end if
-end _SetBehaviorIfExists
 
-private command _DisplayTiddly propValue, sLabel, pTiddlyView, propName
-   # Display
-   display_ModuleInstance TiddlyModuleName, propValue, sLabel, pTiddlyView, propName
-   put the result into tiddlyView
-   
-   # For fun let's set the card colour
-   put the card_Object of tiddlyView into cardObject
-   set the backgroundcolor of cardObject to colour_GetRandom()
-   return tiddlyView
-end _DisplayTiddly
-
+--> Display
+-
 command display_EtcHosts
    put hosts_ListFiles() into hostFiles
    --

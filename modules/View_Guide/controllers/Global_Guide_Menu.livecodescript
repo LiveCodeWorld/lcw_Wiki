@@ -18,10 +18,18 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   put the display_View of tObject into LocalArray ["dView"]
-   put the displayed_Object of tObject into sObject
-   return sObject
+   -- put the displayed_Object of tObject into guideView
+   put the guide_View of tObject into guideView
+   put _ReadeNames() into LocalArray ["ReadeNames"]
+   return guideView
 end menu_Target
+
+private function _ReadeNames
+   put env_ReadmeNameArray() into nameArray
+   put keys (nameArray) into rNames
+   sort rNames
+   return rNames
+end _ReadeNames
 
 private function _dView
    return LocalArray ["dView"]
@@ -34,25 +42,87 @@ end menu_CheckTarget
 
 --> Global | Guide | Menu
 -
-on menu_Guide dView
-   put the params
-end menu_Guide
+on menu_LeftWiki guideView, rName
+   put env_ReadmeNameArray() into nameArray
+   put nameArray [rName] into tiddlyFile
+   --
+   put the left_View of guideView into leftView
+   display_TiddlyFile tiddlyFile, leftView, false
+end menu_LeftWiki
+
+getprop leftWiki_Params
+   return LocalArray ["ReadeNames"]
+end leftWiki_Params
+
+on submenu_RightPlugin
+   return "Global | TiddlyWiki | Plugins | Menu"
+end submenu_RightPlugin
+
+on menu_RightWiki guideView, rName
+   put env_ReadmeNameArray() into nameArray
+   put nameArray [rName] into tiddlyFile
+   --
+   put the right_View of guideView into rightView
+   display_TiddlyFile tiddlyFile, rightView, false
+end menu_RightWiki
+
+getprop rightWiki_Params
+   return LocalArray ["ReadeNames"]
+end rightWiki_Params
 
 private on _
 end _
 
-on menu_Behavior dView
-   put the behavior of dView into bObject
-   edit the script of bObject
-end menu_Behavior
+on menu_GuideProperty guideView, someProp
+   view_DoPropertyMenu someProp, guideView
+end menu_GuideProperty
 
-on menu_ModuleTools dView
-   put the view_Name of dView into viewName
-   display_ModuleTools viewName
-end menu_ModuleTools
+getprop guideProperty_Params [mTarget]
+   return LocalArray ["view_PropertyMenu"]
+end guideProperty_Params
+
+getprop disabled_GuideProperty [guideView]
+   put the view_PropertyMenu of guideView into viewPropertyMenu
+   put viewPropertyMenu into LocalArray ["view_PropertyMenu"]
+   --
+   if viewPropertyMenu is empty then
+      return "delete"
+   else
+      return false
+   end if
+end disabled_GuideProperty
+
+on menu_SetViews guideView, viewName
+   set the view_Type of guideView to viewName
+end menu_SetViews
+
+getprop setViews_Param [guideView]
+   put the view_Type of guideView into shortViewNames
+   return shortViewNames
+end setViews_Param
+
+getprop setViews_Params
+   return "Tiddlywiki,-,Placeholder"
+end setViews_Params
 
 private on __
 end __
+
+on menu_SetMargins guideView
+   put the view_Name of guideView into viewName
+   put the card_Margin of guideView into cMargin
+   --
+   put lcw_Ask ("Set the card_Margin of [[viewName]]", cMargin, guideView, viewName) into cMargin
+   --
+   lock screen
+   set the card_Margin of guideView to cMargin
+   set the horizontal_Spacing of guideView to cMargin
+   unlock screen
+end menu_SetMargins
+
+on menu_LayoutBehavior guideView
+   put the view_Childen of guideView
+end menu_LayoutBehavior
 
 on submenu_Dev
    return menu_DevTitle ("Global | Guide | Menu")

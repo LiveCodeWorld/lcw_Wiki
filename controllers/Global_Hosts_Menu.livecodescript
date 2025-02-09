@@ -34,7 +34,7 @@ end menu_CheckTarget
 command _AnswerSaveHosts hostsText, dView
    lcw_Answer "Backup and save the displayed text to /etc/hosts?", dView
    
-   hosts_Backup
+   hosts_CopyToBackup
    hosts_Set hostsText
    --
    return hostsText
@@ -43,6 +43,17 @@ end _AnswerSaveHosts
 
 --> Global | Hosts | Menu
 -
+on menu_ToggleMinimal
+   set the cursor to watch
+   hosts_ToggleEmpty
+   --
+   display_EtcHosts
+end menu_ToggleMinimal
+
+getprop checked_ToggleMinimal
+   return hosts_IsMinimal()
+end checked_ToggleMinimal
+
 on menu_MoveHostsFile dView
    hosts_MoveToBackup
    --
@@ -73,7 +84,7 @@ end menu_RestoreHostsFile
 
 getprop disabled_RestoreHostsFile
    if there is not a file "/etc/hosts" then
-      if there is a file "/etc/hosts_backup" then
+      if there is a file "/etc/hosts_CopyToBackup" then
          return false
       else
          return true
@@ -130,6 +141,10 @@ on menu_EditEtcHosts
    code_EditFile "/etc/hosts"
 end menu_EditEtcHosts
 
+on menu_EditBackupHosts
+   code_EditFile "/etc/hosts"
+end menu_EditBackupHosts
+
 private on __
 end __
 
@@ -174,7 +189,7 @@ on menu_WriteDisplayed dView
 end menu_WriteDisplayed
 
 on menu_BackupHostsFile
-   hosts_Backup
+   hosts_CopyToBackup
 end menu_BackupHostsFile
 
 on submenu_Dev

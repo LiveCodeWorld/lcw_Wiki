@@ -35,6 +35,9 @@ on mDoubleUp_ModuleTools dView, shortFile
    if the optionKey is "Down" then breakpoint
    
    switch
+      case shortFile = "README.html"
+         display_TiddlyFile sFile
+         break
       case fExt = "md"
       case fExt = "html"
          code_EditFile sFile

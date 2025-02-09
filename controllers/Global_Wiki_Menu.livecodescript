@@ -30,9 +30,12 @@ end hosts_Exists
 --> Global | Wiki | Menu
 -
 on menu_ToggleEtcHosts
-   put "ls -la /etc/hosts" into someShell
-   put shell (someShell)
+   hosts_ToggleEmpty
 end menu_ToggleEtcHosts
+
+getprop checked_ToggleEtcHosts
+   return hosts_IsMinimal()
+end checked_ToggleEtcHosts
 
 on menu_ToggleProxyFarm
    toggle_ProxyFarm

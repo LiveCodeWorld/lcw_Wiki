@@ -38,7 +38,8 @@ command _Refresh dView
    put the title_Text of viewObject into sName
    put the stack_Name of viewObject into sName
    --
-   display_MenuBarData sName, dView
+   put the menubar_View of viewObject into menubarView
+   display_MenuBarData menubarView
 end _Refresh
 
 
@@ -69,7 +70,8 @@ on menu_UpdateStyle dView, updateStyle
    set the menuButton_UpdateStyle of btnObject to updateStyle
    --
    put the stack_Name of btnObject into sName 
-   display_MenuBarData sName, dView
+   put the menubar_View of btnObject into menubarView
+   display_MenuBarData menubarView
 end menu_UpdateStyle
 
 getprop updateStyle_Param [dView]

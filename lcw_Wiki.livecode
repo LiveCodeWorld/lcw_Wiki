@@ -26,7 +26,7 @@ command project_PostInit
    -- ide_SetHanderFieldBehavior true
    
    # Display Project
-   display_Project "lcw_Wiki"
+   -- display_Project "lcw_Wiki"
    --
    if the shiftKey is "Down" then      
       # Start proxy servers and load gardens
