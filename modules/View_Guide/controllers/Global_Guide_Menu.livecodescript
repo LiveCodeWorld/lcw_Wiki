@@ -115,9 +115,24 @@ on menu_BottomRight guideView
    set the camera_Video [cRect] of guideView to "Facetime"
 end menu_BottomRight
 
-on menu_HideCamera guideView
-   set the camera_Video of guideView to ""
-end menu_HideCamera
+on menu_ShowCamera guideView
+   put the camera_IsVisible of guideView into isVisible
+   if item 1 of isVisible = "Error" then
+      breakpoint
+   end if
+   -- if isVisible is true then set the camera_Video of guideView to ""
+   --
+   set the camera_IsVisible of guideView to (isVisible is false)
+end menu_ShowCamera
+
+getprop disabled_ShowCamera [guideView]
+   return _CameraMissing (guideView)
+end disabled_ShowCamera
+
+getprop checked_ShowCamera [guideView]
+   put the camera_IsVisible of guideView into isVisible
+   return isVisible
+end checked_ShowCamera
 
 on menu_CloseCamera guideView
    put the camera_Name of guideView into cameraName
@@ -125,9 +140,16 @@ on menu_CloseCamera guideView
 end menu_CloseCamera
 
 getprop disabled_CloseCamera [guideView]
+   return _CameraMissing (guideView)
+end disabled_CloseCamera
+
+private function _CameraMissing guideView
    put the camera_Name of guideView into cameraName
    return cameraName is empty
-end disabled_CloseCamera
+end _CameraMissing
+
+private on ___
+end ___
 
 on menu_SetMargins guideView
    put the view_Name of guideView into viewName
