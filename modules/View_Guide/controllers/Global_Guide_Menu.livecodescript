@@ -108,6 +108,27 @@ end setViews_Params
 private on __
 end __
 
+on menu_BottomRight guideView
+   put the stack_Name of guideView into sName
+   put screen_BottomRight() into cRect
+   --
+   set the camera_Video [cRect] of guideView to "Facetime"
+end menu_BottomRight
+
+on menu_HideCamera guideView
+   set the camera_Video of guideView to ""
+end menu_HideCamera
+
+on menu_CloseCamera guideView
+   put the camera_Name of guideView into cameraName
+   cameraControlDelete cameraName
+end menu_CloseCamera
+
+getprop disabled_CloseCamera [guideView]
+   put the camera_Name of guideView into cameraName
+   return cameraName is empty
+end disabled_CloseCamera
+
 on menu_SetMargins guideView
    put the view_Name of guideView into viewName
    put the card_Margin of guideView into cMargin
