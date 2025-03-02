@@ -7,9 +7,6 @@ name: Global | Guide | Menu
 type: controller
 version: 0.2
 
-/*Here you can describe this menu.
-Full help text should be provided on the linked wiki.*/
-
 
 --> Variables
 -
@@ -18,9 +15,14 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   -- put the displayed_Object of tObject into guideView
-   put the guide_View of tObject into guideView
    put _ReadeNames() into LocalArray ["ReadeNames"]
+   --
+   put the displayed_Object of tObject into guideView
+   if exists (guideView) then
+      put the guide_View of guideView into guideView
+   else
+      put the guide_View of tObject into guideView
+   end if
    return guideView
 end menu_Target
 
@@ -35,8 +37,8 @@ private function _dView
    return LocalArray ["dView"]
 end _dView
 
-getprop menu_CheckTarget [dView]
-   return exists (dView)
+getprop menu_CheckTarget [guideView]
+   return exists (guideView)
 end menu_CheckTarget
 
 
@@ -108,12 +110,17 @@ end setViews_Params
 private on __
 end __
 
-on menu_BottomRight guideView
+on menu_Camera guideView
    put the stack_Name of guideView into sName
    put screen_BottomRight() into cRect
    --
    set the camera_Video [cRect] of guideView to "Facetime"
-end menu_BottomRight
+end menu_Camera
+
+getprop checked_Camera [guideView]
+   put the camera_IsOpen of guideView into isOpen
+   return isOpen
+end checked_Camera
 
 on menu_ShowCamera guideView
    put the camera_IsVisible of guideView into isVisible
@@ -150,6 +157,19 @@ end _CameraMissing
 
 private on ___
 end ___
+
+on menu_ShowMenu guideView
+   put the menubar_View of guideView into mGroup
+   menuBar_ToggleShowMenu mGroup
+end menu_ShowMenu
+
+getprop checked_ShowMenu [guideView]
+   put the menubar_View of guideView into mGroup
+   if exists (mGroup) is false then return false
+   --
+   put the show_Menu of mGroup into sBoolean
+   return sBoolean
+end checked_ShowMenu
 
 on menu_SetMargins guideView
    put the view_Name of guideView into viewName

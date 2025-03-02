@@ -32,6 +32,60 @@ end menu_CheckTarget
 
 --> Global | Guide | Dev | Menu
 -
+on menu_Offset dView
+   put the displayed_Object of dView into viewObject
+   put the readMe_Html of viewObject into rHTML
+   --
+   put tiddly_DataFromHtml (rHTML) into oTiddlyData
+   put tiddlyArray_GetText (oTiddlyData, "White Paper")
+   --
+   -- display_Data tiddlerArray
+end menu_Offset
+
+function tiddlyArray_GetText oTiddlyData, tTitle
+   put tiddlyArray_Get (oTiddlyData, tTitle) into tiddlyArray
+   return tiddlyArray ["text"]
+end tiddlyArray_GetText
+
+function tiddlyArray_Get oTiddlyData, tTitle
+   put indexArray_FindArray (oTiddlyData, "title", tTitle) into tiddlerArray
+   return tiddlerArray
+end tiddlyArray_Get
+
+function tiddly_DataFromHtml rHTML
+   -- <!--~~ Ordinary tiddlers ~~-->
+   put html_CommentTitle ("~~ Ordinary tiddlers ~~") into sTitle
+   put lineOffset (sTitle, rHTML) into startLine
+   put html_CommentTitle ("~~ Library modules ~~") into eTitle
+   put lineOffset (eTitle, rHTML) into endLine
+   --
+   put line startLine to endLine of rHTML into oTiddlers
+   put html_StripEnclosingScriptTag (oTiddlers) into sJSON
+   --
+   put json_ToArray (sJSON) into oTiddlyData
+   return oTiddlyData
+end tiddly_DataFromHtml
+
+function html_StripEnclosingScriptTag sText
+   -- rough and ready
+   put offset ("</script>", sText) into endChar
+   if endChar = 0 then return sText
+   
+   get char 1 to (endChar-1) of sText
+   put offset ("<script", it) into startTagChar
+   if startTagChar = 0 then return sText
+   
+   put offset (">", sText, startTagChar) into endTagChar
+   if endTagChar = 0 then return sText
+   
+   delete char 1 to (endTagChar + startTagChar) of it
+   return it
+end html_StripEnclosingScriptTag
+
+function html_CommentTitle sTitle
+   return "<!--" & sTitle & "-->"
+end html_CommentTitle
+
 on menu_ModuleProperties dView
    put the view_Name of dView into viewName
    display_Template viewName

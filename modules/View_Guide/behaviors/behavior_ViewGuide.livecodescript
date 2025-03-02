@@ -1,4 +1,4 @@
-﻿script "behavior_ViewGuide"
+﻿script "behavior_ViewGuide" with behavior "behavior_View|Layouts|Horizontal|Two"
 --> MetaData
 -
 copyright: David Bovill
@@ -67,6 +67,7 @@ end layout_ChildArray
 --> Events
 -
 on preOpenControl
+   view_Init
    pass preOpenControl
 end preOpenControl
 
@@ -74,19 +75,11 @@ command view_Init
    put the view_BehaviorStackNames of me into sNames
    put the uOPN ["behavior_StackNames"] of me into sNames 
    set the behavior_StackNames of me to sNames
-   --
-   if bName is not among the lines of sNames then
-      if exists (stack bName) then
-         set the behavior_Add of me to bName
-         --
-         put the behavior_StackNames of me into sNames
-         set the uOPN ["behavior_StackNames"] of me to sNames 
-      end if
-   end if
-   
+   --   
    LayoutControl
    --
    lcw_Notify the behavior_StackNames of me, "Behaviors"
+   pass view_Init
 end view_Init
 
 getprop view_BehaviorStackNames
