@@ -29,9 +29,21 @@ end menu_CheckTarget
 
 --> Global | Guide | Left | Menu
 -
-on menu_GuideLeft guideView
-   put the params
-end menu_GuideLeft
+on menu_ShowLeft guideView
+   put the left_Visible of guideView into isLeft
+   --
+   set the left_Visible of guideView to (isLeft is false)
+end menu_ShowLeft
+
+getprop checked_ShowLeft [guideView]
+   put the left_Visible of guideView into isLeft
+   return isLeft
+end checked_ShowLeft
+
+getprop disabled_ShowLeft [guideView]
+   put the right_Visible of guideView into isRight
+   return (isRight is false)
+end disabled_ShowLeft
 
 private on _
 end _
