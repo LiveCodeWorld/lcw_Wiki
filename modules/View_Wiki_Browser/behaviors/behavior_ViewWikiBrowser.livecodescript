@@ -19,6 +19,23 @@ local LocalArray
 
 --> Working on
 -
+getprop menu_Target [tObject]
+   -- used but menus of "View|Wiki|Browser"
+   if exists (tObject) is false then
+      put the long id of the target into tObject
+   end if
+   --
+   put the wikiBrowser_View of tObject into wikiView
+   if exists (wikiView) is false then
+      put the display_View of tObject into dView
+      put the displayed_Object of dView into wikiView
+      if exists (wikiView) is false then
+         return empty
+      end if
+   end if
+   
+   return wikiView
+end menu_Target
 
 
 --> Props
@@ -168,24 +185,6 @@ getprop page_Text [titleOrNum]
    put pageArray_Text (pageArray) into pageText
    return pageText
 end page_Text
-
-getprop menu_Target [tObject]
-   -- used but menus of "View|Wiki|Browser"
-   if exists (tObject) is false then
-      put the long id of the target into tObject
-   end if
-   --
-   put the wikiBrowser_View of tObject into wikiView
-   if exists (wikiView) is false then
-      put the display_View of tObject into dView
-      put the displayed_Object of dView into wikiView
-      if exists (wikiView) is false then
-         return empty
-      end if
-   end if
-   
-   return wikiView
-end menu_Target
 
 
 --> Objects

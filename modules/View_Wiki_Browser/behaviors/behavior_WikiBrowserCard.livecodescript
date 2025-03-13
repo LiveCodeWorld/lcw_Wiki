@@ -68,7 +68,7 @@ on menu_Init
    put _MenuBarView() into mGroup
    --
    set the behavior_StackNames of mGroup to "behavior_ViewMenuGroup,behavior_MenuGroupCreate"
-   set the menubar_DefaultTable of mGroup to "Browser-Default"
+   -- set the menubar_DefaultTable of mGroup to "Browser-Default"
 end menu_Init
 
 

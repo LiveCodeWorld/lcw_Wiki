@@ -10,15 +10,100 @@ version: 0.4
 A lot of experimental interfaces for displaying wiki structure and file organisation.
 */
 
+--> Working on
+-
+command tiddlyHandler_CreaterHelp pageArray
+   put pageArray ["title"] into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put markdown_FromPageArray (pageArray) into mdText
+   
+   put tiddlyHandler_View() into tiddlyView
+   set the tiddler_Markdown [pageTitle] of tiddlyView to mdText
+   return tiddlyView
+end tiddlyHandler_CreaterHelp
+
+function tiddlyHandler_PageArray hKey, pScriptHelp
+   local pageArray
+   
+   put help_ConstructHandlerTitle (hKey) into pageTitle
+   put help_HkeyCurlyData (hKey) into curlyData
+   put pageTitle into curlyData ["title"]
+   
+   # Curly Merge
+   curly_MergePageArray pageArray, curlyData
+   if pScriptHelp is not empty then
+      put pageArray ["story"][1]["text"] into oText
+      put pScriptHelp & CR&CR & oText into newFirstPara
+      put newFirstPara into pageArray ["story"][1]["text"]
+   end if
+   
+   # Add Fork
+   pageArray_StripJournal pageArray
+   put help_ForkDomains () into helpForkDomains
+   put wikiPage_ForkDomains (wikiDomain, helpForkDomains) into forkDomains
+   pageArray_AddFork pageArray, forkDomains
+   --
+   return pageArray
+end tiddlyHandler_PageArray
+
+function markdown_FromPageArray pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum]["text"] into itemText
+      
+      switch storyArray [itemNum]["type"]
+         case "text"
+            put itemText & CR&CR after mdText
+            break
+         case "html"
+            put itemText & CR&CR after mdText
+            break
+         case "markdown"
+            put itemText & CR&CR after mdText
+            break
+      end switch
+   end repeat
+   return word 1 to -1 of mdText
+end markdown_FromPageArray
+
+function tiddlyHandler_View
+   if exists (control 1 of cd 1 of stack "Module Handler Readme") then
+      return the long id of control 1 of cd 1 of stack "Module Handler Readme"
+   else
+      return empty
+   end if
+end tiddlyHandler_View
+
+function fedWiki_FindBrowser wikiDomain, pLaunch
+   # Find Wiki Browser
+   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
+   
+   if exists (wikiBrowser) is true then
+      object_GoTo wikiBrowser
+   else if pLaunch is true then
+      display_Wiki wikiDomain
+      put the result into wikiBrowser
+      wait 40 ticks
+      return wikiBrowser
+   else
+      return empty
+   end if
+end fedWiki_FindBrowser
+
+
 --> Draft
 -
-command draft_HandlerHelp hKey
-   put hkey_ArrayFile (hKey) into hkeyArrayFile
-   if there is not a file hkeyArrayFile then
-      graph_Hkey hKey
+command draft_WikiPage wikiDomain, pageArray, pLaunch
+   # Display Ghost
+   put fedWiki_FindBrowser (wikiDomain, pLaunch) into wikiBrowser
+   if exists (wikiBrowser) then
+      set the ghost_PageArray of wikiBrowser to pageArray
    end if
-   --
-   put help_FromHkey (hKey) into pageArray
+   return wikiBrowser
+end draft_WikiPage
+
+command draft_HandlerHelp hKey
+   put draft_HkeyPageArray(hKey) into pageArray
    --
    put "handler." & platform_WikiDomain() into handlerDomain
    draft_WikiPage handlerDomain, pageArray
@@ -26,25 +111,15 @@ command draft_HandlerHelp hKey
    return dView
 end draft_HandlerHelp
 
-command draft_WikiPage wikiDomain, pageArray
-   put pageArray ["title"] into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   
-   # Find Wiki Browser
-   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
-   if exists (wikiBrowser) is true then
-      object_GoTo wikiBrowser
-   else
-      display_Wiki wikiDomain
-      put the result into wikiBrowser
-      wait 40 ticks
+function draft_HkeyPageArray hKey
+   put hkey_ArrayFile (hKey) into hkeyArrayFile
+   if there is not a file hkeyArrayFile then
+      graph_Hkey hKey
    end if
-   
-   # Display Ghost
-   set the ghost_PageArray of wikiBrowser to pageArray
    --
-   return wikiBrowser
-end draft_WikiPage
+   put help_FromHkey (hKey) into pageArray
+   return pageArray
+end draft_HkeyPageArray
 
 
 --> Display

@@ -44,36 +44,32 @@ end menu_CheckTarget
 
 --> Global | Guide | Menu
 -
-on menu_LeftWiki guideView, rName
-   put env_ReadmeNameArray() into nameArray
-   put nameArray [rName] into tiddlyFile
-   --
-   put the left_View of guideView into leftView
-   display_TiddlyFile tiddlyFile, leftView, false
-end menu_LeftWiki
-
-getprop leftWiki_Params
-   return LocalArray ["ReadeNames"]
-end leftWiki_Params
-
-on submenu_RightPlugin
-   return "Global | TiddlyWiki | Plugins | Menu"
-end submenu_RightPlugin
-
-on menu_RightWiki guideView, rName
-   put env_ReadmeNameArray() into nameArray
-   put nameArray [rName] into tiddlyFile
-   --
+on menu_GuideHelp guideView
    put the right_View of guideView into rightView
-   display_TiddlyFile tiddlyFile, rightView, false
-end menu_RightWiki
-
-getprop rightWiki_Params
-   return LocalArray ["ReadeNames"]
-end rightWiki_Params
+end menu_GuideHelp
 
 private on _
 end _
+
+on menu_StandardLayout guideView
+   put the width of guideView into gWidth
+   put round (gWidth / 2) into leftWidth
+   set the left_Width of guideView to leftWidth
+end menu_StandardLayout
+
+on menu_FixedView guideView, fixedView
+   set the fixed_View of guideView to fixedView
+end menu_FixedView
+
+getprop fixedView_Param [guideView]
+   put the fixed_View of guideView into fixedView
+   return fixedView
+end fixedView_Param
+
+getprop fixedView_Params [guideView]
+   put the fixed_Views of guideView into fixedViews
+   return fixedViews
+end fixedView_Params
 
 on menu_GuideProperty guideView, someProp
    view_DoPropertyMenu someProp, guideView
@@ -109,51 +105,6 @@ end setViews_Params
 
 private on __
 end __
-
-on menu_Camera guideView
-   put the stack_Name of guideView into sName
-   put screen_BottomRight() into cRect
-   --
-   set the camera_Video [cRect] of guideView to "Facetime"
-end menu_Camera
-
-getprop checked_Camera [guideView]
-   put the camera_IsOpen of guideView into isOpen
-   return isOpen
-end checked_Camera
-
-on menu_ShowCamera guideView
-   put the camera_IsVisible of guideView into isVisible
-   if item 1 of isVisible = "Error" then
-      breakpoint
-   end if
-   -- if isVisible is true then set the camera_Video of guideView to ""
-   --
-   set the camera_IsVisible of guideView to (isVisible is false)
-end menu_ShowCamera
-
-getprop disabled_ShowCamera [guideView]
-   return _CameraMissing (guideView)
-end disabled_ShowCamera
-
-getprop checked_ShowCamera [guideView]
-   put the camera_IsVisible of guideView into isVisible
-   return isVisible
-end checked_ShowCamera
-
-on menu_CloseCamera guideView
-   put the camera_Name of guideView into cameraName
-   cameraControlDelete cameraName
-end menu_CloseCamera
-
-getprop disabled_CloseCamera [guideView]
-   return _CameraMissing (guideView)
-end disabled_CloseCamera
-
-private function _CameraMissing guideView
-   put the camera_Name of guideView into cameraName
-   return cameraName is empty
-end _CameraMissing
 
 private on ___
 end ___

@@ -19,6 +19,13 @@ local LocalArray
 -
 getprop menu_Target [tObject]
    put the guide_View of tObject into guideView
+   if exists (guideView) is false then
+      breakpoint
+      return empty
+   end if
+   --
+   put guideView into LocalArray ["guideView"]
+   put the right_View of guideView into LocalArray ["rightView"]
    return guideView
 end menu_Target
 
@@ -26,14 +33,18 @@ getprop menu_CheckTarget [guideView]
    return exists (guideView)
 end menu_CheckTarget
 
+getprop submenu_Target [hName]
+   return LocalArray ["rightView"]
+end submenu_Target
+
 
 --> Global | Guide | Right | Menu
 -
-on menu_ShowRight guideView
+on menu_ShowRight.R guideView
    put the right_Visible of guideView into isRight
    --
    set the right_Visible of guideView to (isRight is false)
-end menu_ShowRight
+end menu_ShowRight.R
 
 getprop checked_ShowRight [guideView]
    put the right_Visible of guideView into isRight
@@ -70,8 +81,44 @@ on submenu_TiddlyPlugins
    return "Global | TiddlyWiki | Plugins | Menu"
 end submenu_TiddlyPlugins
 
+on menu_TiddlyTemplate guideView, shortFile
+   put tiddly_TemplateFile (shortFile) into tFile
+   --
+   put the right_View of guideView into rightView
+   display_TiddlyFile tFile, rightView, false
+end menu_TiddlyTemplate
+
+getprop tiddlyTemplate_Params
+   put tiddly_ListShortTemplates() into shortFiles
+   filter shortFiles with "*.html"
+   return shortFiles
+end tiddlyTemplate_Params
+
 private on __
 end __
+
+on menu_Fedwiki guideView
+   put the right_View of guideView into rightView
+   tiddly_SetBehavior rightView, "wiki"
+   --
+   set the browser_URL of rightView to "http://code.astralship.wiki"
+end menu_Fedwiki
+
+on menu_IpfsAdmin guideView
+   put the right_View of guideView into rightView
+   set the browser_URL of rightView to "http://localhost:5001/webui"
+end menu_IpfsAdmin
+
+on menu_DisplayIpfsCatPicture guideView, rName
+   put the right_View of guideView into rightView
+   
+   put "http://127.0.0.1:8080/ipfs/QmW2WQi7j6c7UgJTarActp7tDNikE4B2qXtFCfLPdsgaTQ/cat.jpg" into ipfsURL
+   set the browser_URL of rightView to ipfsURL
+end menu_DisplayIpfsCatPicture
+
+on submenu_Ipfs
+   return "Global | IPFS | Menu"
+end submenu_Ipfs
 
 on submenu_Dev
    return menu_DevTitle ("Global | Guide | Right | Menu")

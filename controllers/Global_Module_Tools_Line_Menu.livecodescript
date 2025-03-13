@@ -31,10 +31,7 @@ on mDoubleUp_ModuleTools dView, shortFile
    -- 
    set the itemDelimiter to "."
    put item -1 of sFile into fExt
-   --
-   if the optionKey is "Down" then breakpoint
-   
-   switch
+    switch
       case shortFile = "README.html"
          display_TiddlyFile sFile
          break
@@ -171,6 +168,22 @@ private function _ModuleFolder
    return mFolder
 end _ModuleFolder
 
+private function _ModuleName moduleView
+   put LocalArray ["dView"] into dView
+   put the title_Text of dView into moduleName
+   get the stack_Name of moduleView 
+   if it = moduleName then
+      return moduleName
+   else
+      breakpoint
+   end if
+end _ModuleName
+
+private command _Refresh moduleView
+   put _ModuleName (moduleView) into moduleName
+   display_ModuleTools moduleName
+end _Refresh
+
 getprop disabled_TrashMenu [viewObject]
    return LocalArray ["shortFolder"] is not "controllers"
 end disabled_TrashMenu
@@ -242,7 +255,55 @@ on menu_ListModuleDepkeys viewObject
    end if
 end menu_ListModuleDepkeys
 
-on menu_BehaviorDepScript viewObject
+on __
+end __
+
+on menu_RenameBehavior moduleView
+   put _SelectedFile() into stackPath
+   put the short name of stack stackPath into oldName
+   put lcw_Ask ("Change the name of this behavior?", oldName, dView) into newBehaviorName
+   
+   # Rename bheavior and its script metadata
+   module_RenameBehavior stackPath, newBehaviorName
+   
+   # Also rename short file
+   put newBehaviorName & ".livecodescript" into newShortFile
+   project_ChangeStackShortFileName stackPath, newShortFile
+   
+   # Refresh
+   _Refresh moduleView
+end menu_RenameBehavior
+
+getprop disabled_RenameBehavior [viewObject]
+   put LocalArray ["sPath"] into sPath
+   return item 1 of sPath is not "behaviors"
+end disabled_RenameBehavior
+
+on menu_RenameBehaviorFile moduleView
+   put _SelectedFile() into stackPath
+   set the itemdelimiter to slash
+   put item -1 of stackPath into shortFile
+   
+   # Warn and Ask
+   put LocalArray ["dView"] into dView
+   if exists (stack stackPath) is false then
+      lcw_AnswerWarning "Stack does nto exist!", dView
+   end if
+   put lcw_Ask ("Change short file...", shortFile, dView) into newShortFile
+   
+   # Change short file
+   project_ChangeStackShortFileName stackPath, newShortFile
+   
+   # Refresh
+   _Refresh moduleView
+end menu_RenameBehaviorFile
+
+getprop disabled_RenameBehaviorFile [viewObject]
+   put LocalArray ["sPath"] into sPath
+   return item 1 of sPath is not "behaviors"
+end disabled_RenameBehaviorFile
+
+on menu_BehaviorDepScript moduleView
    put _SelectedFile() into sFile
    put the name of stack sFile into bObject
    --
@@ -255,8 +316,24 @@ end menu_BehaviorDepScript
 
 getprop disabled_BehaviorDepScript [viewObject]
    put LocalArray ["sPath"] into sPath
-   return the number of items of sPath is not 2
+   return item 1 of sPath is not "behaviors"
 end disabled_BehaviorDepScript
+
+on menu_RemoveBehavior viewObject
+   put the behavior_Objects of viewObject into bObjects
+   put _FilePath() into sFile
+   --
+   if exists (stack sFile) then
+      put the name of stack sFile into bObject
+      line_Delete bObject, bObjects
+      put bObjects
+   else
+      breakpoint
+   end if
+end menu_RemoveBehavior
+
+on ___
+end ___
 
 on menu_TrashMenu viewObject
    put _FilePath() into stackPath
@@ -274,27 +351,8 @@ on menu_TrashMenu viewObject
    -- display_GitRefreshProjectName projectName
 end menu_TrashMenu
 
-on menu_RemoveBehavior viewObject
-   put the behavior_Objects of viewObject into bObjects
-   put _FilePath() into sFile
-   --
-   if exists (stack sFile) then
-      put the name of stack sFile into bObject
-      line_Delete bObject, bObjects
-      put bObjects
-   else
-      breakpoint
-   end if
-end menu_RemoveBehavior
-
-on menu_ViewProperty viewObject 
-   put LocalArray ["viewProp"] into viewProp
-   --
-   put the viewProp of viewObject
-end menu_ViewProperty
-
-on __
-end __
+on ____
+end ____
 
 on submenu_Controller
    return _GetMenu ("Controllers")

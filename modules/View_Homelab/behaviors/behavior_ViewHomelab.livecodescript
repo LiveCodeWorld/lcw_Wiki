@@ -1,9 +1,9 @@
-﻿script "behavior_View_Homelab"
+﻿script "behavior_ViewHomelab"
 --> MetaData
 -
 copyright: David Bovill
 license: GPLv3
-name: behavior_View_Homelab
+name: behavior_ViewHomelab
 type: behavior
 version: 0.1
 

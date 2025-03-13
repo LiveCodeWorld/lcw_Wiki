@@ -5,10 +5,11 @@ copyright: David Bovill
 license: GPLv3
 name: Global | Wiki | Browser | View | Menu
 type: controller
-version: 0.1
+version: 0.2
 
-/*Here you can describe this menu.
-Full help text should be provided on the linked wiki.*/
+/*
+This menu shapes the appearance of a federated wiki as displayed in the Wiki|Browser view.
+*/
 
 
 --> Variables
@@ -69,6 +70,18 @@ end checked_AnimationEngine
 
 --> Global | Wiki | Browser | View | Menu
 -
+on menu_PageTitle wikiView, pageTitle
+   put the wiki_Domain of wikiView into wikiDomain
+   put fedwiki_ConstructSlug (pageTitle) into pSlug
+   --
+   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   display_PageArray pageArray
+end menu_PageTitle
+
+getprop pageTitle_Params [wikiView]
+   return the page_Titles of wikiView
+end pageTitle_Params
+
 on menu_EditWiki wikiView
    put the wiki_EditMode of wikiView into sBoolean
    set the wiki_EditMode of wikiView to (sBoolean is false)

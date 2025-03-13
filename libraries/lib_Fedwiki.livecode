@@ -597,14 +597,6 @@ function fedwiki_SiteContainsSlug wikiDomain, pageSlug
    return indexNum is not 0 
 end fedwiki_SiteContainsSlug
 
-function fedwiki_SlugToTitle pageSlug
-   replace "-" with space in pageSlug
-   put word 1 to -1 of pageSlug into pageTitle
-   -- put text_InitialCaps (pageTitle) into pageTitle
-   put toUpper (char 1 of pageTitle) into char 1 of pageTitle
-   return pageTitle
-end fedwiki_SlugToTitle
-
 function fedwiki_ConstructFlagDropJson lineUpURL
    set the itemdelimiter to slash
    put item 1 to 3 of lineUpURL into wikiDomain
@@ -809,6 +801,14 @@ function fedwiki_ConstructTitle pageSlug
    delete char -1 of pageTitle
    return pageTitle
 end fedwiki_ConstructTitle
+
+function fedwiki_SlugToTitle pageSlug
+   replace "-" with space in pageSlug
+   put word 1 to -1 of pageSlug into pageTitle
+   -- put text_InitialCaps (pageTitle) into pageTitle
+   put toUpper (char 1 of pageTitle) into char 1 of pageTitle
+   return pageTitle
+end fedwiki_SlugToTitle
 
 
 --> Fedwiki | Create

@@ -21,13 +21,72 @@ constant bName = "behavior_View|Layouts|Horizontal|Two"
 --> Events
 -
 on preOpenControl
-   _InitView
+   put the view_BehaviorStackNames of me into sNames
+   put the uOPN ["behavior_StackNames"] of me into sNames 
+   set the behavior_StackNames of me to sNames
+   --   
+   dispatch "LayoutControl"
+   dispatch "tiddly_InitMenuCache"
    pass preOpenControl
 end preOpenControl
 
 
+--> Props
+-
+getprop view_BehaviorStackNames
+   put the uOPN ["behavior_StackNames"] of me into sNames
+   return sNames
+end view_BehaviorStackNames
+
+setprop view_BehaviorStackNames sNames
+   set the uOPN ["behavior_StackNames"] of me to sNames
+   --
+   set the behavior_StackNames of me to sNames
+   return sNames
+end view_BehaviorStackNames
+
+
 --> Props | Layout
 -
+private function _MyRect
+   put the rect of me into cRect
+   return cRect
+end _MyRect
+
+--setprop camera_Layout sBoolean
+   put the right_View of me into rightView
+   --
+   put the camera_Rect of me into cameraRect
+   put the camera_GuideRect of me into guideRect
+   --
+   set the rect of rightView to guideRect
+   -- 
+   set the camera_Video [cameraRect] of me to "Facetime"
+end camera_Layout
+
+getprop camera_GuideRect
+   put _MyRect() into sRect
+   put the right_Width of me into rWidth
+   put item 3 of sRect - rWidth into item 1 of sRect
+   --
+   put the horizontal_Spacing of me into cMargin
+   put round (9/16 * rWidth) into cHeight
+   put item 4 of sRect - cHeight- cMargin into item 4 of sRect
+   --
+   return sRect
+end camera_GuideRect
+
+getprop camera_Rect
+   put _MyRect() into cRect
+   put the right_Width of me into rWidth
+   --
+   put item 3 of cRect - rWidth into item 1 of cRect
+   put round (9/16 * rWidth) into cHeight
+   put item 4 of cRect - cHeight into item 2 of cRect
+   --
+   return cRect
+end camera_Rect
+
 getprop layout_BehaviorArray
    put the layout_View of the target into layoutView
    if exists (layoutView) is false then return empty
@@ -73,21 +132,6 @@ getprop layout_ChildArray
    end repeat
    return childArray
 end layout_ChildArray
-
-
---> Prop
--
-getprop view_BehaviorStackNames
-   put the uOPN ["behavior_StackNames"] of me into sNames
-   return sNames
-end view_BehaviorStackNames
-
-setprop view_BehaviorStackNames sNames
-   set the uOPN ["behavior_StackNames"] of me to sNames
-   --
-   set the behavior_StackNames of me to sNames
-   return sNames
-end view_BehaviorStackNames
 
 
 --> Prop | Deps
@@ -200,16 +244,6 @@ end behavior_GetHierarchy
 
 --> Private
 -
-private command _InitView
-   put the view_BehaviorStackNames of me into sNames
-   put the uOPN ["behavior_StackNames"] of me into sNames 
-   set the behavior_StackNames of me to sNames
-   --   
-   dispatch "LayoutControl"
-   --
-   -- lcw_Notify "Set behavior_StackNames", "Behaviors"
-end _InitView
-
 private command _ClearBehaviors bObjects
    -- not guaranteed to remove behavior loops
    try
