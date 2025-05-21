@@ -31,7 +31,7 @@ on mDoubleUp_ModuleTools dView, shortFile
    -- 
    set the itemDelimiter to "."
    put item -1 of sFile into fExt
-    switch
+   switch
       case shortFile = "README.html"
          display_TiddlyFile sFile
          break
@@ -318,6 +318,22 @@ getprop disabled_BehaviorDepScript [viewObject]
    put LocalArray ["sPath"] into sPath
    return item 1 of sPath is not "behaviors"
 end disabled_BehaviorDepScript
+
+on menu_AddBehavior viewObject
+   put _FilePath() into sFile   
+   put the name of stack sFile into bObject
+   --
+   set the behavior of viewObject to bObject
+end menu_AddBehavior
+
+getprop disabled_AddBehavior [viewObject]
+   put LocalArray ["sPath"] into sPath
+   if item 1 of sPath is not "behaviors" then return true
+   
+   put _FilePath() into sFile   
+   put exists (stack sFile) is false into sBoolean
+   return sBoolean
+end disabled_AddBehavior
 
 on menu_RemoveBehavior viewObject
    put the behavior_Objects of viewObject into bObjects

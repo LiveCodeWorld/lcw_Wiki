@@ -138,6 +138,10 @@ on menu_LayoutBehavior guideView
    put the view_Childen of guideView
 end menu_LayoutBehavior
 
+on menu_LoadReadmeData
+   tiddly_LoadReadmeData
+end menu_LoadReadmeData
+
 on submenu_Dev
    return menu_DevTitle ("Global | Guide | Menu")
 end submenu_Dev

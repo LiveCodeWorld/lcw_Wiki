@@ -22,9 +22,25 @@ getprop menu_Target [tObject]
    end if
 end menu_Target
 
-function hosts_Exists
-   put hosts_GetArray(hostsText)
-end hosts_Exists
+getprop checked_ToggleEtcHosts
+   return hosts_IsMinimal()
+end checked_ToggleEtcHosts
+
+getprop disabled_ToggleProxyFarm
+   return "lib_Caddy" is not among the lines of the stacksinuse
+end disabled_ToggleProxyFarm
+
+getprop checked_ToggleProxyFarm
+   if "lib_Caddy" is among the lines of the stacksinuse then
+      return wikiServer_ProxyFarmIsRunning()
+   else
+      return false
+   end if
+end checked_ToggleProxyFarm
+
+getprop checked_ToggleLiveServer
+   return wikiServer_OnlyIsRunning()
+end checked_ToggleLiveServer
 
 
 --> Global | Wiki | Menu
@@ -33,25 +49,13 @@ on menu_ToggleEtcHosts
    hosts_ToggleEmpty
 end menu_ToggleEtcHosts
 
-getprop checked_ToggleEtcHosts
-   return hosts_IsMinimal()
-end checked_ToggleEtcHosts
-
 on menu_ToggleProxyFarm
    toggle_ProxyFarm
 end menu_ToggleProxyFarm
 
-getprop checked_ToggleProxyFarm
-   return wikiServer_ProxyFarmIsRunning()
-end checked_ToggleProxyFarm
-
 on menu_ToggleLiveServer
    toggleServer_LiveOnly
 end menu_ToggleLiveServer
-
-getprop checked_ToggleLiveServer
-   return wikiServer_OnlyIsRunning()
-end checked_ToggleLiveServer
 
 private on _
 end _
@@ -86,3 +90,4 @@ end menu_DisplayCaddyTools
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Menu")
 end submenu_Dev
+

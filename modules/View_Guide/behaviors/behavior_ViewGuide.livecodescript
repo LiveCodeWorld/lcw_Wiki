@@ -21,14 +21,18 @@ constant bName = "behavior_View|Layouts|Horizontal|Two"
 --> Events
 -
 on preOpenControl
-   put the view_BehaviorStackNames of me into sNames
-   put the uOPN ["behavior_StackNames"] of me into sNames 
-   set the behavior_StackNames of me to sNames
-   --   
-   dispatch "LayoutControl"
-   dispatch "tiddly_InitMenuCache"
+   init_Module
    pass preOpenControl
 end preOpenControl
+
+command init_Module
+   put the view_BehaviorStackNames of me into sNames
+   -- put the uOPN ["behavior_StackNames"] of me into sNames 
+   set the behavior_StackNames of me to sNames
+   --   
+   -- dispatch "LayoutControl"
+   dispatch "tiddly_InitMenuCache"
+end init_Module
 
 
 --> Props

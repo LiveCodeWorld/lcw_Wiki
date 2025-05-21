@@ -12,14 +12,6 @@ version: 0.1
 
 --> Working on
 -
-command array_MakeExpandable @sArray
-   repeat for each key sKey in sArray
-      put sArray [sKey] into sIndex
-      repeat for each line sLine in sIndex
-         put empty into sArray [sKey][sLine]
-      end repeat
-   end repeat
-end array_MakeExpandable
 
 
 --> Display | HomeLab

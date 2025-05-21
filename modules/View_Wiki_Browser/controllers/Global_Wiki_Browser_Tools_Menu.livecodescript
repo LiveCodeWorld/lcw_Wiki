@@ -147,6 +147,12 @@ getprop disabled_AddOwnerJson [wikiView]
    end switch
 end disabled_AddOwnerJson
 
+on menu_PiOwnerJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   display_WikiPiOwner wikiDomain
+end menu_PiOwnerJson
+
 on menu_CompactRefs wikiView, pageTitle
    put _GetPageArray (wikiView, pageTitle) into pageArray
    --

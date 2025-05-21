@@ -35,7 +35,7 @@ getprop menu_Target [tObject]
    if exists (the menubutton) then
       put the long id of the menubutton into mButton
       get the name of mButton
-      breakpoint
+      -- breakpoint
       set the uOPN ["menu_Target"] of mButton to guideView
    end if
    

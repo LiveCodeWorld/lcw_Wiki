@@ -17,6 +17,21 @@ local LocalArray
 
 --> Working on
 -
+setprop flag_Handler flagHandler
+   return empty -- causes problems
+   
+   if flagHandler is "default" then put "flag_Event" into flagHandler
+   set the javascript_AddHandlers of me to flagHandler
+   
+   # Set javascript
+   put wikijs_SetFlagHandler (flagHandler) into sJavascript
+   set the browser_Javascript of me to sJavascript -- causes error
+   return sJavascript
+end flag_Handler
+
+
+--> Events | Javascript
+-
 on bevent_ExternalLink externalURL
    platform_DeconstructURL externalURL, toolItems, urlExt, hName
    switch
@@ -653,16 +668,6 @@ getprop flag_Event [pageSlug]
    put _GetJavascriptResult (sJavascript) into sResult
    return sResult
 end flag_Event
-
-setprop flag_Handler flagHandler
-   if flagHandler is "default" then put "flag_Event" into flagHandler
-   set the javascript_AddHandlers of me to flagHandler
-   
-   # Set javascript
-   put wikijs_SetFlagHandler (flagHandler) into sJavascript
-   set the browser_Javascript of me to sJavascript -- causes error
-   return sJavascript
-end flag_Handler
 
 getprop page_Html [pSlug]
    put merge ("liveCode.javascript_Result(document.querySelector('#[[pSlug]]').outerHTML);") into sJavascript

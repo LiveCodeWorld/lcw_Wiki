@@ -19,6 +19,29 @@ local WikiServer_SecurityType
 local WikiServer_NodePort
 
 
+--> WiskiServer | Caddy
+-   
+command wikiServer_StartLocalProxy
+   wikiServer_CloseServerWithPort 80
+   --
+   wikiServer_StartLive 9090
+   wikiServer_StartNodeFarm 3000
+   --
+   caddy_Start
+end wikiServer_StartLocalProxy
+
+command wikiServer_StopAll
+   if wikiServer_IsRunning() then wikiServer_StopLive
+   if wikiServer_NodeIsRunning() then wikiServer_StopNode
+   if caddy_IsRunning() then caddy_CloseServerProcesses
+end wikiServer_StopAll
+
+function wikiServer_ProxyFarmIsRunning
+   put caddy_IsRunning() AND wikiServer_NodeIsRunning() AND wikiServer_IsRunning() into sBoolean
+   return sBoolean
+end wikiServer_ProxyFarmIsRunning
+
+
 --> Working on
 -   
 function wikiServer_NodeIsRunning
@@ -101,11 +124,6 @@ function wikiServer_IsRunning
    return isRunning
 end wikiServer_IsRunning
 
-function wikiServer_ProxyFarmIsRunning
-   put caddy_IsRunning() AND wikiServer_NodeIsRunning() AND wikiServer_IsRunning() into sBoolean
-   return sBoolean
-end wikiServer_ProxyFarmIsRunning
-
 command toggleServer_LiveOnly
    if wikiServer_OnlyIsRunning() then
       wikiServer_StopLive
@@ -159,21 +177,6 @@ end toggleServer_Live
 
 --> WikiServer
 -
-command wikiServer_StartLocalProxy
-   wikiServer_CloseServerWithPort 80
-   --
-   wikiServer_StartLive 9090
-   wikiServer_StartNodeFarm 3000
-   --
-   caddy_Start
-end wikiServer_StartLocalProxy
-
-command wikiServer_StopAll
-   if wikiServer_IsRunning() then wikiServer_StopLive
-   if wikiServer_NodeIsRunning() then wikiServer_StopNode
-   if caddy_IsRunning() then caddy_CloseServerProcesses
-end wikiServer_StopAll
-
 command wikiServer_RestartNode pNotify, pNotifyText
    # Stop
    wikiServer_StopNode

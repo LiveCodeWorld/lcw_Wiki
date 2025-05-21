@@ -163,6 +163,12 @@ end menu_ResetDomain.0
 private on ___
 end ___
 
+on menu_PiOwnerJson wikiView
+   put the wiki_Domain of wikiView into wikiDomain
+   --
+   display_WikiPiOwner wikiDomain
+end menu_PiOwnerJson
+
 on menu_Keypass wikiView
    -- display_Template
    display_ModuleInstance "View|Keepass"

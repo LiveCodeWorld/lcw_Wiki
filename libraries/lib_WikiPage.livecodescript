@@ -425,7 +425,7 @@ function wikiPage_SitesIndex someDomain, pPageTitle, pFirstPara
    put pageTitle into sitesTitle
    
    # WikiFolders
-   put wikiDomain_List (tldDomain) into wikiDomains
+   put wikiDomain_List (tldDomain, true) into wikiDomains
    
    # PageArray
    put _SitesIndex (wikiDomains, sitesTitle, tldDomain, pageTitle, pFirstPara) into pageArray
@@ -608,7 +608,6 @@ function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
    end repeat
    return pageArray
 end wikiPage_OpenVerseThumbNails
-
 
 function wikiPage_FiveConcepts wikiDomain, pageSlug, pModel
    return openAI_GetChatResponse ("five-concepts", wikiDomain, pageSlug, pModel)

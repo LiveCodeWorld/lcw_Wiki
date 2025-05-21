@@ -8,23 +8,11 @@ version: 0.4
 
 /*
 A lot of experimental interfaces for displaying wiki structure and file organisation.
-*/
-
---> Working on
--
-command tiddlyHandler_CreaterHelp pageArray
-   put pageArray ["title"] into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put markdown_FromPageArray (pageArray) into mdText
-   
-   put tiddlyHandler_View() into tiddlyView
-   set the tiddler_Markdown [pageTitle] of tiddlyView to mdText
-   return tiddlyView
-end tiddlyHandler_CreaterHelp
 
 function tiddlyHandler_PageArray hKey, pScriptHelp
    local pageArray
    
+   put draft_HkeyPageArray (hKey) into pageArray
    put help_ConstructHandlerTitle (hKey) into pageTitle
    put help_HkeyCurlyData (hKey) into curlyData
    put pageTitle into curlyData ["title"]
@@ -45,6 +33,34 @@ function tiddlyHandler_PageArray hKey, pScriptHelp
    --
    return pageArray
 end tiddlyHandler_PageArray
+*/
+
+--> Working on
+-
+command tiddlyHandler_CreaterHelp pageArray
+   put pageArray ["title"] into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put markdown_FromPageArray (pageArray) into mdText
+   tiddlerHandler_SetHelp pageTitle, mdText
+   return mdText
+end tiddlyHandler_CreaterHelp
+
+command tiddlerHandler_SetHelp pageTitle, mdText
+   if tiddlyHandler_View() is empty then
+      breakpoint
+   else
+      put tiddlyHandler_View() into tiddlyView
+      set the tiddler_Markdown [pageTitle] of tiddlyView to mdText
+   end if
+end tiddlerHandler_SetHelp
+
+function tiddlyHandler_View
+   if exists (control 1 of cd 1 of stack "Module Handler Readme") then
+      return the long id of control 1 of cd 1 of stack "Module Handler Readme"
+   else
+      return empty
+   end if
+end tiddlyHandler_View
 
 function markdown_FromPageArray pageArray
    put pageArray ["story"] into storyArray
@@ -65,14 +81,6 @@ function markdown_FromPageArray pageArray
    end repeat
    return word 1 to -1 of mdText
 end markdown_FromPageArray
-
-function tiddlyHandler_View
-   if exists (control 1 of cd 1 of stack "Module Handler Readme") then
-      return the long id of control 1 of cd 1 of stack "Module Handler Readme"
-   else
-      return empty
-   end if
-end tiddlyHandler_View
 
 function fedWiki_FindBrowser wikiDomain, pLaunch
    # Find Wiki Browser
