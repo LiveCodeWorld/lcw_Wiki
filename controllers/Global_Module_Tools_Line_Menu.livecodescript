@@ -240,6 +240,11 @@ getprop disabled_EditScript
    return exists (stack sFile) is false
 end disabled_EditScript
 
+on menu_FirstCardScript viewObject
+   put _SelectedFile() into sFile
+   edit the script of cd 1 of stack sFile
+end menu_FirstCardScript
+
 on menu_ListModuleDepkeys viewObject
    put _SelectedFile() into sFile
    put the name of stack sFile into bObject

@@ -116,7 +116,7 @@ function pageArray_GetSectionBulletIndex pageArray, sectionTitle
    return word 1 to -1 of bulletLines
 end pageArray_GetSectionBulletIndex
 
-function pageArray_GetSectionText pageArray
+function pageArray_GetSectionText pageArray, sectionTitle
    put pageArray_GetSection (sectionTitle, pageArray) into sectionStory
    --
    put item 2 of the extents of sectionStory into maxItem

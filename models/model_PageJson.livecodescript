@@ -39,14 +39,12 @@ end jsonArray_ToFile
 
 --> PageJson | Fetch
 -
-function pageJson_Fetch wikiDomain, pSlug, pPort, pDecode
-   put pageJson_ConstructUrl (wikiDomain, pSlug, pPort) into someUrl
+function pageJson_Fetch wikiDomain, pSlug, pPort, pDecode, pProtocol
+   put pageJson_ConstructUrl (wikiDomain, pSlug, pPort, pProtocol) into someUrl
    put url someUrl into sJSON
-   --
    if pDecode is true then
       put textDecode (sJSON, "UTF-8") into sJSON
    end if
-   --
    return sJSON
 end pageJson_Fetch
 

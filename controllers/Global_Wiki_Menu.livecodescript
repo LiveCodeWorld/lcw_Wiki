@@ -38,6 +38,10 @@ getprop checked_ToggleProxyFarm
    end if
 end checked_ToggleProxyFarm
 
+getprop checked_ToggleNodeFarm
+   return wikiServer_NodeIsRunning()
+end checked_ToggleNodeFarm
+
 getprop checked_ToggleLiveServer
    return wikiServer_OnlyIsRunning()
 end checked_ToggleLiveServer
@@ -48,6 +52,10 @@ end checked_ToggleLiveServer
 on menu_ToggleEtcHosts
    hosts_ToggleEmpty
 end menu_ToggleEtcHosts
+
+on menu_ToggleNodeFarm
+   toggleServer_Node
+end menu_ToggleNodeFarm
 
 on menu_ToggleProxyFarm
    toggle_ProxyFarm

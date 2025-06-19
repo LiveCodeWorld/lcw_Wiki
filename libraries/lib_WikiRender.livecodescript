@@ -114,69 +114,6 @@ function fedwiki_ConstructLink someText, pExternalURL
    end if
 end fedwiki_ConstructLink
 
-function _StripInternal sText
-   put "(?i)(\[\[[^\]]+\]\])" into sRegex
-   repeat while matchchunk (sText, sRegex, startChar, endChar) is true
-      put char startChar to endChar of sText into fLink
-      put char 3 to -3 of fLink into pageTitle
-      put pageTitle into char startChar to endChar of sText
-   end repeat
-   return sText
-end _StripInternal
-
-function _StripExternal sText
-   put "(?i)\[(http|https|ftp):\/\/([^ ]+?)\s+(.*?)\]" into sRegex
-   --   --
-   repeat while matchChunk (sText, sRegex, sProt, eProt, sHref, eHref, sLink, eLink) is true
-      put char sLink to eLink of sText into sLinkText
-      --
-      put sProt -2 into sChunk
-      put eLink + 2 into eChunk
-      --
-      put sLinkText into char sChunk to eChunk of sText
-   end repeat
-   return sText
-end _StripExternal
-
-
---> PageArray
--
-function pageArray_FetchText wikiDomain, pSlug, pPort
-   put pageArray_Fetch (wikiDomain, pSlug, pPort) into pageArray
-   put pageArray_Text (pageArray) into pageText
-   return pageText
-end pageArray_FetchText
-
-function pageArray_Text pageArray, pIncludeNotes, pBreak
-   if pBreak is empty then put CR&CR into pBreak
-   --
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum] into itemArray
-      put itemArray ["text"] into itemText
-      switch itemArray ["type"]
-         case "pageFold"
-            if pIncludeNotes is not false then
-               exit repeat
-            end if
-         case "paragraph"
-         case "markdown"
-            if itemText = "# See also" and pIncludeNotes is not false then
-               exit repeat
-            end if
-            
-            -- pageArray_CleanText itemText
-            put markdown_ToText (itemText) into sText
-            put sText & pBreak after pageText
-         case "html"
-            break
-         default
-            next repeat
-      end switch
-   end repeat
-   return word 1 to -1 of pageText
-end pageArray_Text
-
 
 --> Wiki | Tag
 -
@@ -325,6 +262,30 @@ end wiki_ConstructFooter
 
 --> Private
 -
+function _StripInternal sText
+   put "(?i)(\[\[[^\]]+\]\])" into sRegex
+   repeat while matchchunk (sText, sRegex, startChar, endChar) is true
+      put char startChar to endChar of sText into fLink
+      put char 3 to -3 of fLink into pageTitle
+      put pageTitle into char startChar to endChar of sText
+   end repeat
+   return sText
+end _StripInternal
+
+function _StripExternal sText
+   put "(?i)\[(http|https|ftp):\/\/([^ ]+?)\s+(.*?)\]" into sRegex
+   --   --
+   repeat while matchChunk (sText, sRegex, sProt, eProt, sHref, eHref, sLink, eLink) is true
+      put char sLink to eLink of sText into sLinkText
+      --
+      put sProt -2 into sChunk
+      put eLink + 2 into eChunk
+      --
+      put sLinkText into char sChunk to eChunk of sText
+   end repeat
+   return sText
+end _StripExternal
+
 private function _ConstructRenderedPageDiv wikiDomain, pageSlug, pageTitle, storyArray, pTabChars   
    # Construct pageDivContents
    put _RenderPageDivContents (wikiDomain, pageSlug, pageTitle, storyArray) into pageDivContents

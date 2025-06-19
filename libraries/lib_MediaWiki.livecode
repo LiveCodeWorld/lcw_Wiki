@@ -16,6 +16,9 @@ A library for interfacing with MediaWiki instances.
 
 --> Working on
 -
+
+--> MediaWiki
+-
 command mediawiki_FetchPageQueryInfo pageSlug, @plainDescription, @pageTitle, @shortImageFile, @lastRevisionID, pIntroOnly, pPlain, pApiStem
    -- no longer shortImageFile, lastRevisionID
    # Construct
@@ -40,13 +43,17 @@ function sandbox_FetchArray sandBoxFragment, pApiRoot
 end sandbox_FetchArray
 
 function sandbox_FetchJSON sandBoxFragment, pApiRoot
-   if pApiRoot is empty then put "https://en.wikipedia.org" into pApiRoot
-   -- if pApiRoot is empty then put "https://en.wikipedia.org/w/api.php?" into pApiRoot   
-   put pApiRoot & sandBoxFragment into restURL
-   --
+   put sandbox_ConstructUrl (sandBoxFragment, pApiRoot) into restURL
    put mediawiki_FetchJSON (restURL) into someJSON
    return someJSON
 end sandbox_FetchJSON
+
+function sandbox_ConstructUrl sandBoxFragment, pApiRoot
+   if pApiRoot is empty then put "https://en.wikipedia.org" into pApiRoot
+   text_AddTrailing pApiRoot, slash
+   put pApiRoot & sandBoxFragment into restURL
+   return restURL
+end sandbox_ConstructUrl
 
 
 --> Wikipedia | API
@@ -456,20 +463,6 @@ command text_Utf8Decode @utf8Text
    -- put unidecode(someU16, "ANSI") into utf8Text
 end text_Utf8Decode
 
-function json_ToArray pJSON
-   if pJSON is empty then return false
-   try -- as otherwise an error with non-json causes script to exit
-      local tArray,tKeys
-      if pJSON is empty then return empty
-      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
-         put json_ToArray(tArray[tKey]) into tArray[tKey]
-      end repeat
-      return tArray
-   catch e
-      return empty
-   end try
-end json_ToArray
-
 command url_Deconstruct someUrl, @someProtocol, @urlDomain, @urlPath, @shortName, @fileExtension, @uName, @pWord
    /*
    -- from http://regexlib.com/REDetails.aspx?regexp_id=628
@@ -558,3 +551,9 @@ function text_InitialCaps someText
    end repeat
    return someText
 end text_InitialCaps
+
+command text_AddTrailing @someText, someChar
+   if char -1 of someText is not someChar then
+      put someChar after someText
+   end if
+end text_AddTrailing

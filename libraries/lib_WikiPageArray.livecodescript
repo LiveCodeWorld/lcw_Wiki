@@ -256,7 +256,14 @@ end mediawiki_GetPageArrayFromSlug
 
 function mediawiki_FetchPageArrayWithParse wikiSlug, pSectionNum, pApiRoot, pWikiUrl
    put mediawiki_FetchParseArray (wikiSlug, pSectionNum, pApiRoot) into parseArray
-   _DeconstructParseArray parseArray, pageTitle, pageDescription, sectionArray, imageArray
+   
+   -- _DeconstructParseArray parseArray, pageTitle, pageDescription, sectionArray, imageArray
+   put parseArray ["title"] into pageTitle
+   put parseArray ["sections"] into sectionArray
+   put parseArray ["images"] into imageArray
+   put parseArray ["wikitext"]["*"] into pageDescription
+   mediawiki_CleanPageDescription pageDescription, infoBoxArray
+   
    --
    put empty into pSourceArray
    put wikicommons_ConstructBasicSummaryPageArray (pageTitle, pageDescription, pWikiUrl, pSourceArray) into fedwikiPageArray

@@ -129,11 +129,17 @@ function pageArray_Construct pTitle, mdText, pPlugin
    return pArray
 end pageArray_Construct
 
+command pageArray_AddMarkdown @pageArray, mdText, pID
+   if mdText is empty then return 0
+   put itemArray_Construct ("markdown", pID, mdText) into itemArray
+   itemArray_Add itemArray, pageArray
+   return the result
+end pageArray_AddMarkdown
 
 --> PageArray | File | Model
 -
-function pageArray_Fetch wikiDomain, pSlug, pPort
-   put pageJson_Fetch (wikiDomain, pSlug, pPort) into pageJson
+function pageArray_Fetch wikiDomain, pSlug, pPort, pProtocol
+   put pageJson_Fetch (wikiDomain, pSlug, pPort, false, pProtocol) into pageJson
    --
    if pageJson is empty then return empty
    put pageArray_FromJson (pageJson) into pageArray
@@ -387,8 +393,8 @@ end pageArray_AddJsonArray
 
 --> PageArray | LastUpdated
 -
-function pageArray_FetchLastUpdated wikiDomain, pSlug
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+function pageArray_FetchLastUpdated wikiDomain, pSlug, pPort, pProtocol
+   put pageArray_Fetch( wikiDomain, pSlug, pPort, pProtocol) into pageArray
    --
    get pageArray_GetFirstItem (pageArray, "code")
    set the itemdelimiter to ":"
@@ -399,13 +405,13 @@ function pageArray_FetchLastUpdated wikiDomain, pSlug
    return lastUpDate
 end pageArray_FetchLastUpdated
 
-command pageArray_StoreLastUpdated wikiDomain, pSlug, pDateInSeconds
+command pageArray_StoreLastUpdated wikiDomain, pSlug, pDateInSeconds, pPort, pProtocol
    if pDateInSeconds is empty then put the seconds into pDateInSeconds
    --
    convert pDateInSeconds from seconds to internet date
    put "Last updated:" && pDateInSeconds into lastUpDate
    --
-   put pageArray_Fetch (wikiDomain, pSlug) into pageArray
+   put pageArray_Fetch( wikiDomain, pSlug, pPort, pProtocol) into pageArray
    pageArray_SetFirstItem pageArray, "code", lastUpDate
    --
    pageArray_Set wikiDomain, pSlug, pageArray, true

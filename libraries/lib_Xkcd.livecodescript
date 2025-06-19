@@ -12,40 +12,102 @@ This library is all about interfacing with the Explain XKCD comic mediawiki.
 */
 
 
+--> Tests
+-
+function test_WikipediaAntSummary
+   put "ant" into pageSlug
+   
+   put wikipedia_ConstructApiStem() into pApiStem
+   
+   put false into pIntroOnly
+   put true into pPlain
+   put "wiki" into pFormat
+   
+   put sandbox_ConstructPageQueryFragment (pageSlug, pFormat, pIntroOnly, pPlain) into sandBoxFragment
+   
+   -- put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   -- put sandbox_FetchJSON (sandBoxFragment, pApiStem) into someJSON -- use restbase_FetchSlugJSON() if possible
+   
+   put sandbox_ConstructUrl (sandBoxFragment, pApiStem) into restURL
+   put mediawiki_FetchJSON (restURL) into someJSON
+   put json_ToArray (someJSON) into sandboxArray
+   
+   return sandboxArray
+end test_WikipediaAntSummary
+
+function test_WikipediaAntJson
+   put test_WikipediaAntUrl() into restURL
+   put mediawiki_FetchJSON (restURL) into someJSON
+   return someJSON
+end test_WikipediaAntJson
+
+function test_WikipediaAntUrl
+   -- put mediawiki_FetchPageArrayWithParse ("Ant", empty, "https://meta.wikimedia.org/w/api.php?", droppedURL) into pageArray
+   put "Ant" into wikiSlug
+   put empty into sectionNum
+   --
+   put sandbox_AddSectionFragment (wikiSlug, sectionNum, "action=parse&format=json&page=") into sandBoxFragment
+   put sandbox_ConstructUrl (sandBoxFragment) into restURL
+   return restURL
+end test_WikipediaAntUrl
+
+
 --> XKCD
 -
-command xkcd_DeconstructArray xkcdArray, @imageURL, @imageDescription, @xkcdTranscript
-   put xkcdArray ["img"] into imageURL
-   put xkcdArray ["alt"] into imageDescription
-   put xkcdArray ["transcript"] into xkcdTranscript
-end xkcd_DeconstructArray
-
-function xkcd_FetchPageArray xkcdWikiUrl
+function xkcd_FetchPageArray xkcdWikiUrl  
    put empty into pSourceArray
    get matchText (xkcdWikiUrl, "https://www.explainxkcd.com/wiki/index.php/(.+)", wikiSlug) 
-   if it is false then return empty
+   if it is false then
+      put pageArray_Construct ("Error", xkcdWikiUrl) into pageArray
+      return pageArray
+   end if
    --
    put mediawiki_FetchParseArray (wikiSlug, 1, "https://www.explainxkcd.com/wiki/api.php?") into parseArray
-   _DeconstructParseArray parseArray, pageTitle, pageDescription, sectionArray, imageArray
+   
+   # Deconstruct
+   put parseArray ["title"] into pageTitle
+   put parseArray ["sections"] into sectionArray
+   put parseArray ["images"] into imageArray
+   put parseArray ["wikitext"]["*"] into pageDescription
+   
+   mediawiki_CleanPageDescription pageDescription, infoBoxArray
    delete line 1 of pageDescription -- "==Explanation=="
+   delete line 1 of pageDescription -- was added already with "wikicommons_ConstructBasicSummaryPageArray"
    --
    set the itemdelimiter to ":"
    delete item 1 of pageTitle
+   
    put wikicommons_ConstructBasicSummaryPageArray (pageTitle, pageDescription, xkcdWikiUrl, pSourceArray) into fedwikiPageArray
    --
    put xkcd_FetchArray (wikiSlug) into xkcdArray
-   xkcd_DeconstructArray xkcdArray, imageURL, imageDescription, xkcdTranscript
+   
+   # Deconstruct
+   put xkcdArray ["img"] into imageURL
+   put xkcdArray ["alt"] into imageDescription
+   put xkcdArray ["transcript"] into xkcdTranscript
+   
    if imageURL is not empty then
       put fedwiki_ConstructImageHtml (imageURL, imageDescription, xkcdWikiUrl, false) into imageHTML
       pageArray_AddHtml fedwikiPageArray, imageHTML
    end if
    --
-   delete line 1 of pageDescription -- was added already with "wikicommons_ConstructBasicSummaryPageArray"
    wikicommons_AddSectionToPageArray fedwikiPageArray, pageDescription, true
    --
    pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end xkcd_FetchPageArray
+
+function xkcd_TestPageArray wikiSlug
+   put xkcd_FetchArray (wikiSlug) into xkcdArray
+   
+   # Deconstruct
+   put xkcdArray ["img"] into imageURL
+   put xkcdArray ["alt"] into imageDescription
+   put xkcdArray ["transcript"] into xkcdTranscript
+   
+   put pageArray_Construct ("Test", imageURL) into pageArray
+   return pageArray
+end xkcd_TestPageArray
 
 function xkcd_FetchArray comicNum
    put xkcd_FetchJson (comicNum) into someJSON
@@ -62,17 +124,3 @@ function xkcd_FetchJson comicNum
    put url someURL into someJSON
    return someJSON
 end xkcd_FetchJson
-
-
---> Private
--
-private command _DeconstructParseArray parseArray, @pageTitle, @pageDescription, @sectionArray, @imageArray
-   put parseArray ["title"] into pageTitle
-   put parseArray ["sections"] into sectionArray
-   put parseArray ["images"] into imageArray
-   put parseArray ["wikitext"]["*"] into pageDescription
-   mediawiki_CleanPageDescription pageDescription, infoBoxArray
-   return infoBoxArray
-end _DeconstructParseArray
-
-

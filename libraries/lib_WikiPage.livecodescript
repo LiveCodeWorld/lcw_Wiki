@@ -17,7 +17,7 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 -
 function wikiPage_ForkDomains wikiDomain, pForkDomains
    put url_GetTLD (wikiDomain) into forkDomains
-   put CR & "fedwiki.org" after forkDomains
+   put CR & "fedwiki.club" after forkDomains
    if pForkDomains is not empty then
       replace comma with CR in pForkDomains
       put CR & pForkDomains after forkDomains
@@ -25,6 +25,71 @@ function wikiPage_ForkDomains wikiDomain, pForkDomains
    return forkDomains
 end wikiPage_ForkDomains
 
+
+--> WikiPage | Image
+-
+function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
+   if pPageTitle is empty then
+      put "Openverse Thumbnails" into pPageTitle
+   end if
+   if pFirstPara is empty then
+      put "Search results for:" && pSearchBit into pFirstPara
+   end if
+   --
+   put pageArray_Construct (pPageTitle, pFirstPara) into pageArray
+   
+   put sData ["results"] into indexArray
+   put item 2 of the extents of indexArray into maxNum
+   repeat with itemNum = 1 to maxNum
+      put indexArray [itemNum] into itemArray
+      --
+      put itemArray ["thumbnail"] into thumbURL
+      put itemArray ["url"] into imageURL
+      put itemArray ["related_url"] into relatedURL
+      put itemArray ["detail_url"] into detailURL
+      put itemArray ["foreign_landing_url"] into linkURL
+      
+      --
+      put itemArray ["title"] into imageTitle
+      put itemArray ["attribution"] into sAttribution
+      --
+      put imageTitle & "." && sAttribution into imageCaption
+      pageArray_AddThumbnail pageArray, thumbURL, imageCaption, linkURL
+   end repeat
+   return pageArray
+end wikiPage_OpenVerseThumbNails
+
+
+--> WikiPage | OpenAI
+-
+function wikiPage_FiveConcepts wikiDomain, pageSlug, pModel
+   get openAI_FetchProcessedPageText ("five-concepts", wikiDomain, pageSlug, pModel)
+   return it
+end wikiPage_FiveConcepts
+
+function wikiPage_ConceptGraph wikiDomain, pageSlug, pModel
+   get openAI_fetchProcessedPageText ("extract-concept-graph", wikiDomain, pageSlug, pModel)
+   return it
+end wikiPage_ConceptGraph
+
+function wikiPage_Keywords wikiDomain, pageSlug, pModel
+   put prompt_Get ("extract-keywords") into sPrompt
+   put wikiPage_GetText (wikiDomain, pageSlug) into userText
+   
+   # Get ChatGPT reply
+   put openAI_FetchChatData (userText, sPrompt, pModel) into rData
+   if rData is not an array then
+      display_Data rData, "Received Data"
+      return empty
+   else
+      put rData ["choices"][1]["message"]["content"] into sText
+      return sText
+   end if
+end wikiPage_Keywords
+
+
+--> WikiPage | Edit
+-
 function wikiPage_EditOrCreate wikiDomain, pageSlug, pPageTitle
    if pPageTitle is empty then
       put fedwiki_ConstructTitle (pageSlug) into pPageTitle
@@ -577,60 +642,6 @@ function wikiPage_GalleryPedia pageTitle, pFirstPara, pLang
    pageArray_StripJournal pageArray
    return pageArray
 end wikiPage_GalleryPedia
-
-function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
-   if pPageTitle is empty then
-      put "Openverse Thumbnails" into pPageTitle
-   end if
-   if pFirstPara is empty then
-      put "Search results for:" && pSearchBit into pFirstPara
-   end if
-   --
-   put pageArray_Construct (pPageTitle, pFirstPara) into pageArray
-   
-   put sData ["results"] into indexArray
-   put item 2 of the extents of indexArray into maxNum
-   repeat with itemNum = 1 to maxNum
-      put indexArray [itemNum] into itemArray
-      --
-      put itemArray ["thumbnail"] into thumbURL
-      put itemArray ["url"] into imageURL
-      put itemArray ["related_url"] into relatedURL
-      put itemArray ["detail_url"] into detailURL
-      put itemArray ["foreign_landing_url"] into linkURL
-      
-      --
-      put itemArray ["title"] into imageTitle
-      put itemArray ["attribution"] into sAttribution
-      --
-      put imageTitle & "." && sAttribution into imageCaption
-      pageArray_AddThumbnail pageArray, thumbURL, imageCaption, linkURL
-   end repeat
-   return pageArray
-end wikiPage_OpenVerseThumbNails
-
-function wikiPage_FiveConcepts wikiDomain, pageSlug, pModel
-   return openAI_GetChatResponse ("five-concepts", wikiDomain, pageSlug, pModel)
-end wikiPage_FiveConcepts
-
-function wikiPage_ConceptGraph wikiDomain, pageSlug, pModel
-   return openAI_GetChatResponse ("extract-concept-graph", wikiDomain, pageSlug, pModel)
-end wikiPage_ConceptGraph
-
-function wikiPage_Keywords wikiDomain, pageSlug, pModel
-   put platform_GetPrompt ("extract-keywords") into sPrompt
-   put wikiPage_GetText (wikiDomain, pageSlug) into userText
-   
-   # Get ChatGPT reply
-   put openAI_FetchChatData (userText, sPrompt, pModel) into rData
-   if rData is not an array then
-      display_Data rData, "Received Data"
-      return empty
-   else
-      put rData ["choices"][1]["message"]["content"] into sText
-      return sText
-   end if
-end wikiPage_Keywords
 
 
 --> WikiPage | Elements

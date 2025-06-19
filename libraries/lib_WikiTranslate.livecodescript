@@ -12,6 +12,30 @@ version: 0.2
 
 --> Working on
 -
+
+
+--> Wiki | Translate
+-
+function wikiPage_Translation wikiDomain, pageSlug, sLang, pModel
+   # Get userText
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   put pageArray_ToText (pageArray) into userText
+   
+   put wikiPage_FetchTranslation (userText, sLang, pModel) into sTranslation
+   if sTranslation is empty then
+      put pageArray_Construct ("Timeout", "Translation timed out. Try again?", "markdown") into pageArray
+      send "wikiServer_Restart" to me in 30 ticks
+      return pageArray
+   else   
+      put pageArray ["title"] into pageTitle
+      put wikiPage_ConstructTranslation (sLang, sTranslation, wikiDomain, pageSlug, pageTitle, userText) into tPageArray
+      return tPageArray
+   end if
+end wikiPage_Translation
+
+
+--> WikiPage | Translation
+-
 function wikiPage_ConstructTranslation sLang, sTranslation, wikiDomain, pageSlug, pageTitle, userText
    # Construct pageArray
    put sLang && "Translation" into tranTitle
@@ -88,27 +112,6 @@ function transcribe_TitleFromShortFile shortAudioFile
          return testTitle
    end switch
 end transcribe_TitleFromShortFile
-
-private function _CreateSeriesArray foundTitles
-   local seriesArray
-   repeat for each line foundTitle in foundTitles
-      if word -1 of foundTitle is a number then
-         put word 1 to -2 of foundTitle into stemTitle         
-         put empty into seriesArray [stemTitle][foundTitle]
-      end if
-   end repeat  
-   return seriesArray
-end _CreateSeriesArray
-
-
---> WikiPage | Transcript | Add
--
-function wikiPage_AddTidiedTranscript pageSlug, wikiDomain, pTidySlug
-   put pageArray_Get (wikiDomain, pageSlug) into pageArray
-   put transcribe_GetWavText (pageSlug, wikiDomain) into sTranscript
-   transcribe_AddTidied pageArray, sTranscript, pTidySlug
-   return pageArray
-end wikiPage_AddTidiedTranscript
 
 
 --> WikiPage | Graph and Summary
@@ -207,7 +210,7 @@ function wikiPage_Transcript wikiDomain, pageSlug, pFromOggSlug, pTranscriptDoma
    
    # Fetch ChapGPT Summary
    put transcribe_GetWavText (pageSlug, wikiDomain) into sTranscript
-   put openAI_GetText (sTranscript, "graph-and-summary", "gpt-4") into mdText
+   put prompt_Process (sTranscript, "graph-and-summary", "gpt-4") into mdText
    
    # Replace Summary
    wikiPage_ReplaceTranscriptSummary pageArray, mdText
@@ -224,7 +227,7 @@ function wikiPage_CombinedTranscript sTranscript, pageTitle, pageSlug, wikiDomia
       get "Summarizing transcript for" && pageTitle && "using the 'Graph and Summary' prompt. This may take quite a bit of time..."
       lcw_Notify it
    end if
-   put openAI_GetText (sTranscript, "graph-and-summary", "gpt-4") into mdText
+   put prompt_Process (sTranscript, "graph-and-summary", "gpt-4") into mdText
    
    # Extract sections 
    put markdown_GetSection (mdText) into summaryText
@@ -248,7 +251,7 @@ function wikiPage_CombinedTranscript sTranscript, pageTitle, pageSlug, wikiDomia
    pageArray_AddMarkdown pageArray, summaryText
    
    # Add Tidied Transcript
-   transcribe_AddTidied pageArray, sTranscript
+   transcript_AddTidied pageArray, sTranscript
    
    # Add Keywords
    -- pageArray_AddMarkdown pageArray, "# Keywords"
@@ -315,25 +318,6 @@ function wikiPage_TranscriptStub wikiDomain, pageSlugToCreate, pFromOggSlug, pTr
 end wikiPage_TranscriptStub
 
 
---> Wiki | Translate
--
-function wikiPage_Translation wikiDomain, pageSlug, sLang, pModel
-   # Get userText
-   put wikiPage_Get (wikiDomain, pageSlug) into pageArray
-   put pageArray_Text (pageArray) into userText
-   
-   put wikiPage_FetchTranslation (userText, sLang, pModel) into sTranslation
-   if sTranslation is empty then
-      put pageArray_Construct ("Timeout", "Translation timed out. Try again?", "markdown") into pageArray
-      send "wikiServer_Restart" to me in 30 ticks
-      return pageArray
-   else   
-      put pageArray ["title"] into pageTitle
-      put wikiPage_ConstructTranslation (sLang, sTranslation, wikiDomain, pageSlug, pageTitle, userText) into tPageArray
-      return tPageArray
-   end if
-end wikiPage_Translation
-
 
 --> Private
 -
@@ -380,12 +364,20 @@ private command _AddMissingButtonSection @pageArray, folderPageSlug, wikiDomain,
 end _AddMissingButtonSection
 
 private command _AddStemSection @pageArray, foundTitles, folderPageSlug, wikiDomain
+   local seriesArray
+   
    put wikiFolder_ConstructPageAssets (folderPageSlug, wikiDomain) into rawAudioFolder
    put rawAudioFolder into valueArray ["rawAudioFolder"]
    put folderPageSlug into valueArray ["folderPageSlug"]
    put wikiDomain into valueArray ["wikiDomain"]
    
-   put _CreateSeriesArray (foundTitles) into seriesArray
+   repeat for each line foundTitle in foundTitles
+      if word -1 of foundTitle is a number then
+         put word 1 to -2 of foundTitle into stemTitle         
+         put empty into seriesArray [stemTitle][foundTitle]
+      end if
+   end repeat  
+   
    put keys (seriesArray) into stemKeys
    if stemKeys is empty then return empty
    

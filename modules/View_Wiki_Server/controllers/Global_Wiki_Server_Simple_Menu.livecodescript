@@ -18,7 +18,6 @@ local LocalArray
 --> Menu | Props
 -
 getprop menu_Target [tObject]
-   put 9090 into LocalArray ["sPort"]
    put "Live Wiki Server" into LocalArray ["sName"]
    
    -- put display_MenuTarget (tObject) into dView
@@ -57,7 +56,7 @@ on NewRequest socketID, rArray
          -- put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
          -- put daemon_GetRequestText (requestArray) into routeData
          --
-         breakpoint
+         -- breakpoint
          daemon_SendOptions routeData, socketID
          return "Options:" && wikiDomain
       default
@@ -180,11 +179,11 @@ command _DoGet rArray, socketID
    
    switch
       case someRoute = "/lcw_BrowserUrl"
-         get_LcwBookmarklet someRoute, socketID, requestArray
+         get_LcwBookmarklet someRoute, socketID, requestArray -- in behavior_DaemonMiddleware
          break
       case matchText (someRoute, "/view/welcome-visitors/view/([^/]+)$", pageSLug)
          # Flag Click (see get_FlagClick)
-         get_WikiServerToolPage someRoute, requestArray, socketID
+         get_WikiServerToolPage someRoute, requestArray, socketID -- in behavior_DaemonMiddleware
          break
       default
          put "Hello world" && the opensockets into tData
@@ -269,6 +268,67 @@ function daemon_GetRequestText rArray
    return rArray ["parameters"]
 end daemon_GetRequestText
 
+command daemon_SendOptions routeData, socketID
+   /*
+   Accept-Encoding: gzip, deflate
+   Access-Control-Request-Method: POST
+   Access-Control-Request-Headers: content-type
+   Referer: http://thought.garden/
+   Origin: http://thought.garden
+   Connection: keep-alive
+   
+   HTTP/1.1 200 OK
+   Allow: GET,HEAD
+   Content-Type: text/html; charset=utf-8
+   Content-Length: 8
+   ETag: W/"8-ZRAf8oNBS3Bjb/SU2GYZCmbtmXg"
+   Date: Wed, 10 Jan 2024 13:00:26 GMT
+   Connection: keep-alive
+   Keep-Alive: timeout=5 
+   */
+   -- put "GET,HEAD" into headerArray ["Allow"]
+   -- put "text/html; charset=utf-8" into headerArray ["Content-Type"]
+   put "*" into headerArray ["Access-Control-Allow-Origin"]
+   put "POST, GET, OPTIONS" into headerArray ["Access-Control-Allow-Methods"]
+   put "Content-Type" into headerArray ["Access-Control-Allow-Headers"]
+   --
+   put "HTTP/1.1 200 OK" into someHeader
+   put CRLF & daemon_DeconstructHeaderArray (headerArray) after someHeader
+   
+   -- daemon_SendRaw someHeader, routeData, socketID
+   daemon_Send someHeader, routeData, socketID
+   --
+   return "Options:" && wikiDomain
+end daemon_SendOptions
+
+function daemon_DeconstructHeaderArray headerArray
+   combine headerArray with CRLF and ":"
+   return headerArray
+end daemon_DeconstructHeaderArray
+
+command daemon_Send someHeader, contentToSend, socketID, pSendCompressed
+   -- always adds "Content-Length:" header
+   -- should choose compression based on headers of requestArray
+   if pSendCompressed is true then
+      put CRLF & "Content-Encoding: gzip" after someHeader
+      put compress (contentToSend) into contentToSend
+   end if
+   
+   _AddContentLengthHeader someHeader, contentToSend
+   
+   daemon_SendRaw someHeader, contentToSend, socketID
+   -- daemon_SendAndCloseSocket someHeader, contentToSend, socketID
+   --
+   return the result
+end daemon_Send
+
+command daemon_SendRaw someHeader, contentToSend, socketID
+   -- everything should use this to send (so it can be trapped by middleware for logging etc)
+   put someHeader & CRLF & CRLF & contentToSend into headersAndContent
+   write headersAndContent to socket socketID
+   return headersAndContent
+end daemon_SendRaw
+
 command daemon_SendArray socketID, pageArray, pHeaders
    -- put json_FromArray (pageArray) into pageJSON
    
@@ -286,12 +346,21 @@ function pc_OpenversePageArray requestArray
    return pageArray
 end pc_OpenversePageArray
 
+private function _ServerPort
+   put LocalArray ["sPort"] into sPort
+   if sPort is empty then
+      put 9090 into LocalArray ["sPort"]
+      return LocalArray ["sPort"]
+   else
+      return sPort
+   end if
+end _ServerPort
 
 --> Global | Wiki | Server | Simple | Menu
 -
 on menu_WikiServerSimple dView
    put LocalArray ["sName"] into sName
-   put LocalArray ["sPort"] into sPort
+   put _ServerPort() into sPort
    
    if _ServerIsRunning() then
       httpdStop sPort
@@ -313,7 +382,9 @@ end menu_WikiServerSimple
 
 private function _ServerIsRunning
    get the opensockets
-   put LocalArray ["sPort"] is among the lines of it into isRunning
+   put _ServerPort() into sPort
+   --
+   put sPort is among the lines of it into isRunning
    return isRunning
 end _ServerIsRunning
 
@@ -350,6 +421,26 @@ end menu_TestJson
 
 private on __
 end __
+
+on menu_NodePort wsView, sPort
+   -- wikiServer_SetNodePort sPort
+   put sPort into LocalArray ["sPort"]
+end menu_NodePort
+
+getprop nodeport_Param [wsView]
+   -- put wikiServer_GetNodePort() into sPort
+   put LocalArray ["sPort"] into sPort
+   
+   if sPort is empty then
+      return 80
+   else
+      return sPort
+   end if
+end nodeport_Param
+
+getprop nodeport_Params
+   return "3000,8080,9090,-,80"
+end nodeport_Params
 
 on menu_EditEchoController
    edit the script of stack "echo.lc"

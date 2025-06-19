@@ -25,6 +25,39 @@ See also - https://www.mediawiki.org/wiki/REST_API
 -- put url "https://en.wikipedia.org/api/rest_v1/page/summary/Ant"
 */
 
+--> Display
+-
+command display_ListWikipediaImages pageSlug, pLang
+   put restbase_FetchImageArray (pageSlug, pLang) into imageArray
+   --
+   display_Data imageArray, pageSlug, "restbase_FetchImageArray()"
+   return the result
+end display_ListWikipediaImages
+
+function restbase_ListImages pageSlug, pLang
+   put restbase_FetchImageArray (pageSlug, pLang) into imageArray
+   put keys (imageArray) into imageTitles
+   return imageTitles
+end restbase_ListImages
+
+function restbase_FetchImageArray pageSlug, pLang
+   put restbase_FetchMediaArray (pageSlug, pLang) into mediaIndexArray
+   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
+      put mediaIndexArray [itemNum]["title"] into shortImageFile
+      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
+      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
+      put imageURL into imageArray [shortImageFile]
+   end repeat
+   return imageArray
+end restbase_FetchImageArray
+
+command display_RestBase pageSlug, pLang
+   put restbase_FetchSummaryArray (pageSlug, pLang) into sArray
+   display_Data sArray, pageSlug, "restbase_FetchSummaryArray()"
+   return the result
+end display_RestBase
+
+
 --> Working on
 -
 function mediaWiki_ConstructSlug pageTitle
@@ -81,18 +114,6 @@ function restbase_ListImageUrls pageTitle, pLang
    delete char -1 of imageUrls
    return imageUrls
 end restbase_ListImageUrls
-
-function restbase_ListImages pageSlug, pLang
-   put restbase_FetchMediaArray (pageSlug, pLang) into mediaIndexArray
-   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
-      put mediaIndexArray [itemNum]["title"] into shortImageFile
-      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
-      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
-      put imageURL into imageArray [shortImageFile]
-   end repeat
-   put keys (imageArray) into imageTitles
-   return imageTitles
-end restbase_ListImages
 
 function restbase_FetchMediaArray pageTitle, pLang
    -- https://en.wikipedia.org/api/rest_v1/page/media-list/Ant?redirect=false

@@ -23,6 +23,64 @@ See also:
 
 --> Working on
 -
+function json_FromArray pArray, pForceRootType, pPretty
+   -- return jsonExport (pArray) -- not the same and does not work for pgeArray => pageJSON
+   
+   repeat for each key tKey in pArray
+      if pArray[tKey] is an array then
+         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
+      end if
+   end repeat
+   return (mergJSONEncode("pArray",pForceRootType,pPretty))
+end json_FromArray
+
+function json_ToArray pJSON
+   if pJSON is empty then return false
+   put jsonImport (pJSON) into tArray -- not the same
+   return tArray
+   
+   /*
+   try -- as otherwise an error with non-json causes script to exit
+      local tArray,tKeys
+      if pJSON is empty then return empty
+      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+         put json_ToArray(tArray[tKey]) into tArray[tKey]
+      end repeat
+      return tArray
+   catch e
+      return empty
+   end try
+   */
+end json_ToArray
+
+-- function json_ToArray pJSON
+local tArray,tKeys
+if pJSON is empty then return false
+-- put jsonImport (pJSON) into tArray -- not the same
+
+try -- as otherwise an error with non-json causes script to exit
+   if pJSON is empty then return empty
+   repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+      put json_ToArray(tArray[tKey]) into tArray[tKey]
+   end repeat
+   if tArray is an array then
+      return tArray
+   else
+      return empty
+   end if
+catch e
+   return empty
+end try
+end json_ToArray
+
+--> Favicon
+-
+function fedwiki_FetchFavicon fedwikiDomain
+   put fedwiki_FaviconURL (fedwikiDomain) into someUrl
+   put url someUrl into pngData
+   return pngData
+end fedwiki_FetchFavicon
+
 function daemon_WikiDomain
    put $HTTP_REFERER into clickedFromURL
    set the itemdelimiter to slash
@@ -1050,12 +1108,6 @@ end fedwiki_ItemChecked
 
 --> Fedwiki | Fetch
 -
-function fedwiki_FetchFavicon fedwikiDomain
-   put fedwiki_FaviconURL (fedwikiDomain) into someUrl
-   put url someUrl into pngData
-   return pngData
-end fedwiki_FetchFavicon
-
 function fedwiki_FetchSiteExport fedwikiDomain
    -- load if you want better responsiveness
    put fedwiki_JsonSiteExportUrl (fedwikiDomain) into someUrl
@@ -1318,37 +1370,6 @@ end _stripEndHashFromSlug
 
 --> Deps
 -
-function json_FromArray pArray, pForceRootType, pPretty
-   -- put jsonExport (pArray) into someJSON -- not the same
-   
-   repeat for each key tKey in pArray
-      if pArray[tKey] is an array then
-         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
-      end if
-   end repeat
-   return (mergJSONEncode("pArray",pForceRootType,pPretty))
-end json_FromArray
-
-function json_ToArray pJSON
-   local tArray,tKeys
-   if pJSON is empty then return false
-   -- put jsonImport (pJSON) into tArray -- not the same
-   
-   try -- as otherwise an error with non-json causes script to exit
-      if pJSON is empty then return empty
-      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
-         put json_ToArray(tArray[tKey]) into tArray[tKey]
-      end repeat
-      if tArray is an array then
-         return tArray
-      else
-         return empty
-      end if
-   catch e
-      return empty
-   end try
-end json_ToArray
-
 function date_MillisecondsToInternetDate someDate
    put someDate/1000 into iDate
    convert iDate to internet date
@@ -1681,10 +1702,10 @@ command text_Set someFile, someText
 end text_Set
 
 function url_ListTopDomains domainNames
-put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
-put keys (domainNameArray) into topDomainNames
-url_SortDomainIndex topDomainNames
-return topDomainNames
+   put url_ConstructTopLevelDomainArray (domainNames) into domainNameArray
+   put keys (domainNameArray) into topDomainNames
+   url_SortDomainIndex topDomainNames
+   return topDomainNames
 end url_ListTopDomains
 
 function url_FileEnding droppedURL

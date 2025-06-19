@@ -29,6 +29,7 @@ before route_POST someRoute, socketID, requestArray
    put daemon_ReceivedHeader ("Host", requestArray) into wikiDomain
    put platform_RestDomain() into restDomain
    --
+   set the itemdelimiter to ":"
    switch
       case someRoute = "/plugin/assets/upload"
          post_AssetUpload someRoute, socketID, requestArray
@@ -41,6 +42,7 @@ before route_POST someRoute, socketID, requestArray
          Referer: http://code.platform.earth/view/welcome-visitors/view/lit
          */
          break
+      case item 1 of wikiDomain = "localhost"
       case wikiDomain = restDomain
          post_LCW someRoute, socketID, requestArray -- someRoute = /podcast/rss
       default

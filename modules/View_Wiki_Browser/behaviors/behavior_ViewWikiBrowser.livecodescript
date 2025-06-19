@@ -1,4 +1,4 @@
-﻿script "behavior_ViewWikiBrowser" with behavior "behavior_WikiJavascript"
+﻿script "behavior_ViewWikiBrowser"
 --> MetaData
 -
 copyright: David Bovill
@@ -19,8 +19,27 @@ local LocalArray
 
 --> Working on
 -
+on wikiBrowser_Init
+   set the flag_Handler of me to "default"
+   set the wiki_EditMode of me to true
+   --
+   -- set the show_Menu of _MenubarView() to true
+end wikiBrowser_Init
+
+on preOpenControl
+   -- LayoutCard
+   
+   send "wikiBrowser_Init" to me in 30 ticks
+   pass preOpenControl
+end preOpenControl
+
+on resizeControl
+   put the rect of me into viewRect
+   LayoutControl viewRect
+end resizeControl
+
 getprop menu_Target [tObject]
-   -- used but menus of "View|Wiki|Browser"
+   -- used by menus of "View|Wiki|Browser"
    if exists (tObject) is false then
       put the long id of the target into tObject
    end if
@@ -106,14 +125,14 @@ setprop wiki_URL lineupURL
 end wiki_URL
 
 
---> Working on | Init
+--> Layout
 -
-on wikiBrowser_Init
-   set the flag_Handler of me to "default"
-   set the wiki_EditMode of me to true
+command LayoutControl pRect
+   if pRect is empty then put the rect of this cd into pRect
+   _RectIfMenuBar pRect
    --
-   -- set the show_Menu of _MenubarView() to true
-end wikiBrowser_Init
+   set the rect of me to pRect
+end LayoutControl
 
 private command _RectIfMenuBar @sRect
    put the menubar of the defaultstack into gName
@@ -129,31 +148,6 @@ private command _RectIfMenuBar @sRect
       return false
    end if
 end _RectIfMenuBar
-
-
---> Events
--
-on resizeControl
-   put the rect of me into viewRect
-   LayoutControl viewRect
-end resizeControl
-
-command LayoutControl pRect
-   if pRect is empty then put the rect of this cd into pRect
-   _RectIfMenuBar pRect
-   --
-   set the rect of me to pRect
-end LayoutControl
-
-
---> Init
--
-on preOpenControl
-   -- LayoutCard
-   
-   send "wikiBrowser_Init" to me in 30 ticks
-   pass preOpenControl
-end preOpenControl
 
 
 --> Props
@@ -182,7 +176,7 @@ end browser_Snapshot
 
 getprop page_Text [titleOrNum]
    put the page_Array [titleOrNum] of me into pageArray
-   put pageArray_Text (pageArray) into pageText
+   put pageArray_ToText (pageArray) into pageText
    return pageText
 end page_Text
 
@@ -425,7 +419,7 @@ end _CheckPageArray
 
 --> Deps
 -
-function pageArray_Text pageArray, pIncludeNotes, pBreak
+function pageArray_ToText pageArray, pIncludeNotes, pBreak
    if pBreak is empty then put CR&CR into pBreak
    --
    put pageArray ["story"] into storyArray
@@ -453,7 +447,7 @@ function pageArray_Text pageArray, pIncludeNotes, pBreak
       end switch
    end repeat
    return word 1 to -1 of pageText
-end pageArray_Text
+end pageArray_ToText
 
 function url_GetDomain someURL
    -- url_Deconstruct wikiURL, someProtocol, wikiDomain, urlPath, shortName, fileExtension, uName, pWord

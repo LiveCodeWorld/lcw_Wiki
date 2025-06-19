@@ -216,6 +216,15 @@ function ecoData_GetFarmFolder
    return farmFolder
 end ecoData_GetFarmFolder
 
+command answer_SetFarmFolder
+   answer folder "Choose eco data farm folder..." with "/Users/david/Nextcloud/fedwiki" as sheet
+   if it is empty then exit to top
+   put it into farmFolder
+   
+   ecoData_SetFarmFolder farmFolder
+   return farmFolder
+end answer_SetFarmFolder
+
 command ecoData_SetFarmFolder farmFolder
    -- see "wikiFarm_SetDefaultFolder"
    if there is a folder farmFolder then

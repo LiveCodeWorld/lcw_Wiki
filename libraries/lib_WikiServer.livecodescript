@@ -73,6 +73,15 @@ end ps_Grep
 
 --> Wikiserver
 -
+command toggleServer_LiveOnly
+   if wikiServer_OnlyIsRunning() then
+      wikiServer_StopLive
+   else
+      wikiServer_StopAll
+      wikiServer_StartLive
+   end if
+end toggleServer_LiveOnly
+
 function wikiServer_DefaultPort
    -- put the daemon_Port of pWikiServer into pPort
    return 9090
@@ -104,14 +113,15 @@ command wikiServer_CloseServerWithPort pPort
    end if
 end wikiServer_CloseServerWithPort
 
-function wikiServer_OnlyIsRunning
+function wikiServer_OnlyIsRunning, pPort
+   if pPort is empty then put 9090 into pPort
    get the opensockets
-   if 80 is not among the lines of it then return false
+   if pPort is not among the lines of it then return false
    
    put wikiServer_GetData() into wsData
    if item 2 of the extents of wsData = 1 then
       put wsData [1]["port"] into onlyPort
-      return onlyPort = 80
+      return onlyPort = pPort
    end if
    
    -- put wikiServer_ListObjects() into serverObjects
@@ -123,15 +133,6 @@ function wikiServer_IsRunning
    put serverObjects is not empty into isRunning
    return isRunning
 end wikiServer_IsRunning
-
-command toggleServer_LiveOnly
-   if wikiServer_OnlyIsRunning() then
-      wikiServer_StopLive
-   else
-      wikiServer_StopAll
-      wikiServer_StartLive 80
-   end if
-end toggleServer_LiveOnly
 
 command toggle_ProxyFarm
    if wikiServer_ProxyFarmIsRunning() is not false then

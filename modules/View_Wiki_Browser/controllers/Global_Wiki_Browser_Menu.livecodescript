@@ -128,17 +128,21 @@ private on _
 end _
 
 on menu_Fedwiki.1 wikiView
-   display_Wiki "fedwiki.org", wikiView
+   display_Wiki "fedwiki.club", wikiView
 end menu_Fedwiki.1
 
 on menu_Livecode.2 wikiView
    display_Wiki "livecode.wiki", wikiView
 end menu_Livecode.2
 
-on menu_Thought.3 wikiView
+on menu_Myth.3 wikiView
    -- set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
-   display_Wiki "thought.garden", wikiView
-end menu_Thought.3
+   display_Wiki "myth.garden", wikiView
+end menu_Myth.3
+
+on menu_Pi4.4 wikiView
+   display_Wiki "pi4.local", wikiView
+end menu_Pi4.4
 
 private on __
 end __
