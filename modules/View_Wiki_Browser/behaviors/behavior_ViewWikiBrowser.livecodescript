@@ -1,4 +1,4 @@
-﻿script "behavior_ViewWikiBrowser"
+﻿script "behavior_ViewWikiBrowser" with behavior "behavior_WikiBrowserCard"
 --> MetaData
 -
 copyright: David Bovill
@@ -17,7 +17,7 @@ This view is for a single wiki-browser view
 local LocalArray
 
 
---> Working on
+--> Events
 -
 on wikiBrowser_Init
    set the flag_Handler of me to "default"
@@ -57,6 +57,33 @@ getprop menu_Target [tObject]
 end menu_Target
 
 
+--> Working on
+-
+setprop page_Array [overWrite] pageArray
+   put pageArray ["Title"] into pTitle
+   put fedwiki_ConstructSlug (pTitle) into pSlug
+   put the page_JsonFile [pSlug] of me into pageJsonFile
+   --
+   switch
+      case overWrite is true
+      case there is not a file pageJsonFile
+         breakpoint
+         put json_FromArray (pageArray) into pageJSON
+         text_Set pageJsonFile, pageJson
+         set the page_Title of me to pageSlug
+         break
+      default
+         return empty
+   end switch
+end page_Array
+
+getprop wiki_Garden
+   put _WikiDomain() into wikiDomain
+   put wikiGarden_Name (wikiDomain) into gardenName
+   return gardenName
+end wiki_Garden
+
+
 --> Props
 -
 getprop performative_Dictionary
@@ -88,23 +115,6 @@ setprop wiki_Domain wikiDomain
    set the stack_Label of me to wikiDomain
 end wiki_Domain
 
-private function _WikiDomain
-   set the itemdelimiter to slash
-   --
-   put the browser_URL of me into someURL
-   get item 3 of someURL
-   --
-   set the itemdelimiter to ":"
-   put item 1 of it into wikiDomain
-   put item 2 of wikiDomain into sPort
-   --
-   set the itemdelimiter to "."
-   if item 1 of wikiDomain = "www" then
-      delete item 1 of wikiDomain
-   end if
-   return wikiDomain
-end _WikiDomain
-
 setprop wiki_URL lineupURL
    set the itemdelimiter to slash
    switch
@@ -128,26 +138,18 @@ end wiki_URL
 --> Layout
 -
 command LayoutControl pRect
+   put the menubar_View of me into mGroup
+   if exists (mGroup) is false then return false
    if pRect is empty then put the rect of this cd into pRect
-   _RectIfMenuBar pRect
    --
-   set the rect of me to pRect
-end LayoutControl
-
-private command _RectIfMenuBar @sRect
    put the menubar of the defaultstack into gName
    if (gName is not empty) then
       put 20 into mHeight
-      --
-      put the menubar_View of me into mGroup
-      if exists (mGroup) is false then return false
-      add mHeight to item 2 of sRect
-      -- subtract mHeight from item 4 of sRect
-      return true
-   else
-      return false
+      add mHeight to item 2 of pRect
    end if
-end _RectIfMenuBar
+   --
+   set the rect of me to pRect
+end LayoutControl
 
 
 --> Props
@@ -237,24 +239,6 @@ getprop page_Array [titleOrNum]
    end switch
 end page_Array
 
-setprop page_Array [overWrite] pageArray
-   put pageArray ["Title"] into pTitle
-   put fedwiki_ConstructSlug (pTitle) into pSlug
-   put the page_JsonFile [pSlug] of me into pageJsonFile
-   --
-   switch
-      case overWrite is true
-      case there is not a file pageJsonFile
-         breakpoint
-         put json_FromArray (pageArray) into pageJSON
-         text_Set pageJsonFile, pageJson
-         set the page_Title of me to pageSlug
-         break
-      default
-         return empty
-   end switch
-end page_Array
-
 getprop page_Json [pSlug]
    put the page_JsonFile [pSlug] of me into pageJsonFile
    put text_Get (pageJsonFile) into pageJson
@@ -272,12 +256,6 @@ getprop page_JsonFile [pSlug]
    put _PageJsonConstructFile (wikiDomain, pSlug) into pageJsonFile
    return pageJsonFile
 end page_JsonFile
-
-getprop wiki_Garden
-   put _WikiDomain() into wikiDomain
-   put wikiGarden_Name (wikiDomain) into gardenName
-   return gardenName
-end wiki_Garden
 
 getprop page_Titles
    put the lineup_Data of me into lineupData
@@ -346,7 +324,7 @@ setprop browser_HtmlText someHTML
 end browser_HtmlText
 
 
---> Private | Objects
+--> Private
 -
 private function _MenubarView
    put the menu_Group of me
@@ -355,41 +333,29 @@ private function _MenubarView
    return mGroup
 end _MenubarView
 
+private function _WikiDomain
+   set the itemdelimiter to slash
+   --
+   put the browser_URL of me into someURL
+   get item 3 of someURL
+   --
+   set the itemdelimiter to ":"
+   put item 1 of it into wikiDomain
+   put item 2 of wikiDomain into sPort
+   --
+   set the itemdelimiter to "."
+   if item 1 of wikiDomain = "www" then
+      delete item 1 of wikiDomain
+   end if
+   return wikiDomain
+end _WikiDomain
+
 private function _PageArray lineupUrl
    -- should I use binary and textEncode
    put url lineupUrl into pageJson
    put json_ToArray (pageJson) into pageArray
    return pageArray
 end _PageArray
-
-private command _DisplayToolsPage pageTitle, wikiDomain, urlPath
-   # Open tools
-   set the itemdelimiter to slash
-   put item -1 of urlPath into pageSlug
-   --
-   put the page_Class [pageSlug] of me into pageClass
-   switch
-      /*
-      case the optionkey is "Down"
-         set the page_Title of me to "Tools"
-         break
-      case the shiftkey is "Down"
-         */
-      case pageClass contains "ghost"
-         set the wikipedia_Page of me to pageSlug
-         break
-      default 
-         put wikiFile_Construct (wikiDomain, pageSlug) into jsonFile
-         if there is a file jsonFile then
-            put wikiPage_EditPage (pageSlug, wikiDomain) into pageArray
-         else
-            put wikiDialogue_Get (pageSlug, wikiDomain, "create-page-dialogue", "Create Page") into pageArray
-         end if
-         set the ghost_PageArray of me to pageArray
-         --
-         -- _CheckPageArray pageArray, pageSlug, wikiDomain
-   end switch
-end _DisplayToolsPage
 
 private function _GuessLastSlug sReferer
    set the itemdelimiter to slash

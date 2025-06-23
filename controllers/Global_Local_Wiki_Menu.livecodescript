@@ -60,8 +60,69 @@ on menu_FilterLocalDomains dView
    set the displayed_Index [sFilter] of dView to dNames
 end menu_FilterLocalDomains
 
+on menu_ListSubDomains dView
+   put wikiFarm_ListDomains() into farmDomains
+   --
+   set the itemdelimiter to "."
+   filter farmDomains where the number of items of each > 2
+   set the displayed_Index ["Farm Subdomains"] of dView to farmDomains
+end menu_ListSubDomains
+
+on menu_ListPrivateSubDomains dView
+   put wikiFarm_ListDomains() into farmDomains
+   set the displayed_Index ["Farm Subdomains"] of dView to farmDomains
+   --
+   set the itemdelimiter to "."
+   filter farmDomains where the number of items of each > 2
+   --
+   repeat for each line wikiDomain in farmDomains
+      -- set the cursor to busy
+      display_Spin wikiDomain, dView, "red"
+      
+      put pageJson_Fetch (wikiDomain) into pageJSON
+      if pageJSON is empty then
+         put wikiDomain & CR after badPrivateDomains
+      else
+         set the deleted_Line of dView to wikiDomain
+      end if
+   end repeat
+   delete char -1 of badPrivateDomains
+   --
+   set the displayed_Index ["Farm Subdomains"] of dView to badPrivateDomains
+   replace CR with (comma & space) in badPrivateDomains
+   put badPrivateDomains
+end menu_ListPrivateSubDomains
+
 private on _
 end _
+
+on menu_CheckDomains dView
+   put wikiFarm_ListDomains() into farmDomains
+   set the displayed_Index ["Farm Subdomains"] of dView to farmDomains
+   --
+   repeat for each line wikiDomain in farmDomains
+      -- set the cursor to busy
+      display_Spin wikiDomain, dView, "blue"
+      
+      put pageJson_Fetch (wikiDomain) into pageJSON
+      if pageJSON is empty then
+         wait 20 ticks
+         resetAll
+         wait 20 ticks
+         
+         put pageJson_Fetch (wikiDomain) into pageJSON
+         if pageJSON is empty then
+            put wikiDomain & CR after badPrivateDomains
+         end if
+      else
+         set the deleted_Line of dView to wikiDomain
+      end if
+   end repeat
+   delete char -1 of badPrivateDomains
+   if badPrivateDomains is not empty then
+      put badPrivateDomains
+   end if
+end menu_CheckDomains
 
 on menu_DisplayPiholeAdmin
    display_PiholeAdmin

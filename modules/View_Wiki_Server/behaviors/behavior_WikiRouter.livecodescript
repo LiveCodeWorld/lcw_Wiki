@@ -20,6 +20,29 @@ local PluginRouteData
 local TestRouteData
 
 
+--> Not used?
+-
+/*
+getprop plugin_RouteData
+   return PluginRouteData
+end plugin_RouteData
+
+getprop test_Data
+   return TestRouteData
+end test_Data
+
+command testData_Log someRoute, requestArray, routeArray
+   -- put routeArray into TestRouteData ["PluginRouteData"]
+   put empty into TestRouteData ["routes"][someRoute]
+end testData_Log
+
+on testData_Clear
+   -- put empty into LocalData
+   put empty into TestRouteData
+end testData_Clear
+*/
+
+
 --> Working on
 -
 command get_WikiPageJsonNotFound someRoute, socketID, requestArray
@@ -49,7 +72,8 @@ end get_WikiPageJsonNotFound
 --> Temp
 -
 private function _ExtraSwitch someRoute, wikiDomain, requestArray, socketID
-   breakpoint
+   -- should not be needed?
+   put PluginRouteData [someRoute] into routeArray
    switch 
       case someRoute = "/plugins/activity.js"
          -- investigate why this route is popping up
@@ -143,20 +167,6 @@ end get_SecurityJS
 
 --> Test
 -
-getprop test_Data
-   return TestRouteData
-end test_Data
-
-command testData_Log someRoute, requestArray, routeArray
-   -- put routeArray into TestRouteData ["PluginRouteData"]
-   put empty into TestRouteData ["routes"][someRoute]
-end testData_Log
-
-on testData_Clear
-   -- put empty into LocalData
-   put empty into TestRouteData
-end testData_Clear
-
 command daemon_LoadPluginRouteData
    put wikiPlugin_List() into wikiPlugins
    set the itemdelimiter to "-"
@@ -165,10 +175,6 @@ command daemon_LoadPluginRouteData
       _LoadPluginRoutes pluginName
    end repeat
 end daemon_LoadPluginRouteData
-
-getprop plugin_RouteData
-   return PluginRouteData
-end plugin_RouteData
 
 command daemon_ClearPluginRouteData
    delete variable PluginRouteData

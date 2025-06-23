@@ -37,6 +37,140 @@ end tiddlyHandler_PageArray
 
 --> Working on
 -
+
+--> Draft
+-
+command draft_WikiPage wikiDomain, pageArray, pLaunch
+   put pLaunch is not false into pLaunch
+   
+   # Display Ghost
+   put fedWiki_FindBrowser (wikiDomain, pLaunch) into wikiBrowser
+   if exists (wikiBrowser) is true then  
+      set the ghost_PageArray of wikiBrowser to pageArray
+   end if
+   return wikiBrowser
+end draft_WikiPage
+
+command draft_HandlerHelp hKey
+   put draft_HkeyPageArray(hKey) into pageArray
+   --
+   put handler_ConstructDomain() into handlerDomain
+   --
+   answer "Display draft, or create handler help.." with "Draft" or "Create"
+   if it is "Draft" then
+      draft_WikiPage handlerDomain, pageArray
+      put the result into wikiBrowser
+   else
+      put pageArray ["title"] into pageTitle
+      put fedwiki_ConstructSlug(pageTitle) into pageSlug
+      --
+      pageArray_Set handlerDomain, pageSlug, pageArray, true
+      --
+      put fedWiki_FindBrowser (handlerDomain, true) into wikiBrowser
+      if exists (wikiBrowser) is true then  
+         set the page_Title of wikiBrowser to pageTitle
+      end if
+   end if
+   return wikiBrowser
+end draft_HandlerHelp
+
+function handler_ConstructDomain
+   put "handler." & platform_LivecodeDomain() into handlerDomain
+   return handlerDomain
+end handler_ConstructDomain
+
+function draft_HkeyPageArray hKey
+   put hkey_ArrayFile (hKey) into hkeyArrayFile
+   if there is not a file hkeyArrayFile then
+      graph_Hkey hKey
+   end if
+   --
+   put help_FromHkey (hKey) into pageArray
+   return pageArray
+end draft_HkeyPageArray
+
+
+--> Wiki | Browser
+-
+function wiki_Browser
+   -- put display_FindCloned ("View|Obeya|Studio", "Wiki") into browserView
+   put line 1 of wiki_ListBrowsers() into browserView
+   return browserView
+end wiki_Browser
+
+function wiki_ListBrowsers
+   return display_List ("View|Wiki|Browser,View|Browser,View|Obeya|Studio")
+end wiki_ListBrowsers
+
+function fedWiki_FindBrowser wikiDomain, pLaunch
+   # Find Wiki Browser
+   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
+   
+   if exists (wikiBrowser) is true then
+      object_GoTo wikiBrowser
+      return wikiBrowser
+   else if pLaunch is true then
+      display_Wiki wikiDomain
+      put the result into wikiBrowser
+      wait 40 ticks
+      return wikiBrowser
+   else
+      return empty
+   end if
+end fedWiki_FindBrowser
+
+private command _NormalizeWikiBrowser @browserView
+   switch
+      case browserView = "New"
+         put empty into browserView
+         break
+      case exists (browserView) is false
+         put wiki_Browser() into browserView
+         break
+      default
+         # But is is a browser
+         put the browser_View of browserView into browserView
+   end switch
+   return exists (browserView)
+end _NormalizeWikiBrowser
+
+
+--> Display | Wiki
+-
+command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
+   _NormalizeWikiBrowser pBrowserView
+   if pStackLabel is empty then put wikiDomain into pStackLabel
+   put wiki_ConstructUrl (wikiDomain) into wikiURL
+   
+   # Start server
+   -- wikiServer_StartNode -- wikiServer_Start
+   -- if the result is not empty then wait 20 ticks
+   
+   # Display Browser
+   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
+   return the result
+end display_Wiki
+
+command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pWikiViewName
+   if pWikiURL is empty then put "http://" & platform_LivecodeDomain() into pWikiURL
+   if pStackLabel is empty then put "Browser" into pStackLabel
+   if pWikiViewName is empty then put "View|Wiki|Browser" into pWikiViewName
+   if pStackLabel is empty then put "Wiki" into pStackLabel
+   if pStackStyle is empty then put "toplevel" into pStackStyle
+   --
+   # Display
+   display_ModuleInstance pWikiViewName, pWikiURL, pStackLabel, pBrowserView, "browser_URL", pStackStyle
+   put the result into browserView
+   
+   # Set Menus
+   display_SetMenu browserView, "Obeya | Studio"
+   --
+   return browserView
+end display_WikiBrowser
+
+
+--> TiddlyHandler
+-
 command tiddlyHandler_CreaterHelp pageArray
    put pageArray ["title"] into pageTitle
    put fedwiki_ConstructSlug (pageTitle) into pageSlug
@@ -82,52 +216,25 @@ function markdown_FromPageArray pageArray
    return word 1 to -1 of mdText
 end markdown_FromPageArray
 
-function fedWiki_FindBrowser wikiDomain, pLaunch
-   # Find Wiki Browser
-   put display_ListWikiBrowsers (wikiDomain) into wikiBrowser
-   
-   if exists (wikiBrowser) is true then
-      object_GoTo wikiBrowser
-   else if pLaunch is true then
-      display_Wiki wikiDomain
-      put the result into wikiBrowser
-      wait 40 ticks
-      return wikiBrowser
-   else
-      return empty
-   end if
-end fedWiki_FindBrowser
 
-
---> Draft
+--> Display
 -
-command draft_WikiPage wikiDomain, pageArray, pLaunch
-   # Display Ghost
-   put fedWiki_FindBrowser (wikiDomain, pLaunch) into wikiBrowser
-   if exists (wikiBrowser) then
-      set the ghost_PageArray of wikiBrowser to pageArray
-   end if
-   return wikiBrowser
-end draft_WikiPage
-
-command draft_HandlerHelp hKey
-   put draft_HkeyPageArray(hKey) into pageArray
-   --
-   put "handler." & platform_WikiDomain() into handlerDomain
-   draft_WikiPage handlerDomain, pageArray
+command display_CaddyTools
+   -- put caddy_ConstructArray() into cArray
+   put caddy_FetchConfig() into caddyConfigData
+   put caddyRouteArray_Get(caddyConfigData) into routeArray
+   put caddyRouteArray_ListWikiHosts (routeArray) into wikiDomains
+   
+   display_Tool wikiDomains, "Admin", "Caddy", "lib_Caddy"
    put the result into dView
-   return dView
-end draft_HandlerHelp
-
-function draft_HkeyPageArray hKey
-   put hkey_ArrayFile (hKey) into hkeyArrayFile
-   if there is not a file hkeyArrayFile then
-      graph_Hkey hKey
-   end if
    --
-   put help_FromHkey (hKey) into pageArray
-   return pageArray
-end draft_HkeyPageArray
+   set the caddy_ConfigData of dView to caddyConfigData
+   return dView
+end display_CaddyTools
+
+command display_CaddyAdmin
+   display_Browser "http://localhost:2019/config/"
+end display_CaddyAdmin
 
 
 --> Display
@@ -334,33 +441,6 @@ function wiki_CheckFolderColour wikiDomain
    end switch
 end wiki_CheckFolderColour
 
-function wiki_Browser
-   -- put display_FindCloned ("View|Obeya|Studio", "Wiki") into browserView
-   put line 1 of wiki_ListBrowsers() into browserView
-   return browserView
-end wiki_Browser
-
-function wiki_ListBrowsers
-   return display_List ("View|Browser,View|Obeya|Studio")
-end wiki_ListBrowsers
-
-
---> Display | Wiki
--
-command display_Wiki wikiDomain, pBrowserView, pStackLabel, pStackStyle
-   _NormalizeWikiBrowser pBrowserView
-   if pStackLabel is empty then put wikiDomain into pStackLabel
-   put wiki_ConstructUrl (wikiDomain) into wikiURL
-   
-   # Start server
-   -- wikiServer_StartNode -- wikiServer_Start
-   -- if the result is not empty then wait 20 ticks
-   
-   # Display Browser
-   display_WikiBrowser wikiURL, pBrowserView, pStackLabel, pStackStyle
-   return the result
-end display_Wiki
-
 
 --> Display | Wiki | list
 -
@@ -419,23 +499,6 @@ command display_WikiDomain wikiDomain
       end repeat
    end if
 end display_WikiDomain
-
-command display_WikiBrowser pWikiURL, pBrowserView, pStackLabel, pStackStyle, pWikiViewName
-   if pWikiURL is empty then put "http://" & platform_WikiDomain() into pWikiURL
-   if pStackLabel is empty then put "Browser" into pStackLabel
-   if pWikiViewName is empty then put "View|Wiki|Browser" into pWikiViewName
-   if pStackLabel is empty then put "Wiki" into pStackLabel
-   if pStackStyle is empty then put "toplevel" into pStackStyle
-   --
-   # Display
-   display_ModuleInstance pWikiViewName, pWikiURL, pStackLabel, pBrowserView, "browser_URL", pStackStyle
-   put the result into browserView
-   
-   # Set Menus
-   display_SetMenu browserView, "Obeya | Studio"
-   --
-   return browserView
-end display_WikiBrowser
 
 
 --> Display | Wiki | Page
@@ -949,21 +1012,6 @@ private command _DisplayPageArray pageArray, pTitle, pDomainTitle
    --
    return displayView
 end _DisplayPageArray
-
-private command _NormalizeWikiBrowser @browserView
-   switch
-      case browserView = "New"
-         put empty into browserView
-         break
-      case exists (browserView) is false
-         put wiki_Browser() into browserView
-         break
-      default
-         # But is is a browser
-         put the browser_View of browserView into browserView
-   end switch
-   return exists (browserView)
-end _NormalizeWikiBrowser
 
 private command _UpdateFedrayDisplay @fedray, pIndexView
    -- if pIndexView exists then update the displayed index display

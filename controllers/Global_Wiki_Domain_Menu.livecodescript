@@ -37,6 +37,11 @@ end _DisplayData
 
 --> Global | Wiki | Domain | Menu
 -
+on menu_TestGhost wikiView
+   put pageArray_Construct ("Test Ghost", "Hello world") into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_TestGhost
+
 on menu_SitemapArray wikiView
    put the siteMap_Array of wikiView into siteMapArray
    --
@@ -48,6 +53,9 @@ on menu_PerformativeDictionary wikiView
    --
    _DisplayData pArray
 end menu_PerformativeDictionary
+
+private on ___
+end ___
 
 on menu_RefreshTitles wikiView
    put the menubar_View of wikiView into mGroup

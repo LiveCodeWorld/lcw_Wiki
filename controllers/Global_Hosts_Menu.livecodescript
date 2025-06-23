@@ -149,7 +149,7 @@ private on __
 end __
 
 on menu_BasicEtcHosts dView
-   put platform_WikiDomain ("rest") into wikiDomain
+   put platform_LivecodeDomain ("rest") into wikiDomain
    put hosts_NewText (wikiDomain) into hostsText
    --
    set the displayed_Index ["Basic /etc/hosts?"] of dView to hostsText

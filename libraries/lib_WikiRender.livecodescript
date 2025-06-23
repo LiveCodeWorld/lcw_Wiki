@@ -262,30 +262,6 @@ end wiki_ConstructFooter
 
 --> Private
 -
-function _StripInternal sText
-   put "(?i)(\[\[[^\]]+\]\])" into sRegex
-   repeat while matchchunk (sText, sRegex, startChar, endChar) is true
-      put char startChar to endChar of sText into fLink
-      put char 3 to -3 of fLink into pageTitle
-      put pageTitle into char startChar to endChar of sText
-   end repeat
-   return sText
-end _StripInternal
-
-function _StripExternal sText
-   put "(?i)\[(http|https|ftp):\/\/([^ ]+?)\s+(.*?)\]" into sRegex
-   --   --
-   repeat while matchChunk (sText, sRegex, sProt, eProt, sHref, eHref, sLink, eLink) is true
-      put char sLink to eLink of sText into sLinkText
-      --
-      put sProt -2 into sChunk
-      put eLink + 2 into eChunk
-      --
-      put sLinkText into char sChunk to eChunk of sText
-   end repeat
-   return sText
-end _StripExternal
-
 private function _ConstructRenderedPageDiv wikiDomain, pageSlug, pageTitle, storyArray, pTabChars   
    # Construct pageDivContents
    put _RenderPageDivContents (wikiDomain, pageSlug, pageTitle, storyArray) into pageDivContents

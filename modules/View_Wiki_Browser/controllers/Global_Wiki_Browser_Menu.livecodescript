@@ -136,7 +136,6 @@ on menu_Livecode.2 wikiView
 end menu_Livecode.2
 
 on menu_Myth.3 wikiView
-   -- set the page_Title ["thought.garden"] of wikiView to "Welcome Visitors"
    display_Wiki "myth.garden", wikiView
 end menu_Myth.3
 
@@ -153,19 +152,39 @@ on menu_ViewInBrowser.8 wikiView
    launch url lineUpURL
 end menu_ViewInBrowser.8
 
-on menu_Localhost.9 wikiView
+on menu_Localhost wikiView
    display_Wiki "localhost", wikiView
-end menu_Localhost.9
+end menu_Localhost
 
-on menu_ResetDomain.0 wikiView
+on menu_ResetDomain wikiView
    put the wiki_Domain of wikiView into wikiDomain
    --
    -- put url_GetTLD (wikiDomain) into tldDomain
    display_Wiki wikiDomain, wikiView
-end menu_ResetDomain.0
+end menu_ResetDomain
 
 private on ___
 end ___
+
+on menu_DraftGhost wikiView
+   put pageArray_Construct ("Test Ghost", "Hello world") into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftGhost
+
+on menu_SnapWiki wikiView
+   put the browser_Snapshot [420] of wikiView into wImage
+   --
+   display_Image wImage, "Wiki Image"
+end menu_SnapWiki
+
+on menu_SearchOpenverse wikiView
+   put lcw_Ask ("Enter search terms...", "cat|dog", "Openverse", dView) into searchBit
+   --
+   put openverse_Search (searchBit) into sData
+   put wikiPage_OpenVerseThumbNails (sData) into pageArray
+   --
+   set the ghost_PageArray of wikiView to pageArray
+end menu_SearchOpenverse
 
 on menu_PiOwnerJson wikiView
    put the wiki_Domain of wikiView into wikiDomain
@@ -194,10 +213,10 @@ on menu_DomainTools wikiView
    return dView
 end menu_DomainTools
 
-on menu_SaveStack wikiView
+on menu_SaveStack.S wikiView
    put the stack_Name of wikiView into sName
    ide_SaveStack sName
-end menu_SaveStack
+end menu_SaveStack.S
 
 on submenu_Dev
    return menu_DevTitle ("Global | Wiki | Browser | Menu")

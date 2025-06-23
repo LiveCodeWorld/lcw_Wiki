@@ -68,41 +68,6 @@ setprop external_Links sBoolean
    end if
 end external_Links
 
-private function _LineUpData browserURL, noGhosts
-   put _LineUpJson() into lineupJson
-   
-   delete char 1 of lineupJson
-   delete char -1 of lineupJson
-   set the itemdelimiter to slash
-   put item 3 of browserURL into ownerDomain
-   replace comma with CR in lineupJson
-   replace quote with empty in lineupJson
-   
-   repeat with itemNum = 1 to the number of lines of lineupJson
-      put line itemNum of lineupJson into sLink
-      set the itemdelimiter to slash
-      if char 1 to 2 of sLink = "//" then
-         put item 3 of sLink into sDomain
-         put item 4 of sLink into pageSlug
-      else
-         put ownerDomain into sDomain
-         put item -1 of sLink into pageSlug
-      end if
-      set the itemdelimiter to "."
-      delete item -1 of pageSlug
-      
-      put _GetPageClass (pageSlug) into pageClass
-      if (noGhosts is true) AND (pageClass contains "ghost") then
-         next repeat
-      end if
-      
-      put sDomain into lineUpData [itemNum]["wikiDomain"]
-      put pageSlug into lineUpData [itemNum]["pageSlug"]
-      put pageClass into lineUpData [itemNum]["pageClass"]
-   end repeat
-   return lineUpData
-end _LineUpData
-
 
 --> Bookmarks
 -
@@ -188,9 +153,6 @@ getprop lineup_Title [pageSlug]
    return sTitle
 end lineup_Title
 
-
---> Props
--
 getprop footer_WikiEditTag
    put "liveCode.javascript_Result(document.querySelector('footer span.editEnable').outerHTML);" into sJavascript
    put _GetJavascriptResult (sJavascript) into sResult
@@ -216,71 +178,6 @@ getprop lineUp_Domain [pTitle]
    put _SlugArray() into slugArray
    return slugArray [pSlug]["wikiDomain"]
 end lineUp_Domain
-
-private function _SlugArray
-   put the browser_URL of me into browserURL
-   --
-   set the itemdelimiter to slash
-   put item 3 of browserURL into ownerDomain
-   
-   put _LineUpJson() into lineupJson
-   
-   # Work out urls in Livecode (probably faster in js)
-   delete char 1 of lineupJson
-   delete char -1 of lineupJson
-   --
-   replace comma with CR in lineupJson
-   replace quote with empty in lineupJson
-   
-   repeat for each line sLink in lineupJson
-      set the itemdelimiter to slash
-      if char 1 to 2 of sLink = "//" then
-         put item 3 of sLink into sDomain
-         put item 4 of sLink into pageSlug
-      else
-         put ownerDomain into sDomain
-         put item -1 of sLink into pageSlug
-      end if
-      
-      set the itemdelimiter to "."
-      delete item -1 of pageSlug
-      
-      put sDomain into slugArray [pageSlug]["wikiDomain"]
-   end repeat
-   return slugArray
-end _SlugArray
-
-function pageArray_FromJson pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   return pageArray
-end pageArray_FromJson
-
-function pageArray_ToJson pageArray
-   put pageArray ["title"] into pageTitle
-   --
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   put indexArray_ToJson (storyArray) into storyJSON
-   put indexArray_ToJson (journalArray) into journalJSON
-   
-   # Start JSON
-   put "{" into pageJSON
-   
-   # Title
-   put kwote ("title") & ":" && kwote (pageTitle) & comma after pageJSON
-   
-   # Story
-   put kwote ("story") & ":" && "[" & storyJSON & "]" & comma after pageJSON
-   
-   # Journal 
-   put kwote ("journal") & ":" && "[" & journalJSON & "]" after pageJSON
-   
-   # End JSON
-   put "}" after pageJSON
-   --
-   return pageJSON
-end pageArray_ToJson
 
 getprop footer_IsVisible
    set the javascript_AddHandlers of me to "javascript_Result"
@@ -331,14 +228,6 @@ setprop ghost_PageArray pageArray
    return the result
 end ghost_PageArray
 
-function _ErrorJson
-   -- simplify without dpes
-   put "Error decoding array." into mdText
-   put pageArray_Construct ("Error", mdText, "markdown") into pageArray
-   put json_FromArray (pageArray) into pageJSON
-   return pageJSON
-end _ErrorJson
-
 
 --> Props | Javascript
 -
@@ -378,30 +267,6 @@ on javascript_Result sResult
    put sResult into LocalArray ["sResult"]
    return sResult
 end javascript_Result
-
-on flag_Event flagYaml
-   -- called by wiki-client Livecode javascript
-   split flagYaml using comma and ":"
-   --
-   put flagYaml ["target"] into wikiDomain
-   put flagYaml ["href"] into urlPath
-   put flagYaml ["pageTitle"] into pageTitle
-   
-   # Store Yaml
-   set the clicked_FlagArray of me to flagYaml
-   
-   if char 1 to 2 of urlPath = "//" then
-      # Open nwiki in new tab
-      display_Wiki wikiDomain, "New"
-      put the result into wikiView
-   else
-      _DisplayToolsPage pageTitle, wikiDomain, urlPath
-   end if
-end flag_Event
-
-on wikiClick_HamburgerMenu
-   set the page_Title of me to "tools"
-end wikiClick_HamburgerMenu
 
 on toggle_Editable
    -- put "$('footer span.editEnable').click();" into sJavascript
@@ -496,9 +361,6 @@ setprop pretty_Journal sBoolean
    return sJavascript
 end pretty_Journal
 
-
---> Props
--
 getprop last_PageSlug
    put the browser_URL of me into browserURL -- will not include last ghost page
    put _LineUpInfo (browserURL) into lineUpInfo
@@ -615,8 +477,13 @@ end lineUp_Domain
 --> Browser | Javascript
 -
 setprop browser_Javascript sJavascript
-   do sJavascript in me
-   return the result -- usually not intereting
+   try
+      do sJavascript in me
+      get the result -- usually not intereting
+      return it
+   catch e
+      put sJavascript
+   end try
 end browser_Javascript
 
 setprop javascript_AddHandlers newHandlers
@@ -695,9 +562,6 @@ getprop outer_Html [qAndSlug]
    return sResult
 end outer_Html
 
-
---> Props
--
 getprop license_Handler [slugAndFunc]
    put item 1 of slugAndFunc into pageSlug
    put item 2 of slugAndFunc into pJsFunction
@@ -715,6 +579,41 @@ getprop search_Html [slugAndFunc]
    put _GetJavascriptResult (sJavascript) into sResult
    return sResult
 end search_Html
+
+
+--> PageArray
+-
+function pageArray_FromJson pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   return pageArray
+end pageArray_FromJson
+
+function pageArray_ToJson pageArray
+   put pageArray ["title"] into pageTitle
+   --
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   put indexArray_ToJson (storyArray) into storyJSON
+   put indexArray_ToJson (journalArray) into journalJSON
+   
+   # Start JSON
+   put "{" into pageJSON
+   
+   # Title
+   put kwote ("title") & ":" && kwote (pageTitle) & comma after pageJSON
+   
+   # Story
+   put kwote ("story") & ":" && "[" & storyJSON & "]" & comma after pageJSON
+   
+   # Journal 
+   put kwote ("journal") & ":" && "[" & journalJSON & "]" after pageJSON
+   
+   # End JSON
+   put "}" after pageJSON
+   --
+   return pageJSON
+end pageArray_ToJson
 
 
 --> Javascript | Handlers
@@ -773,6 +672,82 @@ end wiki_IsTransparent
 
 --> Private
 -
+function _ErrorJson
+   -- simplify without dpes
+   put "Error decoding array." into mdText
+   put pageArray_Construct ("Error", mdText, "markdown") into pageArray
+   put json_FromArray (pageArray) into pageJSON
+   return pageJSON
+end _ErrorJson
+
+private function _LineUpData browserURL, noGhosts
+   put _LineUpJson() into lineupJson
+   
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   set the itemdelimiter to slash
+   put item 3 of browserURL into ownerDomain
+   replace comma with CR in lineupJson
+   replace quote with empty in lineupJson
+   
+   repeat with itemNum = 1 to the number of lines of lineupJson
+      put line itemNum of lineupJson into sLink
+      set the itemdelimiter to slash
+      if char 1 to 2 of sLink = "//" then
+         put item 3 of sLink into sDomain
+         put item 4 of sLink into pageSlug
+      else
+         put ownerDomain into sDomain
+         put item -1 of sLink into pageSlug
+      end if
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      
+      put _GetPageClass (pageSlug) into pageClass
+      if (noGhosts is true) AND (pageClass contains "ghost") then
+         next repeat
+      end if
+      
+      put sDomain into lineUpData [itemNum]["wikiDomain"]
+      put pageSlug into lineUpData [itemNum]["pageSlug"]
+      put pageClass into lineUpData [itemNum]["pageClass"]
+   end repeat
+   return lineUpData
+end _LineUpData
+
+private function _SlugArray
+   put the browser_URL of me into browserURL
+   --
+   set the itemdelimiter to slash
+   put item 3 of browserURL into ownerDomain
+   
+   put _LineUpJson() into lineupJson
+   
+   # Work out urls in Livecode (probably faster in js)
+   delete char 1 of lineupJson
+   delete char -1 of lineupJson
+   --
+   replace comma with CR in lineupJson
+   replace quote with empty in lineupJson
+   
+   repeat for each line sLink in lineupJson
+      set the itemdelimiter to slash
+      if char 1 to 2 of sLink = "//" then
+         put item 3 of sLink into sDomain
+         put item 4 of sLink into pageSlug
+      else
+         put ownerDomain into sDomain
+         put item -1 of sLink into pageSlug
+      end if
+      
+      set the itemdelimiter to "."
+      delete item -1 of pageSlug
+      
+      put sDomain into slugArray [pageSlug]["wikiDomain"]
+   end repeat
+   return slugArray
+end _SlugArray
+
 private function _GetPageClass pageSlug
    put wikijs_GetPageClass (pageSlug) into sJavascript
    put _GetJavascriptResult (sJavascript) into pClass

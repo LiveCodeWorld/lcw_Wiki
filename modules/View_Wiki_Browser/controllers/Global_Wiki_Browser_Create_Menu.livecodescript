@@ -139,6 +139,11 @@ on menu_DraftEmptySites wikiView
    set the ghost_PageArray of wikiView to pageArray
 end menu_DraftEmptySites
 
+on menu_DraftGhost wikiView
+   put pageArray_Construct ("Test Ghost", "Hellow world") into pageArray
+   set the ghost_PageArray of wikiView to pageArray
+end menu_DraftGhost
+
 private on ___
 end ___
 

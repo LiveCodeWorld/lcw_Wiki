@@ -31,13 +31,23 @@ getprop menu_CheckTarget [dView]
    return exists (dView)
 end menu_CheckTarget
 
-on mDoubleUp_LocalWiki displayView, gardenName
+on mDoubleUp_LocalWiki displayView, wikiDomain
+   if the optionKey is "Down" then breakpoint
+   
+   launch_WikiDomain wikiDomain
+end mDoubleUp_LocalWiki
+
+command launch_WikiDomain wikiDomain
+   launch url ("https://" & wikiDomain)
+end launch_WikiDomain
+
+on display_FarmOrGarden displayView, gardenName
    if gardenName = "Farm" then
       display_WikiFarm
    else
       display_WikiGarden gardenName
    end if
-end mDoubleUp_LocalWiki
+end display_FarmOrGarden
 
 
 --> Global | Local | Wiki | Line | Menu
@@ -53,15 +63,15 @@ end menu_AddTopLevelDomain
 getprop addTopLevelDomain_Params
    return pihole_ListNames()
 end addTopLevelDomain_Params
-      
+
 private on _
 end _
 
 -- on menu_DisplaySubdomains dView
-   put the selected_Line of dView into wikiDomain
-   put wikiDomain_SubList (wikiDomain) into subDomains
-   put wikiDomain_List (pFilter) into wikiFolders
-   --
+put the selected_Line of dView into wikiDomain
+put wikiDomain_SubList (wikiDomain) into subDomains
+put wikiDomain_List (pFilter) into wikiFolders
+--
 end menu_DisplaySubdomains
 
 on menu_WikiAndSubdomains dView

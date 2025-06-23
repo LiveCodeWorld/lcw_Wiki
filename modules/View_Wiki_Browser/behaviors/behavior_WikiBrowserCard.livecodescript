@@ -38,7 +38,7 @@ on openCard
    --
    _FixLayout
    --
-   set the wiki_Domain of _WikiView() to "thought.garden"
+   -- set the wiki_Domain of _WikiView() to "livecode.wiki"
 end openCard
 
 command _FixLayout
