@@ -37,8 +37,37 @@ function wikiFolder_ConstructRecycled wikiDomain, pWikiFolder
 end wikiFolder_ConstructRecycled
 
 
+--> WikiFile | Assets
+-
+function wikiFile_ListAssets wikiDomain, pRelPath, pListShort
+   put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
+   if pRelPath is not empty then
+      text_AddTrailing pRelPath, slash
+      put pRelPath after assetsFolder
+   end if
+   if pListShort is true then
+      return file_ListShort (assetsFolder)
+   else
+      return file_ListLong (assetsFolder)
+   end if
+end wikiFile_ListAssets
+
+function wikiFile_ConstructImageAsset shortFile, wikiDomain
+   put wikiFolder_ConstructImageAssets (wikiDomain) into imageAssetsFolder
+   put imageAssetsFolder & shortFile into imageFile
+   return imageFile
+end wikiFile_ConstructImageAsset
+
+
 --> WikiUrl
 -
+function wikiUrl_Asset relAssetPath, wikiDomain
+   -- http://podcast.anarchive.earth/assets/audio/Astral%20Cinema.m4a
+   put "http://" & wikiDomain & "/assets/" into assetsURL
+   put urlEncode (relAssetPath) after assetsURL
+   return assetsURL
+end wikiUrl_Asset
+
 command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineUpNum
    -- http://snack.thought.garden/view/welcome-visitors
    if pLineUpNum is not a number then put 1 into pLineUpNum
@@ -60,19 +89,8 @@ command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineU
    put item slugDomainItemNum  of wikiURL into slugDomain
    put item slugItemNum of wikiURL into pageSlug
    if slugDomain = "view" then put wikiDomain into slugDomain
-   
 end wikiUrl_Deconstruct
 
-function wikiUrl_Asset relAssetPath, wikiDomain
-   -- http://podcast.anarchive.earth/assets/audio/Astral%20Cinema.m4a
-   put "http://" & wikiDomain & "/assets/" into assetsURL
-   put urlEncode (relAssetPath) after assetsURL
-   return assetsURL
-end wikiUrl_Asset
-
-
---> Working on
--
 function wikiFile_ConstructLocalHost pSlug
    put wikiFolder_ConstructLocalPages() into localPagesFolder
    if there is not a folder localPagesFolder then return empty
@@ -80,26 +98,6 @@ function wikiFile_ConstructLocalHost pSlug
    put localPagesFolder & pSlug into pageJsonFile
    return pageJsonFile
 end wikiFile_ConstructLocalHost
-
-function wikiFolder_ConstructLocalPages
-   put wikiFolder_ConstructLocalHost() into localhostFolder
-   return localhostFolder & "pages/"
-end wikiFolder_ConstructLocalPages
-
-function wikiFolder_LocalHost
-   put wikiFolder_ConstructLocalHost() into localhostFolder
-   if there is a localhostFolder then
-      return localhostFolder
-   else
-      return empty
-   end if
-end wikiFolder_LocalHost
-
-function wikiFolder_ConstructLocalHost
-   put wikiFarm_GetDefaultFolder() into farmFolder
-   put farmFolder & "localhost/" into localHostFolder
-   return localHostFolder
-end wikiFolder_ConstructLocalHost
 
 
 --> Wikifile | Owner
@@ -134,19 +132,6 @@ function wikiFile_ListRecycled wikiDomain
    put file_ListShort (recycleFolder) into shortFiles
    return shortFiles
 end wikiFile_ListRecycled
-
-function wikiFile_ListAssets wikiDomain, pRelPath, pListShort
-   put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
-   if pRelPath is not empty then
-      text_AddTrailing pRelPath, slash
-      put pRelPath after assetsFolder
-   end if
-   if pListShort is true then
-      return file_ListShort (assetsFolder)
-   else
-      return file_ListLong (assetsFolder)
-   end if
-end wikiFile_ListAssets
 
 
 --> WikiFile | Pages
@@ -276,12 +261,6 @@ function wikiFile_ConstructRecycled wikiDomain, pSlug
    return recycledFile
 end wikiFile_ConstructRecycled
 
-function wikiFile_ConstructImageAsset shortFile, wikiDomain
-   put wikiFolder_ConstructImageAssets (wikiDomain) into imageAssetsFolder
-   put imageAssetsFolder & shortFile into imageFile
-   return imageFile
-end wikiFile_ConstructImageAsset
-
 function wikiFile_ConstructSiteIndex pWikiDomain
    put wikiFolder_ConstructStatus (pWikiDomain) into statusFolder
    put statusFolder & "site-index.json" into siteIndexFile
@@ -309,113 +288,3 @@ function wikiFile_Construct wikiDomain, pSlug
    put pagesFolder & pSlug into pageJsonFile
    return pageJsonFile
 end wikiFile_Construct
-
-
---> WikiFolder
--
-function wikiFolder_Client pRelFolderPath
-   put wikiFolder_ConstructClient() into wikiClientFolder
-   put pRelFolderPath after wikiClientFolder
-   text_AddTrailing wikiClientFolder, slash
-   
-   if there is a folder wikiClientFolder then
-      return wikiClientFolder
-   else
-      return empty
-   end if
-end wikiFolder_Client
-
-function wikiFolder_Recycled wikiDomain
-   put wikiFolder_ConstructRecycled (wikiDomain) into wikiRecycleFolder
-   if there is a folder wikiRecycleFolder then
-      return wikiRecycleFolder
-   else
-      return empty
-   end if
-end wikiFolder_Recycled
-
-function wikiFolder_Pages wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder 
-   put wikiFolder & "pages/" into wikiPagesFolder
-   if there is a folder wikiPagesFolder then
-      return wikiPagesFolder
-   else
-      return empty
-   end if
-end wikiFolder_Pages
-
-
---> WikiFolder | Construct
--
-function wikiFolder_ConstructClient
-   put wikiFolder_Modules() & "wiki-client/" into wikiClientFolder
-   return wikiClientFolder
-end wikiFolder_ConstructClient
-
-function wikiFolder_ConstructCommons pWikiDomain
-   put ecoData_GetFarmFolder (pWikiDomain) into wikiRoot
-   put wikiRoot & "commons/" into wikiCommonsFolder
-   return wikiCommonsFolder
-end wikiFolder_ConstructCommons
-
-function wikiFolder_ConstructPageAssets pageSlug, wikiDomain
-   put wikiFolder_ConstructAssets (wikiDomain) into assetsFolder
-   put assetFolder & pageSlug & slash into oggFolder
-   return oggFolder
-end wikiFolder_ConstructPageAssets
-
-function wikiFolder_ConstructImageAssets wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   put wikiFolder & "assets/plugins/image/" into imageAssetsFolder
-   return imageAssetsFolder
-end wikiFolder_ConstructImageAssets
-
-function wikiFolder_ConstructAssets wikiDomain
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   put wikiFolder & "assets/" into assetsFolder
-   return assetsFolder
-end wikiFolder_ConstructAssets
-
-
---> Nvm & Node | Paths
--
-function node_GetModulesFolder pUseNpm
-   if Node_ModulesFolder is empty then
-      # Node version
-      if pUseNpm is true then
-         put line 1 of shell ("npm root -g") & "/" into nodeModulesFolder
-      else
-         # NVM version
-         set the itemdelimiter to slash
-         put nvm_GetBin() into nodeModulesFolder
-         put "lib/node_modules/" into item -1 of nodeModulesFolder
-      end if
-      --
-      put nodeModulesFolder into Node_ModulesFolder
-      --
-      if there is not a folder nodeModulesFolder then
-         return "Error, folder" && nodeModulesFolder && "does not exist"
-      end if
-   end if
-   
-   return Node_ModulesFolder
-end node_GetModulesFolder
-
-function node_WikiModulesFolder
-   put node_GetModulesFolder() & "wiki/node_modules/" into wikiModulesFolder
-   return wikiModulesFolder
-end node_WikiModulesFolder
-
-function node_GetNodeBinaryPath
-   return line 1 of shell ("npm bin -g") & "/npm"
-end node_GetNodeBinaryPath
-
-function nvm_Directory
-   return shell ("source ~/.zshrc; echo $NVM_DIR")
-end nvm_Directory
-
-function nvm_GetBin
-   -- put "/Users/david/.nvm/versions/node/v21.0.0/bin/" before wikiBinFile
-   get shell ("source ~/.zshrc; echo $NVM_BIN")
-   return word 1 to -1 of line 1 of it
-end nvm_GetBin

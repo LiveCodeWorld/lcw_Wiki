@@ -10,6 +10,36 @@ version: 0.1
 
 --> Working on
 -
+getprop wiki_Garden
+   put _WikiDomain() into wikiDomain
+   put wikiGarden_Name (wikiDomain) into gardenName
+   return gardenName
+end wiki_Garden
+
+getprop performative_Dictionary
+   put _WikiDomain() into wikiDomain
+   --
+   put pageArray_Get (wikiDomain, "performative-dictionary") into pageArray
+   put handlerWiki_Array() into wikiArray
+   put pageArray_ReferenceDictionary (pageArray, wikiArray) into pDict
+   return pDict
+end performative_Dictionary
+
+setprop wikipedia_Page pageTitle
+   put mediawiki_GetPageArrayFromSlug (pageTitle) into pageArray
+   set the ghost_PageArray of me to pageArray
+   return pageArray
+end wikipedia_Page
+
+getprop page_Text [titleOrNum]
+   put the page_Array [titleOrNum] of me into pageArray
+   put pageArray_ToText (pageArray) into pageText
+   return pageText
+end page_Text
+
+
+--> Flag
+-
 on flag_Event flagYaml
    -- called by wiki-client Livecode javascript
    split flagYaml using comma and ":"

@@ -19,6 +19,20 @@ local LocalArray
 
 --> Events
 -
+command LayoutControl pRect
+   put the menubar_View of me into mGroup
+   if exists (mGroup) is false then return false
+   if pRect is empty then put the rect of this cd into pRect
+   --
+   put the menubar of the defaultstack into gName
+   if (gName is not empty) then
+      put 20 into mHeight
+      add mHeight to item 2 of pRect
+   end if
+   --
+   set the rect of me to pRect
+end LayoutControl
+
 on wikiBrowser_Init
    set the flag_Handler of me to "default"
    set the wiki_EditMode of me to true
@@ -77,24 +91,9 @@ setprop page_Array [overWrite] pageArray
    end switch
 end page_Array
 
-getprop wiki_Garden
-   put _WikiDomain() into wikiDomain
-   put wikiGarden_Name (wikiDomain) into gardenName
-   return gardenName
-end wiki_Garden
-
 
 --> Props
 -
-getprop performative_Dictionary
-   put _WikiDomain() into wikiDomain
-   --
-   put pageArray_Get (wikiDomain, "performative-dictionary") into pageArray
-   put handlerWiki_Array() into wikiArray
-   put pageArray_ReferenceDictionary (pageArray, wikiArray) into pDict
-   return pDict
-end performative_Dictionary
-
 getprop siteMap_Array
    put _WikiDomain() into wikiDomain
    put wikiSiteMap_Construct (wikiDomain) into wsmArray
@@ -134,26 +133,6 @@ setprop wiki_URL lineupURL
    set the stack_Label of me to wikiDomain
 end wiki_URL
 
-
---> Layout
--
-command LayoutControl pRect
-   put the menubar_View of me into mGroup
-   if exists (mGroup) is false then return false
-   if pRect is empty then put the rect of this cd into pRect
-   --
-   put the menubar of the defaultstack into gName
-   if (gName is not empty) then
-      put 20 into mHeight
-      add mHeight to item 2 of pRect
-   end if
-   --
-   set the rect of me to pRect
-end LayoutControl
-
-
---> Props
--
 getprop browser_Snapshot [newW]
    -- if pNewW is empty then put 420 into pNewW
    local sMargin = 12
@@ -175,12 +154,6 @@ getprop browser_Snapshot [newW]
    end if
    return somePNG
 end browser_Snapshot
-
-getprop page_Text [titleOrNum]
-   put the page_Array [titleOrNum] of me into pageArray
-   put pageArray_ToText (pageArray) into pageText
-   return pageText
-end page_Text
 
 
 --> Objects
@@ -215,12 +188,6 @@ setprop browser_URL someURL
    send "wikiBrowser_Init" to me in 30 ticks
    return previousURL
 end browser_URL
-
-setprop wikipedia_Page pageTitle
-   put mediawiki_GetPageArrayFromSlug (pageTitle) into pageArray
-   set the ghost_PageArray of me to pageArray
-   return pageArray
-end wikipedia_Page
 
 
 --> Page | Model
@@ -371,10 +338,6 @@ private command _CheckPageArray pageArray, pageSlug, wikiDomain
    --
    put pageArray ["story"] into storyArray
    put item 2 of the extents of storyArray into maxItemNum
-   --
-   if the shiftKey is "down" then
-      display_PageArray pageArray
-   end if
    --
    if maxItemNum < 3 then
       breakpoint
