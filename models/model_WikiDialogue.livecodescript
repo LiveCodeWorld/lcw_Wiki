@@ -11,8 +11,8 @@ version: 0.1
 --> Working on
 -
 function wikiTemplate_Get templateTitle, newPageTitle, curlyData, pForkDomains, pTemplateDomain
-   if pDialogueDomain is empty then put "dialogue.fedwiki.org" into pDialogueDomain
-   if pForkDomains is empty then put "fedwiki.org,server.fedwiki.org" into pForkDomains
+   if pDialogueDomain is empty then put "dialogue.fedwiki.club" into pDialogueDomain
+   if pForkDomains is empty then put "fedwiki.club,server.fedwiki.club" into pForkDomains
    --
    put pageArray_GetTemplate (pDialogueDomain, templateTitle, newPageTitle, pForkDomains) into pageArray
    curly_MergePageArray pageArray, curlyData
@@ -61,7 +61,7 @@ function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain,
    
    # Fetch Dialogue
    if pDialogueDomain is empty then
-      put pageArray_GetTemplate ("dialogue.fedwiki.org", dialogueSlug, pPageTitle) into pageArray
+      put pageArray_GetTemplate ("dialogue.fedwiki.club", dialogueSlug, pPageTitle) into pageArray
    else
       put pageArray_GetTemplate (pDialogueDomain, dialogueSlug, pPageTitle) into pageArray
    end if
@@ -72,15 +72,15 @@ function pageArray_GetDialogue dialogueSlug, pPageTitle, pDialogueDomain,
 end pageArray_GetDialogue
 
 function pageArray_GetTemplate wikiDomain, templateTitle, newTitle, pForkDomains
-   if pForkDomains is empty then put "fedwiki.org,server.fedwiki.org" into pForkDomains
+   if pForkDomains is empty then put "fedwiki.club,server.fedwiki.club" into pForkDomains
    
    put fedwiki_ConstructSlug (templateTitle) into pageSlug
    put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
    --
    if pageArray is not an array then
-      put pageArray_Fetch ("dialogue.fedwiki.org", pageSlug) into pageArray
+      put pageArray_Fetch ("dialogue.fedwiki.club", pageSlug) into pageArray
    end if
-   -- if pageArray is not an array then put pageArray_Fetch ("template.fedwiki.org", pageSlug) into pageArray
+   -- if pageArray is not an array then put pageArray_Fetch ("template.fedwiki.club", pageSlug) into pageArray
    --
    pageArray_Rename pageArray, newTitle
    pageArray_CleanFork pageArray, pForkDomains

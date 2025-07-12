@@ -12,9 +12,45 @@ version: 0.2
 
 --> Working on
 -
+command pageArray_FixStoryItems @pageArray, itemKey, itemValue, pItemtype
+   put pageArray ["story"] into storyArray
+   
+   put item 2 of the extents of storyArray into maxNum
+   put empty into lastMilliseconds
+   repeat with itemNum = maxNum down to 1
+      put storyArray [itemNum] into oldItemArray
+      if pItemtype is not empty then
+         put oldItemArray ["type"] into foundType
+         if foundType is not pItemtype then
+            next repeat
+         end if
+      end if
+      
+      # Edit Item
+      put itemValue into pageArray ["story"][itemNum][itemKey]
+      
+      # Add Edit to Journal
+      put pageArray ["story"][itemNum] into newItemArray
+      pageArray_AddJournalEdit pageArray, newItemArray, lastMilliseconds
+      put the result into lastMilliseconds
+      --
+      add 1 to lastMilliseconds
+   end repeat
+end pageArray_FixStoryItems
+
 
 --> PageArray | Story
 -
+command pageArray_AddJournalEdit @pageArray, itemArray, pMilliseconds
+   -- bit clumsy   
+   put pageArray ["journal"] into journalArray
+   journalArray_Add journalArray, itemArray, "edit", empty, pMilliseconds
+   put the result into newMilliseconds
+   put journalArray into fedwikiPageArray ["journal"]
+   put journalArray into pageArray ["journal"]
+   return newMilliseconds
+end pageArray_AddJournalEdit
+
 command pageArray_AddStory @pageArray, moreStoryItemArray
    if moreStoryItemArray is not an array then return false
    -- add multiple new storyItemArrays from moreStoryItemArray to end of pageArray story

@@ -20,7 +20,7 @@ function wikiSnippet_CurlyGet pageSlug, hiddenArray
 end wikiSnippet_CurlyGet
 
 function wikiSnippet_Get pageSlug
-   put pageArray_Get ("css.fedwiki.org", pageSlug) into pageArray
+   put pageArray_Get ("css.fedwiki.club", pageSlug) into pageArray
    put pageArray_GetFirstHtml (pageArray) into sHTML
    return sHTML
 end wikiSnippet_Get
@@ -88,7 +88,7 @@ end fedwiki_ExternalLink
 command fedwiki_AddExternalLink @someText, pExtLinkURL, pHackHtml
    if char -1 of someText = "." then delete char -1 of someText
    --
-   put md_ConstructExternalLinkLine (pExtLinkURL) into mdLinkLine
+   put markdown_ExternalLinkLine (pExtLinkURL) into mdLinkLine
    --
    if pHackHtml is true then
       -- ...<p>It's only preliminary, folks.</p><img src="http://feeds.feedburner.com/~r/sciencealert-latestnews/~4/Bj-Ay6aCDOg" height="1" width="1" alt=""/>

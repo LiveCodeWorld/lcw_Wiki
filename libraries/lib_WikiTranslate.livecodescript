@@ -284,7 +284,7 @@ function wikiPage_CombinedTranscript sTranscript, pageTitle, pageSlug, wikiDomia
 end wikiPage_CombinedTranscript
 
 function wikiPage_TranscriptStub wikiDomain, pageSlugToCreate, pFromOggSlug, pTranscriptDomain, pFolderPageTitle
-   if pTranscriptDomain is empty then put "transcript.thought.garden" into pTranscriptDomain
+   if pTranscriptDomain is empty then put "transcript.myth.garden" into pTranscriptDomain
    
    if pFromOggSlug is not empty then
       #  Find oggFile

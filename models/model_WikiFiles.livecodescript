@@ -69,7 +69,7 @@ function wikiUrl_Asset relAssetPath, wikiDomain
 end wikiUrl_Asset
 
 command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineUpNum
-   -- http://snack.thought.garden/view/welcome-visitors
+   -- http://snack.myth.garden/view/welcome-visitors
    if pLineUpNum is not a number then put 1 into pLineUpNum
    --
    set the itemdelimiter to slash

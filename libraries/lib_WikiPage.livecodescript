@@ -15,6 +15,51 @@ The functions all return pageArrays, which can then be used to create wiki-pages
 
 --> Working on
 -
+function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
+   set the itemdelimiter to "."
+   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle   
+   put markdown_LinkedBullets (rosterDomains) into curlyArray ["rosterIndex"]
+   
+   put rosterTitle into curlyArray ["rosterTitle"]
+   put wikiDomain into curlyArray ["wikiDomain"]
+   put rosterDomains into curlyArray ["rosterText"]
+   --
+   put curlyArray into curlyData ["all"]
+   curly_MergeAll pageArray, curlyData
+   --
+   put rosterTitle && "Activity" into pageTitle
+   put pageTitle into pageArray ["title"]
+   --
+   return pageArray
+end roster_ConstructActivityPage
+
+command display_OpenVerseSearch searchTerm
+   put wikiPage_SearchOpenVerse (searchTerm) into pArray
+   display_Data pArray, searchTerm, "display_OpenVerseSearch"
+end display_OpenVerseSearch
+
+command display_Fiveconcepts wDomain, pSlug
+   put wikiPage_FiveConcepts (wDomain, pSlug) into sText
+   --
+   put sText
+end display_Fiveconcepts
+
+
+--> WikiPage | OpenAI
+-
+function wikiPage_ConceptGraph wDomain, pSlug, pModel, pProtocol, pPort
+   get openAI_FetchProcessedPageText ("extract-concept-graph", wDomain, pSlug, pModel, pProtocol, pPort)
+   return it
+end wikiPage_ConceptGraph
+
+function wikiPage_FiveConcepts wDomain, pSlug, pModel, pProtocol, pPort
+   get openAI_FetchProcessedPageText ("five-concepts", wDomain, pSlug, pModel, pProtocol, pPort)
+   return it
+end wikiPage_FiveConcepts
+
+
+--> WikiPage | OpenAI
+-
 function wikiPage_ForkDomains wikiDomain, pForkDomains
    put url_GetTLD (wikiDomain) into forkDomains
    put CR & "fedwiki.club" after forkDomains
@@ -25,9 +70,47 @@ function wikiPage_ForkDomains wikiDomain, pForkDomains
    return forkDomains
 end wikiPage_ForkDomains
 
+function wikiPage_FetchNewSite wikiDomain
+   /*
+   put fedwiki_FetchCitePageJSON (wikiDomain) into pageJSON
+   put json_ToArray (pageJSON) into pageArray
+   */
+   
+   put pageArray_Fetch (wikiDomain) into pageArray
+   put pageArray ["story"][1]["text"] into firstPara
+   --
+   put pageArray_Construct (wikiDomain, firstPara) into pageArray
+   --
+   put atopia_ConstructNewSiteButton (wikiDomain) into btnHTML
+   pageArray_AddHtml pageArray, btnHTML
+   --
+   put "Welcome Visitors" into pageTitle
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put firstPara into refText
+   pageArray_AddReference pageArray, pageTitle, wikiDomain, refText, pageSlug
+   --
+   -- put pageArray_FetchText (wikiDomain, pageSlug) into siteText
+   put fedwiki_FetchSiteText (wikiDomain) into siteText
+   --
+   put wordcloud_Fetch (siteText) into someImage
+   put  "[[" & wikiDomain & "]]" into imageCaption
+   put merge ("http://[[wikiDomain]]") into pCaptionLinkURL
+   pageArray_AddEmbeddedImage pageArray, someImage, imageCaption, "jpeg"
+   --
+   pageArray_AddKeyWordSection pageArray, siteText
+   --
+   return pageArray
+end wikiPage_FetchNewSite
+
 
 --> WikiPage | Image
 -
+function wikiPage_SearchOpenVerse searchTerm
+   put openverse_Search (searchTerm) into sData
+   put wikiPage_OpenVerseThumbNails (sData) into pageArray
+   return pageArray
+end wikiPage_SearchOpenVerse
+
 function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
    if pPageTitle is empty then
       put "Openverse Thumbnails" into pPageTitle
@@ -58,34 +141,6 @@ function wikiPage_OpenVerseThumbNails sData, pPageTitle, pFirstPara, pSearchBit
    end repeat
    return pageArray
 end wikiPage_OpenVerseThumbNails
-
-
---> WikiPage | OpenAI
--
-function wikiPage_FiveConcepts wikiDomain, pageSlug, pModel
-   get openAI_FetchProcessedPageText ("five-concepts", wikiDomain, pageSlug, pModel)
-   return it
-end wikiPage_FiveConcepts
-
-function wikiPage_ConceptGraph wikiDomain, pageSlug, pModel
-   get openAI_fetchProcessedPageText ("extract-concept-graph", wikiDomain, pageSlug, pModel)
-   return it
-end wikiPage_ConceptGraph
-
-function wikiPage_Keywords wikiDomain, pageSlug, pModel
-   put prompt_Get ("extract-keywords") into sPrompt
-   put wikiPage_GetText (wikiDomain, pageSlug) into userText
-   
-   # Get ChatGPT reply
-   put openAI_FetchChatData (userText, sPrompt, pModel) into rData
-   if rData is not an array then
-      display_Data rData, "Received Data"
-      return empty
-   else
-      put rData ["choices"][1]["message"]["content"] into sText
-      return sText
-   end if
-end wikiPage_Keywords
 
 
 --> WikiPage | Edit
@@ -230,7 +285,7 @@ function wikiPage_WelcomeVisitors wikiDomain
    put wikiDialogue_Get (pageSlug, tldDomain, "welcome-visitors-dialogue", "Welcome Visitors") into pageArray
    
    # Add Fork
-   put tldDomain &CR& "fedwiki.org" into tldDomains
+   put tldDomain &CR& "fedwiki.club" into tldDomains
    pageArray_AddFork pageArray, tldDomains
    --
    delete variable pageArray ["plugin"]
@@ -337,24 +392,6 @@ function wikiPage_LocalActivity
    pageArray_StripJournal pageArray
    return pageArray
 end wikiPage_LocalActivity
-
-function roster_ConstructActivityPage wikiDomain, rosterDomains, templatePageArray
-   set the itemdelimiter to "."
-   put text_InitialCaps (item 1 of wikiDomain) into rosterTitle   
-   put markdown_LinkedBullets (rosterDomains) into curlyArray ["rosterIndex"]
-   
-   put rosterTitle into curlyArray ["rosterTitle"]
-   put wikiDomain into curlyArray ["wikiDomain"]
-   put rosterDomains into curlyArray ["rosterText"]
-   --
-   put curlyArray into curlyData ["all"]
-   curly_MergeAll pageArray, curlyData
-   --
-   put rosterTitle && "Activity" into pageTitle
-   put pageTitle into pageArray ["title"]
-   --
-   return pageArray
-end roster_ConstructActivityPage
 
 function wikiPage_DomainTitle wikidomain, pWord
    if pWord is empty then put "Sites" into pWord
@@ -776,7 +813,7 @@ function wikiPage_ImageEditor imageURL, imageAttributeArray, pAddMetaData
    html_DeconstructImageArray imageAttributeArray, srcURL, imageCaption, imageWidth, imageHeight, imageClass
    if imageCaption is empty then put "This is a full width image" into imageCaption
    --
-   put pageArray_GetTemplate ("fedwiki.org", "edit-image-template", "Edit Image Tool", "fedwiki.org") into pageArray
+   put pageArray_GetTemplate ("fedwiki.club", "edit-image-template", "Edit Image Tool", "fedwiki.club") into pageArray
    --
    curly_ReplacePageArray pageArray, "ImageURL", imageURL
    --

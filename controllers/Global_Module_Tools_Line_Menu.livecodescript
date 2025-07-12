@@ -18,9 +18,7 @@ local LocalArray
 
 --> Display | Events
 -
-on mDoubleUp_ModuleTools dView, shortFile
-   if the optionKey is "Down" then breakpoint
-   
+on mDoubleUp_ModuleTools dView, shortFile   
    put the title_Text of dView into moduleName
    put the displayed_ModuleFolder of dView into moduleFolder
    put the selected_Path of dView into fPath
@@ -31,6 +29,8 @@ on mDoubleUp_ModuleTools dView, shortFile
    -- 
    set the itemDelimiter to "."
    put item -1 of sFile into fExt
+   
+   if the optionKey is "Down" then breakpoint
    switch
       case shortFile = "README.html"
          display_TiddlyFile sFile
@@ -106,6 +106,26 @@ getprop disabled_View [viewObject]
    return LocalArray ["shortFolder"] is not "Views"
 end disabled_View
 
+getprop disabled_TrashMenu [viewObject]
+   return LocalArray ["shortFolder"] is not "controllers"
+end disabled_TrashMenu
+
+getprop disabled_Behavior [viewObject]
+   return LocalArray ["shortFolder"] is not "Behaviors"
+end disabled_Behavior
+
+getprop disabled_RemoveBehavior [viewObject]
+   return LocalArray ["shortFolder"] is not "Behaviors"
+end disabled_RemoveBehavior
+
+
+--> Private
+-
+private command _Refresh moduleView
+   put _ModuleName (moduleView) into moduleName
+   display_ModuleTools moduleName
+end _Refresh
+
 private function _GetMenu menuBit
    put the long id of me into myController
    put merge ("Global | Module | [[menuBit]] | Line | Menu") into gMenuTitle
@@ -179,30 +199,15 @@ private function _ModuleName moduleView
    end if
 end _ModuleName
 
-private command _Refresh moduleView
-   put _ModuleName (moduleView) into moduleName
-   display_ModuleTools moduleName
-end _Refresh
-
-getprop disabled_TrashMenu [viewObject]
-   return LocalArray ["shortFolder"] is not "controllers"
-end disabled_TrashMenu
-
-getprop disabled_Behavior [viewObject]
-   return LocalArray ["shortFolder"] is not "Behaviors"
-end disabled_Behavior
-
-getprop disabled_RemoveBehavior [viewObject]
-   return LocalArray ["shortFolder"] is not "Behaviors"
-end disabled_RemoveBehavior
-
 
 --> Global | Module | Tools | Line | Menu
 -
-on menu_Refresh tiddlyView
-   put the view_Name of tiddlyView into moduleName
-   display_ModuleTools moduleName
-end menu_Refresh
+on menu_ScriptTools sObject
+   put _SelectedFile() into sFile
+   put the name of stack sFile into sObject
+   --
+   display_ScriptTools sObject
+end menu_ScriptTools
 
 on menu_OpenAssetFolder
    put _AssetFolder() into assetFolder
@@ -210,7 +215,7 @@ on menu_OpenAssetFolder
    code_EditFile assetFolder
 end menu_OpenAssetFolder
 
-on menu_DeleteFile tiddlyView
+on menu_DeleteFile
    put _SelectedFile() into sFile
    put _SelectedLine() into shortFile
    --
@@ -394,6 +399,15 @@ end submenu_View
 on submenu_Behavior
    return _GetMenu ("Behavior")
 end submenu_Behavior
+
+on _____
+end _____
+
+on menu_Refresh tiddlyView
+   put the view_Name of tiddlyView into moduleName
+   display_ModuleTools moduleName
+end menu_Refresh
+
 
 on submenu_Dev
    return menu_DevTitle ("Global | Module | Tools | Line | Menu")

@@ -96,7 +96,7 @@ end atopia_GetNodeVersion
 -
 function atopia_ListDefaultPages
    put atopia_WikiDefaultPagesFolder() into remoteFolder
-   put "ssh root@fedwiki.org ls" && kwote (remoteFolder) into remoteShell
+   put "ssh root@fedwiki.club ls" && kwote (remoteFolder) into remoteShell
    put word 1 to -1 of shell (remoteShell) into shortFiles
    /*
    put atopia_FetchLsArray (remoteFolder) into infoArray
@@ -112,7 +112,7 @@ command atopia_SetDefaultHome wikiDomain
    put fedwiki_FetchHomePageArray (wikiDomain) into pageArray
    --
    pageArray_StripJournal pageArray
-   pageArray_AddFork pageArray, "proto.institute,fedwiki.org,orientation.fedwiki.org"
+   pageArray_AddFork pageArray, "proto.institute,fedwiki.club,orientation.fedwiki.club"
    --
    atopia_StoreDefaultHomePageArray pageArray
    return the result
@@ -122,7 +122,7 @@ end atopia_SetDefaultHome
 --> Atopia | Home | Template | Model
 -
 function atopia_ListHomeTemplatePages
-   put fedwiki_ListSitemapPages ("welcome.fedwiki.org") into homePages
+   put fedwiki_ListSitemapPages ("welcome.fedwiki.club") into homePages
    line_Delete "Welcome Visitors", homePages
    return homePages
 end atopia_ListHomeTemplatePages
@@ -141,9 +141,9 @@ function atopia_ListHomeForkHows wikiDomain
    end if
    --
    if subdomainForks is empty then
-      put "fedwiki.org,orientation.fedwiki.org" into forkEvents
+      put "fedwiki.club,orientation.fedwiki.club" into forkEvents
    else
-      put subdomainForks & ",-,fedwiki.org,orientation.fedwiki.org" into forkEvents
+      put subdomainForks & ",-,fedwiki.club,orientation.fedwiki.club" into forkEvents
    end if
    put ",-,Fedwiki,Top Domain,Clean and useful,-,Clean" after forkEvents
    --
@@ -175,10 +175,10 @@ end atopia_AddHomeForkHow
 command atopia_AddFedwikiForks wikiDomain
    url_DeconstructTopDomain wikiDomain, topDomainName, subDomainBit
    --
-   if topDomainName = "fedwiki.org" then
-      put "fedwiki.org" into forkDomains
+   if topDomainName = "fedwiki.club" then
+      put "fedwiki.club" into forkDomains
    else
-      put topDomainName & comma & "fedwiki.org" into forkDomains
+      put topDomainName & comma & "fedwiki.club" into forkDomains
    end if
    --
    atopia_AddHomeForks wikiDomain, forkDomains
@@ -195,7 +195,7 @@ command atopia_AddUsefulForks wikiDomain
       put CR & subDomains after forkDomains
       replace CR with comma in forkDomains
    else
-      put topDomainName & comma & "fedwiki.org" into forkDomains
+      put topDomainName & comma & "fedwiki.club" into forkDomains
    end if
    --
    atopia_AddHomeForks wikiDomain, forkDomains

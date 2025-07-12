@@ -61,15 +61,15 @@ function openverse_KeyInfo
    return rArray
 end openverse_KeyInfo
 
-function openverse_RestUrl restBit, pQueryBit
+function openverse_RestUrl restBit, pQueryBit, pProtocol
+   if pProtocol is empty then put "https" into pProtocol
    if char 1 of restBit is not slash then put slash before restBit
    text_AddTrailing restBit, slash
-   put "https://api.openverse.engineering" & restBit into restURL
+   put pProtocol &"://api.openverse.engineering" & restBit into restURL
    --
    if pQueryBit is not empty then
       put "?" & pQueryBit after restURL
    end if
-   --
    return restURL
 end openverse_RestUrl
 

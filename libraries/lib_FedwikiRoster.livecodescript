@@ -1,6 +1,7 @@
 ﻿script "lib_FedwikiRoster"
 --> MetaData
 -
+copyright: David Bovill
 license: GPLv3
 name: lib_FedwikiRoster
 type: library
@@ -45,7 +46,7 @@ end roster_Clean
 command atopia_ReturnRoster wikiDomains, pTitle, pRosterTitle
    switch the environment
       case "development"
-         put wikiDomain_List ("thought.garden") into localFolders
+         put wikiDomain_List ("myth.garden") into localFolders
          repeat for each line wikiDomain in localFolders
             put wikiDomain & ":3000" & CR after filteredLocalDomains
          end repeat
@@ -97,7 +98,7 @@ function roster_FetchDomains pSlug
    else
       put tolower (word 1 of pSlug) & "-sites" into pSlug
    end if
-   put roster_Fetch ("roster.fedwiki.org", pSlug) into rosterText
+   put roster_Fetch ("roster.fedwiki.club", pSlug) into rosterText
    put roster_EvaluateText (rosterText) into fedDomains
    return fedDomains
 end roster_FetchDomains
@@ -115,7 +116,7 @@ function roster_FetchLive wikiDomain
    -- live version (uses "tree")
    -- see also "atopia_FetchFolders"
    
-   put merge ("ssh root@fedwiki.org tree /root/.wiki/*[[wikiDomain]]/status -d") into remoteShell
+   put merge ("ssh root@fedwiki.club tree /root/.wiki/*[[wikiDomain]]/status -d") into remoteShell
    put word 1 to -1 of shell (remoteShell) into folderLines
    if folderLines contains "[error opening dir]" then 
       put remoteShell into rosterText

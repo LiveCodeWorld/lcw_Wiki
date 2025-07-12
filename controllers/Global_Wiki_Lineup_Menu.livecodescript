@@ -45,7 +45,7 @@ end menu_LaunchLineup
 
 on menu_LaunchPage displayView, pageSlug
    put the title_Text of displayView into wikiDomain
-   put fedwiki_ConstructUrlFromSlug (wikiDomain, pageSlug) into wikiURL
+   put fedwiki_UrlFromSlug (wikiDomain, pageSlug) into wikiURL
    launch url wikiURL
 end menu_LaunchPage
 

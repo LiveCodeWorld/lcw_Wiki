@@ -124,6 +124,16 @@ end pageArray_Check
 
 --> PageArray
 -
+function pageArray_EditTitle pageArray, pNewTitle
+   if pNewTitle is empty then
+      put pageArray ["Title"] into pageTitle
+      put text_InitialCaps (pageTitle) into pNewTitle
+   end if
+   
+   put pNewTitle into pageArray ["Title"]
+   return pageArray
+end pageArray_EditTitle
+
 function pageArray_FetchText wikiDomain, pSlug, pPort
    put pageArray_Fetch (wikiDomain, pSlug, pPort) into pageArray
    put pageArray_ToText (pageArray) into pageText

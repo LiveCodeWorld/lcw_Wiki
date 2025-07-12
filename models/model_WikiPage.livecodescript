@@ -15,6 +15,24 @@ See also "model_AtopiaWikiPage", "model_AtopiaFiles", "lib_PageArray" and "lib_F
 
 --> Working on
 -
+
+--> WikiPage | Model
+-
+function wikiPage_FetchText wikiDomain, pSlug, pPort, pProtocol
+   put pageArray_Fetch (wikiDomain, pSlug, pPort, pProtocol) into pageArray
+   put pageArray_ToText (pageArray) into sText
+   return sText
+end wikiPage_FetchText
+
+function wikiPage_GetText wikiDomain, pageSlug
+   put pageArray_Get (wikiDomain, pageSlug) into pageArray
+   put pageArray_ToText (pageArray) into sText
+   return sText
+end wikiPage_GetText
+
+
+--> WikiLocal | Media
+-
 function wiki_ListMediaPhotos pListShort
    put wiki_MediaAssetFolder() into rootFolder
    if pListShort is true then
@@ -33,18 +51,3 @@ function wiki_MediaAssetFolder
       return empty
    end if
 end wiki_MediaAssetFolder
-
-
---> WikiPage | Model
--
-function wikiPage_FetchText wikiDomain, pSlug, pPort, pProtocol
-   put pageArray_Fetch (wikiDomain, pSlug, pPort, pProtocol) into pageArray
-   put pageArray_ToText (pageArray) into sText
-   return sText
-end wikiPage_FetchText
-
-function wikiPage_GetText wikiDomain, pageSlug
-   put pageArray_Get (wikiDomain, pageSlug) into pageArray
-   put pageArray_ToText (pageArray) into sText
-   return sText
-end wikiPage_GetText

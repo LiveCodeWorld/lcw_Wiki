@@ -21,152 +21,51 @@ See also:
 */
 
 
---> Working on
+--> HTML
 -
-function json_FromArray pArray, pForceRootType, pPretty
-   -- return jsonExport (pArray) -- not the same and does not work for pgeArray => pageJSON
+function html_ListImageNodes someHTML, pNode
+   if someHTML is empty then return empty
+   if pNode is empty then put "/" into pNode
    
-   repeat for each key tKey in pArray
-      if pArray[tKey] is an array then
-         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
-      end if
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLChildNames (treeID, pNode, CR, "img", true) into childNodes
+   revXMLDeleteTree treeID
+   --
+   repeat for each line childNode in childNodes
+      put pNode & childNode & CR after imageNodes
    end repeat
-   return (mergJSONEncode("pArray",pForceRootType,pPretty))
-end json_FromArray
+   delete char -1 of imageNodes
+   return imageNodes
+end html_ListImageNodes
 
-function json_ToArray pJSON
-   if pJSON is empty then return false
-   put jsonImport (pJSON) into tArray -- not the same
-   return tArray
-   
-   /*
-   try -- as otherwise an error with non-json causes script to exit
-      local tArray,tKeys
-      if pJSON is empty then return empty
-      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
-         put json_ToArray(tArray[tKey]) into tArray[tKey]
-      end repeat
-      return tArray
-   catch e
-      return empty
-   end try
-   */
-end json_ToArray
+function html_GetNodeAttributeArray someNode, someHTML
+   if someHTML is empty then return empty
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLAttributes (treeID, someNode, tab, CR) into attributeTable
+   revXMLDeleteTree treeID
+   --
+   split attributeTable with CR and tab
+   return attributeTable
+end html_GetNodeAttributeArray
 
--- function json_ToArray pJSON
-local tArray,tKeys
-if pJSON is empty then return false
--- put jsonImport (pJSON) into tArray -- not the same
 
-try -- as otherwise an error with non-json causes script to exit
-   if pJSON is empty then return empty
-   repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
-      put json_ToArray(tArray[tKey]) into tArray[tKey]
-   end repeat
-   if tArray is an array then
-      return tArray
-   else
-      return empty
-   end if
-catch e
-   return empty
-end try
-end json_ToArray
-
---> Favicon
+--> Check
 -
-function fedwiki_FetchFavicon fedwikiDomain
-   put fedwiki_FaviconURL (fedwikiDomain) into someUrl
-   put url someUrl into pngData
-   return pngData
-end fedwiki_FetchFavicon
-
-function daemon_WikiDomain
-   put $HTTP_REFERER into clickedFromURL
-   set the itemdelimiter to slash
-   return item 3 of clickedFromURL
-end daemon_WikiDomain
-
-command transport_Echo
-   put "# HTTP_REFERER" & CR after someMarkdown
-   put $HTTP_REFERER & CR after someMarkdown
+function fedwiki_FetchSiteText wDomain, pProtocol, pPort
+   -- see also "azure_FetchAndConvertSitemap()"
+   local docArray
+   put fedwiki_FetchSitemapArray (wDomain, pProtocol, pPort) into sMapArray
    
-   put pageArray_Construct ("Echo", someMarkdown) into pageArray
-   
-   put daemon_WikiDomain() into wikiDomain
-   pageArray_AddMarkdown pageArray, "# WikiDomain"
-   pageArray_AddMarkdown pageArray, wikiDomain
-   
-   transport_ReturnPageArray pageArray
-end transport_Echo
-
-command transport_ReturnPageArray pageArray
-   if pageArray is not an array then
-      put "PageArray is not an array." into someInfo
-      put CR & CR & pageArray after someInfo
-      put pageArray_Construct ("Error with page array!", someInfo) into pageArray
-   end if
-   
-   put json_FromArray (pageArray) into someJSON
-   transport_ReturnJSON someJSON
-end transport_ReturnPageArray
-
-function transport_ConstrutHiddenArray wikiDomain, pageSlug, pageTitle
-   put wikiDomain into tArray ["wikiDomain"]
-   put pageSlug into tArray ["pageSlug"]
-   put pageTitle into tArray ["pageTitle"]
-   return tArray
-end transport_ConstrutHiddenArray
-
-command transport_SetInfo @wikiDomain, @pageSlug, @pageTitle
-   -- Works with forms or transport drop
-   put transport_GetDroppedArray() into tArray
+   if sitemapArray is empty then return empty
    --
-   put tArray ["wikiDomain"] into wikiDomain
-   if wikiDomain is empty then
-      put tArray ["url"] into droppedURL
-      transport_DeconstructDroppedURL droppedURL, pageSlug, wikiDomain
-      put tArray ["pageTitle"] into pageTitle
-   else
-      put tArray ["pageSlug"] into pageSlug
-      put tArray ["pageTitle"] into pageTitle
-   end if
-   
-   if pageSlug is empty then
-      put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   else if pageTitle is empty then
-      put fedwiki_ConstructTitle (pageSlug) into pageTitle
-   end if
-   --
-   return tArray
-end transport_SetInfo
-
-function transport_DroppedUrl
-   put transport_GetDroppedArray() into dropArray
-   put dropArray ["url"] into droppedURL
-   return droppedURL
-   
-   # Old
-   put transport_GetRawJSON() into dropJSON
-   transport_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
-   fedwiki_CheckDroppedURL droppedURL, droppedHTML, droppedText
-   return droppedURL
-end transport_DroppedUrl
-
-function transport_GetDroppedArray
-   put transport_GetRawJSON() into dropJSON
-   put json_ToArray (dropJSON) into dropArray
-   return dropArray
-end transport_GetDroppedArray
-
-function transport_GetRawJSON
-   return $_POST_RAW 
-end transport_GetRawJSON
-
-command transport_SetRawJSON rawJSON
-   put rawJSON into $_POST_RAW
-end transport_SetRawJSON
-
+   repeat for each key indexNum in sMapArray
+      put sMapArray [indexNum] into itemArray
+      fedwiki_DeconstructSitemapArray itemArray, pageTitle, firstPara, pageSlug, mDate      
+      put pageTitle & CR & firstPara & CR & CR after siteText
+   end repeat
+   delete char -2 to -1 of siteText
+   return siteText
+end fedwiki_FetchSiteText
 
 
 --> Image
@@ -202,151 +101,78 @@ function image_FromDataImageUrl dataImageUrl
 end image_FromDataImageUrl
 
 
---> Transport | requestArray
+--> Working on
 -
-/* Won't work with revIgniter 
-We use requestArray param in controller rather than just $_POST_RAW
-Can modify to add to $_POST_RAW server stuff
-*/
+function json_FromArray pArray, pForceRootType, pPretty
+   -- return jsonExport (pArray) -- not the same and does not work for pgeArray => pageJSON
+   
+   repeat for each key tKey in pArray
+      if pArray[tKey] is an array then
+         put "}"&json_FromArray(pArray[tKey]) into pArray[tKey]
+      end if
+   end repeat
+   return (mergJSONEncode("pArray",pForceRootType,pPretty))
+end json_FromArray
 
-function transport_RefererDomain requestArray
-   get transport_ReceivedHeaderValue ("Referer", requestArray)
-   set the itemdelimiter to slash
-   put item 3 of it into refererDomain
-   return refererDomain
-end transport_RefererDomain
-
-function transport_ReceivedHeaderValue sKey, requestArray
-   -- same as "daemon_ReceivedHeader"
-   put transport_ReceivedHeaderArray (requestArray) into receivedHeaderArray
-   put word 1 to -1 of receivedHeaderArray [sKey] into sValue
-   return sValue
-end transport_ReceivedHeaderValue
-
-function transport_ReceivedHeaderArray requestArray
-   put requestArray ["receivedHeaders"] into receivedHeaderArray
-   split receivedHeaderArray with CR and ":"
-   return receivedHeaderArray
-end transport_ReceivedHeaderArray
-
-
---> Transport
--
-function transport_FetchDroppedPageArray
-   put transport_DroppedUrl ($_POST_RAW) into droppedURL
-   put pageArray_Fetch (droppedURL) into pageArray
-   return pageArray
-end transport_FetchDroppedPageArray
-
-command transport_DropTest @droppedURL, @srcImageURL, @qEnd, @isFavicon
-   put transport_GetRawJSON() into dropJSON
-   transport_SetDropped dropJSON, droppedURL, droppedHTML, droppedText
-   put the result into dropArray
-   --
-   if droppedURL is empty then
-      put droppedText into droppedURL
-   end if
-   put transport_DroppedHtmlIsFavicon (droppedHtml) into isFavicon
-   --
-   put url_FileEnding (droppedURL) into qEnd
-   put html_GetNodeAttributeArray ("/meta/img", droppedHTML) into imageAttributeArray
-   put imageAttributeArray ["src"] into srcImageURL
-   if srcImageURL is empty then
+function json_ToArray pJSON
+   if pJSON is empty then return false
+   
+   try
+      put jsonImport (pJSON) into tArray -- not the same
+      return tArray
+   catch e
       return empty
-   else
-      return imageAttributeArray
-   end if
-end transport_DropTest
-
-function transport_DroppedHtmlIsFavicon droppedHtml
-   -- tests depends on different behaviors of browsers
-   if the environment = "server" then
-      rigLoaderLoadLibrary "Useragent"
-      put rigBrowser() into tBrowser
-   else
-      put empty into tBrowser
-   end if
+   end try
    
-   put revXMLCreateTree (droppedHtml, false, true, false) into treeID
-   switch tBrowser
-      case "Firefox"
-         put revXMLAttribute (treeID, "/h1/a/img", "class") into favClass
-         put revXMLAttribute (treeID, "/h1/a/img", "height") into favHeight
-         break
-      case "Safari"
-         put revXMLAttribute (treeID, "/img", "class") into favClass
-         put revXMLAttribute (treeID, "/img", "height") into favHeight
-         break
-         -- case "Chrome"
-      default
-         put revXMLAttribute (treeID, "/meta/img", "class") into favClass
-         put revXMLAttribute (treeID, "/meta/img", "height") into favHeight
-         break
-   end switch
-   revXMLDeleteTree treeID
-   put favClass = "favicon" and favHeight = "32px" into isFavicon
-   --
-   return isFavicon
-end transport_DroppedHtmlIsFavicon
+   /*
+   try -- as otherwise an error with non-json causes script to exit
+      local tArray,tKeys
+      if pJSON is empty then return empty
+      repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+         put json_ToArray(tArray[tKey]) into tArray[tKey]
+      end repeat
+      return tArray
+   catch e
+      return empty
+   end try
+   */
+end json_ToArray
 
-function transport_DroppedValue sKey
-   put transport_GetDroppedArray() into dropArray
-   return dropArray [sKey]
-end transport_DroppedValue
+-- function json_ToArray pJSON
+local tArray,tKeys
+if pJSON is empty then return false
+-- put jsonImport (pJSON) into tArray -- not the same
 
-command transport_SetDroppedDomanAndSlug @wikiDomain, @pageSlug
-   put transport_GetRawJSON() into dropJSON
-   transport_SetDropped rawJSON, droppedURL, droppedHTML, droppedText
-   transport_DeconstructDroppedURL droppedURL, pageSlug, wikiDomain
-end transport_SetDroppedDomanAndSlug
-
-command transport_DeconstructDroppedURL droppedURL, @pageSlug, @wikiDomain
-   set the itemdelimiter to slash
-   put item 3 of droppedURL into wikiDomain
-   put item -1 of droppedURL into pageSlug
-   --
-   set the itemdelimiter to "."
-   put item 1 of pageSlug into pageSlug
-end transport_DeconstructDroppedURL
-
-command transport_ReturnJSON someJSON
-   switch the environment
-      case "server"
-         put new header "Content-Type: application/json; charset=utf-8"
-         put new header "Access-Control-Allow-Origin: *"
-         put new header "Access-Control-Allow-Headers: Accept, Authorization, Content-Type"
-         put new header "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS, LINK, UNLINK"
-         --
-         put someJSON
-         break
-      default -- "development"
-         put daemon_GetSocketID() into socketID
-         put daemon_GetServer() into serverView
-         dispatch "daemon_SendJSON" to serverView with socketID,someJSON
-   end switch
-end transport_ReturnJSON
-
-command transport_SetDropped dropJSON, @droppedURL, @droppedHTML, @droppedText
-   put json_ToArray (dropJSON) into dropArray
-   --
-   put dropArray ["html"] into droppedHTML
-   put dropArray ["text"] into droppedText
-   put dropArray ["url"] into droppedURL
-   return dropArray
-end transport_SetDropped
+try -- as otherwise an error with non-json causes script to exit
+   if pJSON is empty then return empty
+   repeat for each line tKey in mergJSONDecode(pJSON,"tArray")
+      put json_ToArray(tArray[tKey]) into tArray[tKey]
+   end repeat
+   if tArray is an array then
+      return tArray
+   else
+      return empty
+   end if
+catch e
+   return empty
+end try
+end json_ToArray
 
 
---> Move
+--> Fedwiki | Favicon
 -
-function pageArray_EditTitle pageArray, pNewTitle
-   if pNewTitle is empty then
-      put pageArray ["Title"] into pageTitle
-      put text_InitialCaps (pageTitle) into pNewTitle
-   end if
-   
-   put pNewTitle into pageArray ["Title"]
-   return pageArray
-end pageArray_EditTitle
+function fedwiki_FetchFavicon wDomain, pProtocol
+   put fedwiki_FaviconURL (wDomain, pProtocol) into someUrl
+   put url someUrl into pngData
+   return pngData
+end fedwiki_FetchFavicon
+
+
+--> Fedwiki | Dropped
+-
+/*
+These handers are overridden using a a frontscript "behavior_RigLocalOveride" and before handlers for testing purposes
+*/
 
 function fedwiki_GetDroppedImageURL 
    /*
@@ -365,13 +191,6 @@ function fedwiki_GetDroppedImageURL
    -- put attributeArray ["width"] into imageW
    return imageURL
 end fedwiki_GetDroppedImageURL
-
-
---> Fedwiki | Overide
--
-/*
-These handers are overridden using a a frontscript "behavior_RigLocalOveride" and before handlers for testing purposes
-*/
 
 command fedwiki_CheckDroppedURL @droppedURL, droppedHTML, droppedText
    set the itemdelimiter to "."
@@ -442,66 +261,6 @@ command fedwiki_UpdatePageItem itemText, itemID, pageSlug, wikiDomain
 end fedwiki_UpdatePageItem
 
 
---> HTML
--
-function html_ListImageNodes someHTML, pNode
-   if someHTML is empty then return empty
-   if pNode is empty then put "/" into pNode
-   
-   put revXMLCreateTree (someHTML, false, true, false) into treeID
-   put revXMLChildNames (treeID, pNode, CR, "img", true) into childNodes
-   revXMLDeleteTree treeID
-   --
-   repeat for each line childNode in childNodes
-      put pNode & childNode & CR after imageNodes
-   end repeat
-   delete char -1 of imageNodes
-   return imageNodes
-end html_ListImageNodes
-
-function html_GetNodeAttributeArray someNode, someHTML
-   if someHTML is empty then return empty
-   put revXMLCreateTree (someHTML, false, true, false) into treeID
-   put revXMLAttributes (treeID, someNode, tab, CR) into attributeTable
-   revXMLDeleteTree treeID
-   --
-   split attributeTable with CR and tab
-   return attributeTable
-end html_GetNodeAttributeArray
-
-function pageArray_FetchNewSite wikiDomain
-   /*
-   put fedwiki_FetchCitePageJSON (wikiDomain) into pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   */
-   
-   put pageArray_Fetch (wikiDomain) into pageArray
-   put pageArray ["story"][1]["text"] into firstPara
-   --
-   put pageArray_Construct (wikiDomain, firstPara) into pageArray
-   --
-   put atopia_ConstructNewSiteButton (wikiDomain) into btnHTML
-   pageArray_AddHtml pageArray, btnHTML
-   --
-   put "Welcome Visitors" into pageTitle
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put firstPara into refText
-   pageArray_AddReference pageArray, pageTitle, wikiDomain, refText, pageSlug
-   --
-   -- put pageArray_FetchText (wikiDomain, pageSlug) into siteText
-   put fedwiki_FetchSiteText (wikiDomain) into siteText
-   --
-   put wordcloud_Fetch (siteText) into someImage
-   put  "[[" & wikiDomain & "]]" into imageCaption
-   put merge ("http://[[wikiDomain]]") into pCaptionLinkURL
-   pageArray_AddEmbeddedImage pageArray, someImage, imageCaption, "jpeg"
-   --
-   pageArray_AddMonkeyKeyWordSection pageArray, siteText
-   --
-   return pageArray
-end pageArray_FetchNewSite
-
-
 --> Fedwiki | JSON | Plugin
 -
 function fedwiki_FetchPluginData pageSlug, wikiDomain
@@ -558,28 +317,10 @@ end fedwiki_PutPluginJSON
 
 function fedwiki_ConstructPluginJsonUrl pageSlug, wikiDomain
    -- see atopia_PluginJsonPath()
-   -- http://admin.fedwiki.org/plugin/json/atopia-fedwiki-sites
+   -- http://admin.fedwiki.club/plugin/json/atopia-fedwiki-sites
    put "http://" & wikiDomain & "/plugin/json/" & pageSlug into restURL
    return restURL
 end fedwiki_ConstructPluginJsonUrl
-
-
---> Fedwiki | Links
--
-function fedwiki_FetchSiteText wikiDomain
-   -- see also "azure_FetchAndConvertSitemap()"
-   local docArray
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   if sitemapArray is empty then return empty
-   --
-   repeat for each key indexNum in sitemapArray
-      put sitemapArray [indexNum] into itemArray
-      fedwiki_DeconstructSitemapArray itemArray, pageTitle, firstPara, pageSlug, mDate      
-      put pageTitle & CR & firstPara & CR & CR after siteText
-   end repeat
-   delete char -2 to -1 of siteText
-   return siteText
-end fedwiki_FetchSiteText
 
 
 --> Fedwiki | Post
@@ -615,9 +356,10 @@ end fedwiki_EncodePost
 
 --> Fedwiki | Sitemap
 -
-function fedwiki_ListSitemapPages wikiDomain
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   put fedwiki_ConstructPageTitleArray (sitemapArray) into pageTitleArray
+function fedwiki_ListSitemapPages wDomain, pProtocol, pPort
+   put fedwiki_FetchSitemapArray (wDomain, pProtocol, pPort) into sMapArray
+   --
+   put fedwiki_ConstructPageTitleArray (sMapArray) into pageTitleArray
    put the keys of pageTitleArray into pageTitles
    sort pageTitles
    return pageTitles
@@ -649,9 +391,9 @@ function fedwiki_SitesWithPage wikiDomains, pTitle
    return filteredDomains
 end fedwiki_SitesWithPage
 
-function fedwiki_SiteContainsSlug wikiDomain, pageSlug
-   put fedwiki_FetchSitemapArray (wikiDomain) into sitemapArray
-   put fedwiki_SearchSitemapArray (pageSlug, sitemapArray) into indexNum
+function fedwiki_SiteContainsSlug wDomain, pSlug, pProtocol, pPort
+   put fedwiki_FetchSitemapArray (wDomain, pProtocol, pPort) into sMapArray
+   put fedwiki_SearchSitemapArray (pSlug, sMapArray) into indexNum
    return indexNum is not 0 
 end fedwiki_SiteContainsSlug
 
@@ -662,22 +404,6 @@ function fedwiki_ConstructFlagDropJson lineUpURL
    replace "'" with quote in it
    return it
 end fedwiki_ConstructFlagDropJson
-
-
---> Fedwiki | Return
--
-command transport_ExitAndReturnError errorText, pErrorTitle
-   if pErrorTitle is empty then put "Error" into pErrorTitle
-   put pageArray_Construct (pErrorTitle, errorText) into pageArray
-   transport_ReturnPageArray pageArray
-   exit to top
-end transport_ExitAndReturnError
-
-command transport_ReturnError someValue, errorText
-   if someValue is empty then
-      transport_ExitAndReturnError errorText, pErrorTitle
-   end if
-end transport_ReturnError
 
 
 --> Fedwiki | Transport | Helpers
@@ -776,9 +502,9 @@ function fedwiki_PageExists wikiDomain, pSlug
    return someBoolean
 end fedwiki_PageExists
 
-function fedwiki_WikiExists someDomain
-   put fedwiki_FetchSitemapArray (someDomain) into sitemapArray
-   put sitemapArray is an array into someBoolean
+function fedwiki_WikiExists wDomain, pProtocol, pPort
+   put fedwiki_FetchSitemapArray (wDomain, pProtocol, pPort) into sMapArray
+   put sMapArray is an array into someBoolean
    return someBoolean
 end fedwiki_WikiExists
 
@@ -799,17 +525,6 @@ end fedwiki_IsJsonUrl
 
 --> Fedwiki | Tests
 -
-function transport_IsFaviconDrop dropJSON
-   -- dropJSON is not longer optional
-   if dropJSON is empty then return false
-   put transport_GetDroppedArray (dropJSON) into dropArray
-   put dropArray ["html"] into droppedHtml
-   --
-   put transport_DroppedHtmlIsFavicon (droppedHtml) into isFavicon
-   --
-   return isFavicon
-end transport_IsFaviconDrop
-
 function fedwiki_IsHtmlUrl wikiPageURL, @errorMsg
    -- http://tools.progressivedemocracy.cc/collaborative-bookmarking.html
    set the itemdelimiter to slash

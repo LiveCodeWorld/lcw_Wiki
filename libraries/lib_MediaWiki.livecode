@@ -93,7 +93,7 @@ end mediawiki_FetchJSON
 
 command mediawiki_SetUserAgent
    -- https://www.mediawiki.org/wiki/API:Main_page#Identifying_your_client
-   put "User-Agent: WikiApp/0.1 (http://fedwiki.org; david.bovill@gmail.com) MacOS Livecode/9.03" into userHeader
+   put "User-Agent: WikiApp/0.1 (http://fedwiki.club; david.bovill@gmail.com) MacOS Livecode/9.03" into userHeader
    set the httpheaders to userHeader
 end mediawiki_SetUserAgent
 

@@ -5,7 +5,7 @@ copyright: David Bovill
 license: GPLv3
 name: behavior_WikiJavascript
 type: behavior
-version: 0.2
+version: 0.3
 
 /*Here you make make notes as a basic form of help for this view.
 Full help text can be found on the linked wiki for the view.*/
@@ -17,6 +17,13 @@ local LocalArray
 
 --> Working on
 -
+getprop page_SlugTitle [pageSlug]
+   -- Construct the JavaScript code to find the <span> element and get its text content
+   put "liveCode.javascript_Result(document.querySelector('#" & pageSlug & " .header h1 span').innerText.trim());" into sJavascript
+   put _GetJavascriptResult(sJavascript) into sTitle
+   return sTitle
+end page_SlugTitle
+
 setprop flag_Handler flagHandler
    return empty -- causes problems
    
@@ -873,15 +880,6 @@ function _PageJsonConstructFile wikiDomain, pSlug
    put wikiDomainFolder & pSlug into pageJsonFile
    return pageJsonFile
 end _PageJsonConstructFile
-
-private function _GetJavascriptResult sJavascript
-   set the javascript_AddHandlers of me to "javascript_Result"
-   --
-   do sJavascript in me
-   --
-   put LocalArray ["sResult"] into sResult
-   return sResult
-end _GetJavascriptResult
 
 function wikijs_GetLinupUrls
    put "var links = document.querySelectorAll('a.show-page-source');" into sJavascript

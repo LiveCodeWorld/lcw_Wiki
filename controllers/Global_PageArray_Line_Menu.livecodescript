@@ -42,9 +42,9 @@ end disabled_Test
 
 --> Global | PageArray | Line | Menu
 -
-on menu_CheckDate
-   put displayView & CR & abc
-end menu_CheckDate
+on menu_DisplayLine dView
+   put the selected_Value of dView
+end menu_DisplayLine
 
 on _
 end _
@@ -52,14 +52,3 @@ end _
 on submenu_Dev
    return "Dev | Menu"
 end submenu_Dev
-
-
---> Dev | Menu
--
-on menu_Experiment displayView
-   put displayView
-end menu_Experiment
-
-
---> Deps
--

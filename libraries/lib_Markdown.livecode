@@ -7,22 +7,25 @@ type: library
 version: 0.1
 
 
---> MetaData
+--> Working on
 -
-function markdownVersion
-   return shell("markdown --shortversion")
-end markdownVersion
 
-function markdownAvailable
-   get markdownVersion()
+--> Shell | MarkDown
+-
+function shell_MarkdownVersion
+   return shell ("markdown --shortversion")
+end shell_MarkdownVersion
+
+function shell_MarkdownAvailable
+   get shell_MarkdownVersion()
    if it is a number then
       return true
    else
       return false
    end if
-end markdownAvailable
+end shell_MarkdownAvailable
 
-function markdown pText
+function shell_Markdown pText
    put tempname() into tTextFile
    put tempname() into tOutFile
    put pText into url ("binfile:" & tTextFile)
@@ -31,11 +34,50 @@ function markdown pText
    put url ("binfile:" & tOutFile) into tOut
    delete file tOutFile
    return tOut
-end markdown
+end shell_Markdown
 
 
 --> Markdown
 -
+function markdown_FromPageArray pageArray
+   put pageArray ["story"] into storyArray
+   repeat with itemNum = 1 to item 2 of the extents of storyArray
+      put storyArray [itemNum]["text"] into itemText
+      
+      switch storyArray [itemNum]["type"]
+         case "text"
+            put itemText & CR&CR after mdText
+            break
+         case "html"
+            put itemText & CR&CR after mdText
+            break
+         case "markdown"
+            put itemText & CR&CR after mdText
+            break
+      end switch
+   end repeat
+   return word 1 to -1 of mdText
+end markdown_FromPageArray
+
+function markdown_KeyWordLinkSection kWords, pListDelim, pExcludeItems
+   if kWords is empty then return empty
+   if pListDelim is empty then put ", " into pListDelim
+   if pExcludeItems is empty then put "Welcome Visitors" into pExcludeItems
+   replace comma with CR in kWords
+   --
+   repeat for each line kWord in kWords
+      if kWord is among the items of pExcludeItems then next repeat
+      --
+      put word 1 to -1 of kWord into kWord
+      put text_InitialCaps (kWord) into kWord
+      put "[[" & kWord & "]]" & pListDelim after kWordSection
+   end repeat
+   --
+   put the number of chars of of pListDelim * -1 into startCharNum
+   delete char startCharNum to -1 of kWordSection
+   return kWordSection
+end markdown_KeyWordLinkSection
+
 function markdown_Construct mdTitles, pFirstPara
    if pFirstPara is empty then
       put "On this [[page|Page]] are some [[Tools]] for this [[Guide]]." into pFirstPara
@@ -99,7 +141,7 @@ end markdown_ToText
 
 function markdown_LinkedBullets sIndex
    repeat for each line sLine in sIndex
-      put "-" && md_Link(sLine) & CR after sMarkdown
+      put "-" && markdown_Link(sLine) & CR after sMarkdown
    end repeat
    delete char -1 of sMarkdown
    return sMarkdown
@@ -122,15 +164,15 @@ function markdown_ExternalWikiBullets someTitle, externalURL
    return someMarkdown
 end markdown_ExternalWikiBullets
 
-function md_Link someText
+function markdown_Link someText
    put "[[" & word 1 to -1 of someText & "]]" into mdLinkText
    return mdLinkText
-end md_Link
+end markdown_Link
 
-command md_AddLinkLine @someMarkdown, linkURL, pLinkKey, pLinkLabel
+command markdown_AddLinkLine @someMarkdown, linkURL, pLinkKey, pLinkLabel
    put word 1 to -1 of of item 1 of linkURL into linkURL
    if text_IsNotEmpty (linkURL) then
-      put md_ConstructExternalLinkLine (linkURL, pLinkLabel, pLinkKey) into mdLinkLine
+      put markdown_ExternalLinkLine (linkURL, pLinkLabel, pLinkKey) into mdLinkLine
       
       put word 1 to -1 of someMarkdown into someMarkdown
       if someMarkdown is empty then
@@ -142,9 +184,9 @@ command md_AddLinkLine @someMarkdown, linkURL, pLinkKey, pLinkLabel
    else
       return false
    end if
-end md_AddLinkLine
+end markdown_AddLinkLine
 
-function md_ConstructExternalLinkLine linkURL, pLinkLabel, pLinkKey
+function markdown_ExternalLinkLine linkURL, pLinkLabel, pLinkKey
    switch
       case linkURL is empty 
       case linkURL is "null" 
@@ -158,26 +200,7 @@ function md_ConstructExternalLinkLine linkURL, pLinkLabel, pLinkKey
          put externalLink after mdLinkLine
          return mdLinkLine
    end switch
-end md_ConstructExternalLinkLine
-
-function md_ConstructKeyWordLinkSection kWords, pListDelim, pExcludeItems
-   if kWords is empty then return empty
-   if pListDelim is empty then put ", " into pListDelim
-   if pExcludeItems is empty then put "Welcome Visitors" into pExcludeItems
-   replace comma with CR in kWords
-   --
-   repeat for each line kWord in kWords
-      if kWord is among the items of pExcludeItems then next repeat
-      --
-      put word 1 to -1 of kWord into kWord
-      put text_InitialCaps (kWord) into kWord
-      put "[[" & kWord & "]]" & pListDelim after kWordSection
-   end repeat
-   --
-   put the number of chars of of pListDelim * -1 into startCharNum
-   delete char startCharNum to -1 of kWordSection
-   return kWordSection
-end md_ConstructKeyWordLinkSection
+end markdown_ExternalLinkLine
 
 
 --> Private

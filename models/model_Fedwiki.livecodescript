@@ -109,14 +109,14 @@ end atopia_ToggleIsInSites
 -
 function federation_ModelDocUrl modelName
    put fedwiki_ConstructSlug (modelName) into pageSlug
-   put "http://roster.fedwiki.org/view/welcome-visitors/view/" & pageSlug into launchURL
+   put "http://roster.fedwiki.club/view/welcome-visitors/view/" & pageSlug into launchURL
    return launchURL
 end federation_ModelDocUrl
 
 function federation_ServerDocUrl serverName
    put serverName && "Server" into pageTitle
    put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   put "http://server.fedwiki.org/view/welcome-visitors/view/" & pageSlug into launchURL
+   put "http://server.fedwiki.club/view/welcome-visitors/view/" & pageSlug into launchURL
    return launchURL
 end federation_ServerDocUrl
 
@@ -172,11 +172,11 @@ end fedwiki_DeconstructURL
 
 function fedwiki_ConstructURL wikiDomain, pTitle, pProtocol
    put fedwiki_ConstructSlug (pTitle) into pSlug
-   put fedwiki_ConstructUrlFromSlug (wikiDomain, pSlug, pProtocol) into someURL
+   put fedwiki_UrlFromSlug (wikiDomain, pSlug, pProtocol) into someURL
    return someURL
 end fedwiki_ConstructURL
 
-function fedwiki_ConstructUrlFromSlug wikiDomain, pSlug, pProtocol
+function fedwiki_UrlFromSlug wikiDomain, pSlug, pProtocol
    if pProtocol is empty then put "http" into pProtocol
    
    put pProtocol & "://" & wikiDomain & slash into someURL
@@ -186,7 +186,7 @@ function fedwiki_ConstructUrlFromSlug wikiDomain, pSlug, pProtocol
       put "view/welcome-visitors/view/" & pSlug after someURL
    end if
    return someURL
-end fedwiki_ConstructUrlFromSlug
+end fedwiki_UrlFromSlug
 
 function fedwiki_ConstructHtmlUrl wikiDomain, pSlug, pProtocol
    if pProtocol is empty then put "http" into pProtocol

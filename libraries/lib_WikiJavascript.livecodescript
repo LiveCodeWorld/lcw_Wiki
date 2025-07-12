@@ -170,7 +170,7 @@ end wikijs_SetPageScale
 
 function wiki_SoloLinkJavascript jsFunction
    -- no class (should be class="show-page-html")
-   -- <a href="/welcome-visitors.html" date-slug="welcome-visitors" target="fedwiki.org">fedwiki.org </a>
+   -- <a href="/welcome-visitors.html" date-slug="welcome-visitors" target="fedwiki.club">fedwiki.club </a>
    breakpoint
 end wiki_SoloLinkJavascript
 

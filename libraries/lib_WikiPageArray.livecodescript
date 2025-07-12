@@ -166,7 +166,7 @@ end mediawiki_FetchSearchJson
 -
 function mediawiki_FetchDialoguePageArray pageSlug
    put pageSlug into curlyData ["all"]["New Page Title"]
-   put pageArray_Fetch ("future.fedwiki.org", "future-dialogue-template") into pageArray
+   put pageArray_Fetch ("future.fedwiki.club", "future-dialogue-template") into pageArray
    curly_MergePageArray pageArray, curlyData
    return pageArray
 end mediawiki_FetchDialoguePageArray

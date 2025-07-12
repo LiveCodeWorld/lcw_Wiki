@@ -27,7 +27,7 @@ end activity_IsKeyWord
 -
 function atopia_FetchRoster
    -- fetch the one big domain index roster then filter
-   put roster_Fetch ("server.fedwiki.org", "atopia-domain-index", "741a0fcdd3ff76b2") into rosterText
+   put roster_Fetch ("server.fedwiki.club", "atopia-domain-index", "741a0fcdd3ff76b2") into rosterText
    return word 1 to -1 of rosterText
 end atopia_FetchRoster
 
@@ -67,8 +67,8 @@ function roster_FetchPageArray wikiDomain, rosterDomains, pPageTitle, pForkDomai
 end roster_FetchPageArray
 
 function roster_FetchTemplate pWikiDomain, pPageTitle, pForkDomains
-   if pForkDomains is empty then put "fedwiki.org,roster.fedwiki.org,sites.fedwiki.org" into pForkDomains
-   put "roster.fedwiki.org" into defaultDomain
+   if pForkDomains is empty then put "fedwiki.club,roster.fedwiki.club,sites.fedwiki.club" into pForkDomains
+   put "roster.fedwiki.club" into defaultDomain
    --
    switch
       case (pPageTitle is empty) AND (pWikiDomain is empty)
@@ -590,7 +590,7 @@ end _FetchRosterReferences
 private command _FetchRosterRoster rosterLines, @domainArray
    set the itemdelimiter to slash
    repeat for each line rosterLine in rosterLines
-      -- ROSTER roster.fedwiki.org/mega-sites
+      -- ROSTER roster.fedwiki.club/mega-sites
       delete word 1 of rosterLine
       put item 1 of rosterLine into rosterDomain
       put item 2 of rosterLine into rosterSlug

@@ -11,6 +11,55 @@ version: 0.1
 Full help text should be provided on the linked wiki.*/
 
 
+--> Working on
+-
+command display_SystemHttpResponse displayedUrl, someRoute, socketID
+   -- unecessary browser tab as we have to window.open
+   put "display_SystemDialogue" && displayedUrl & CR&CR & someRoute into tData
+   httpdResponse socketID, 200, tData
+end display_SystemHttpResponse
+
+command display_SystemDialogue displayedUrl, someRoute
+   put _GetSystemDialogueName() into sName
+   put view_GetTemplateObject (sName) into dView
+   --
+   if exists (dView) is false then
+      put _GetSystemDialogueName() into sName
+      return "Error, cannot locate stack:" && kwote (sName)
+   end if
+   --
+   switch someRoute
+      case "/imagine"
+         set the add_Url of dView to displayedUrl
+         break
+      default
+         set the displayed_index of dView to someRoute
+   end switch
+   
+   set the systemwindow of stack sName to true
+   set the visible of stack sName to true -- need to go?
+   --
+   return dView
+end display_SystemDialogue
+
+function _GetSystemDialogueName
+   constant sName = "View|System|Drop"
+   return sName
+end _GetSystemDialogueName
+
+function _GetSystemDialogueView
+   put _GetSystemDialogueName() into sName
+   put view_GetTemplateObject (sName) into dView
+   return dView
+   
+   if exists (stack stack sName) is false then
+      return empty
+   end if
+   put the long id of group 1 of cd 1 of stack sName into dView
+   return dView
+end _GetSystemDialogueView
+
+
 --> Variables
 -
 local LocalArray
@@ -176,8 +225,16 @@ end _TestPost
 command _DoGet rArray, socketID
    -- "resource": The request resource path e.g /images/foo.gif
    put rArray ["resource"] into someRoute
+   put rArray ["parameters"]["url"] into displayedUrl
+   put _ServerPort() into sPort
    
    switch
+      case sPort = 4242 AND someRoute = "/imagine"
+         put "Process bookmark" && someRoute && displayedUrl into tData
+         display_SystemDialogue displayedUrl, someRoute
+         --
+         display_SystemHttpResponse displayedUrl, someRoute, socketID
+         break
       case someRoute = "/lcw_BrowserUrl"
          get_LcwBookmarklet someRoute, socketID, requestArray -- in behavior_DaemonMiddleware
          break
@@ -273,8 +330,8 @@ command daemon_SendOptions routeData, socketID
    Accept-Encoding: gzip, deflate
    Access-Control-Request-Method: POST
    Access-Control-Request-Headers: content-type
-   Referer: http://thought.garden/
-   Origin: http://thought.garden
+   Referer: http://myth.garden/
+   Origin: http://myth.garden
    Connection: keep-alive
    
    HTTP/1.1 200 OK
@@ -349,12 +406,13 @@ end pc_OpenversePageArray
 private function _ServerPort
    put LocalArray ["sPort"] into sPort
    if sPort is empty then
-      put 9090 into LocalArray ["sPort"]
+      put 4242 into LocalArray ["sPort"]
       return LocalArray ["sPort"]
    else
       return sPort
    end if
 end _ServerPort
+
 
 --> Global | Wiki | Server | Simple | Menu
 -
@@ -392,6 +450,23 @@ getprop checked_WikiServerSimple
    return _ServerIsRunning()
 end checked_WikiServerSimple
 
+on menu_SimplePort wsView, sPort
+   put sPort into LocalArray ["sPort"]
+end menu_SimplePort
+
+getprop simpleport_Param [wsView]
+   put LocalArray ["sPort"] into sPort
+   if sPort is empty then
+      return 4242
+   else
+      return sPort
+   end if
+end simpleport_Param
+
+getprop simpleport_Params
+   return "3000,4242,8080,9090,-,80"
+end simpleport_Params
+
 on menu_CloseAllSockets
    socket_CloseOpen
    resetall
@@ -405,12 +480,12 @@ private on _
 end _
 
 on menu_TestPost
-   post "hello" to url ("http://rest.livecode.world")
+   post "hello" to url ("http://rest.livecode.wiki")
    put it
 end menu_TestPost
 
 on menu_TestGet
-   put url ("http://rest.livecode.world")
+   put url ("http://rest.livecode.wiki")
 end menu_TestGet
 
 on menu_TestJson
@@ -421,26 +496,6 @@ end menu_TestJson
 
 private on __
 end __
-
-on menu_NodePort wsView, sPort
-   -- wikiServer_SetNodePort sPort
-   put sPort into LocalArray ["sPort"]
-end menu_NodePort
-
-getprop nodeport_Param [wsView]
-   -- put wikiServer_GetNodePort() into sPort
-   put LocalArray ["sPort"] into sPort
-   
-   if sPort is empty then
-      return 80
-   else
-      return sPort
-   end if
-end nodeport_Param
-
-getprop nodeport_Params
-   return "3000,8080,9090,-,80"
-end nodeport_Params
 
 on menu_EditEchoController
    edit the script of stack "echo.lc"

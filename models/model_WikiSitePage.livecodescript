@@ -15,7 +15,7 @@ version: 0.2
 -
 command display_LaunchAtopiaSitePage wikiDomain
    put _FederationSiteWord (wikiDomain) into siteWord
-   fedwiki_Launch "sites.fedwiki.org", siteWord
+   fedwiki_Launch "sites.fedwiki.club", siteWord
    return the result
 end display_LaunchAtopiaSitePage
 
@@ -35,7 +35,7 @@ function atopia_SiteIsIndexed wikiDomain
 end atopia_SiteIsIndexed
 
 function atopia_ListSitePagesToCreate
-   put fedwiki_ListSitemapPages ("sites.fedwiki.org") into federationSites
+   put fedwiki_ListSitemapPages ("sites.fedwiki.club") into federationSites
    line_Delete "Welcome Visitors", federationSites
    --
    put atopia_FetchRosterDomains() into atopiaDomains
@@ -45,7 +45,7 @@ function atopia_ListSitePagesToCreate
 end atopia_ListSitePagesToCreate
 
 function atopia_ListFederationSitePages
-   put fedwiki_ListSitemapPages ("sites.fedwiki.org") into fedDomains
+   put fedwiki_ListSitemapPages ("sites.fedwiki.club") into fedDomains
    line_Delete "Welcome Visitors", fedDomains
    url_SortDomainIndex fedDomains
    return fedDomains
@@ -68,7 +68,7 @@ command atopia_CreateFederationSitePages atopiaDomains, pIndexView
 end atopia_CreateFederationSitePages
 
 command atopia_CreateFederationSitePage wikiDomain, pDontDeleteSiteMap
-   local sitesDomain = "sites.fedwiki.org"
+   local sitesDomain = "sites.fedwiki.club"
    --
    put fedwiki_FetchCitePageJSON (wikiDomain) into pageJSON
    if pageJSON is empty then return false
@@ -80,12 +80,12 @@ command atopia_CreateFederationSitePage wikiDomain, pDontDeleteSiteMap
 end atopia_CreateFederationSitePage
 
 command atopia_DeleteFederationSitesMap
-   atopia_DeleteWikiSitemap "sites.fedwiki.org"
+   atopia_DeleteWikiSitemap "sites.fedwiki.club"
 end atopia_DeleteFederationSitesMap
 
 command atopia_DeleteFederationSitePage wikiDomain, pRecreateSiteMap
    put _FederationSiteWord (wikiDomain) into pageSlug
-   pageJson_Delete "sites.fedwiki.org", pageSlug
+   pageJson_Delete "sites.fedwiki.club", pageSlug
    put the result into deletionResult
    if pRecreateSiteMap then 
       atopia_DeleteFederationSitesMap

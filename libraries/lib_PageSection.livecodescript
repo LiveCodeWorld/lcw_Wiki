@@ -355,7 +355,7 @@ command pageArray_EditSectionTitleText @pageArray, sectionTitle, someMarkDown
    pageArray_ReplaceSectionMarkdown pageArray, sectionTitle, someMarkDown
    --
    pageArray_StripJournal pageArray
-   pageArray_AddFork pageArray, "fedwiki.org,roster.fedwiki.org,sites.fedwiki.org"
+   pageArray_AddFork pageArray, "fedwiki.club,roster.fedwiki.club,sites.fedwiki.club"
    return sectionTitleID
 end pageArray_EditSectionTitleText
 

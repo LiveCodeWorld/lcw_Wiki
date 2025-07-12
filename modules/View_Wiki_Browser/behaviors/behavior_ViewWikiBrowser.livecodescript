@@ -100,39 +100,6 @@ getprop siteMap_Array
    return wsmArray
 end siteMap_Array
 
-getprop wiki_Domain [pTitle]
-   if pTitle is empty then
-      return _WikiDomain()
-   else
-      return the lineUp_Domain [pTitle] of me
-   end if
-end wiki_Domain
-
-setprop wiki_Domain wikiDomain
-   put "http://" & wikiDomain into wikiURL
-   set the browser_URL of me to wikiURL
-   set the stack_Label of me to wikiDomain
-end wiki_Domain
-
-setprop wiki_URL lineupURL
-   set the itemdelimiter to slash
-   switch
-      case item 1 of domainOrURL = "https:"
-      case item 1 of domainOrURL = "http:"
-         -- http://arodic.github.io/p/jellyfish/
-         put domainOrURL into someURL
-         set the itemdelimiter to slash
-         put item 3 of domainOrURL into wikiDomain
-         break
-      default
-         put domainOrURL into wikiDomain
-         put wiki_ConstructUrl (wikiDomain) into someURL
-   end switch
-   --
-   set the browser_URL of me to someURL
-   set the stack_Label of me to wikiDomain
-end wiki_URL
-
 getprop browser_Snapshot [newW]
    -- if pNewW is empty then put 420 into pNewW
    local sMargin = 12
@@ -156,23 +123,27 @@ getprop browser_Snapshot [newW]
 end browser_Snapshot
 
 
---> Objects
--
-getprop wikiBrowser_View
-   return the long id of me
-end wikiBrowser_View
-
-getprop browser_View
-   return the long id of me
-end browser_View
-
-getprop view_Object
-   return the long id of me
-end view_Object
-
-
 --> Wiki | URL
 -
+setprop wiki_URL lineupURL
+   set the itemdelimiter to slash
+   switch
+      case item 1 of domainOrURL = "https:"
+      case item 1 of domainOrURL = "http:"
+         -- http://arodic.github.io/p/jellyfish/
+         put domainOrURL into someURL
+         set the itemdelimiter to slash
+         put item 3 of domainOrURL into wikiDomain
+         break
+      default
+         put domainOrURL into wikiDomain
+         put wiki_ConstructUrl (wikiDomain) into someURL
+   end switch
+   --
+   set the browser_URL of me to someURL
+   set the stack_Label of me to wikiDomain
+end wiki_URL
+
 getprop browser_URL
    put the url of me into someURL
    return someURL
@@ -188,6 +159,35 @@ setprop browser_URL someURL
    send "wikiBrowser_Init" to me in 30 ticks
    return previousURL
 end browser_URL
+
+getprop wiki_Domain [pTitle]
+   if pTitle is empty then
+      return _WikiDomain()
+   else
+      return the lineUp_Domain [pTitle] of me
+   end if
+end wiki_Domain
+
+setprop wiki_Domain wikiDomain
+   put "http://" & wikiDomain into wikiURL
+   set the browser_URL of me to wikiURL
+   set the stack_Label of me to wikiDomain
+end wiki_Domain
+
+
+--> Objects
+-
+getprop wikiBrowser_View
+   return the long id of me
+end wikiBrowser_View
+
+getprop browser_View
+   return the long id of me
+end browser_View
+
+getprop view_Object
+   return the long id of me
+end view_Object
 
 
 --> Page | Model

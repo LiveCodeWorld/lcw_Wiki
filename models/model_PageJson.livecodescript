@@ -49,7 +49,7 @@ function pageJson_Fetch wikiDomain, pSlug, pPort, pDecode, pProtocol
 end pageJson_Fetch
 
 function pageJson_ConstructUrl wikiDomain, pSlug, pPort, pProtocol
-   -- http://film.thought.garden:3000/welcome-visitors.json
+   -- http://film.myth.garden:3000/welcome-visitors.json
    
    if pProtocol is empty then put "http" into pProtocol
    if pSlug is empty then put "welcome-visitors" into pSlug

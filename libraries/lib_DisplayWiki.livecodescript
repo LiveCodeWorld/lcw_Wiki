@@ -1,6 +1,7 @@
 ﻿script "lib_DisplayWiki"
 --> MetaData
 -
+copyright: David Bovill
 license: GPLv3
 name: lib_DisplayWiki
 type: library
@@ -37,6 +38,39 @@ end tiddlyHandler_PageArray
 
 --> Working on
 -
+command display_H2g2PageArray sURL
+   if sURL is empty then
+      put "https://h2g2.com/entry/A88070231" into sURL
+   end if
+   put h2g2_FetchArticleArray (sURL) into pArray
+   --
+   display_PageArray pArray
+   return the result
+end display_H2g2PageArray
+
+command display_ScriptDependencyData sObject
+   put the script_HkeyArray of sObject into hKeyArray
+   put dep_ConstructData (hkeyArray, sObject) into depData
+   --
+   put the short name of sObject into sTitle
+   display_Tool depData, sTitle, "Dependency Data", "lcw_Script"
+   put the result into dView
+   --
+   set the displayed_Object of dView to sObject
+   return dView
+end display_ScriptDependencyData
+
+command launch_TextEditor sFile
+   put text_EditorApplicationPath() into applicationPath
+   launch sFile with applicationPath
+end launch_TextEditor
+
+function text_EditorApplicationPath
+   put "/Applications/Zed.app" into applicationPath
+   -- put "/Applications/Visual Studio Code.app" into applicationPath
+   return applicationPath
+end text_EditorApplicationPath
+
 
 --> Draft
 -
@@ -196,26 +230,6 @@ function tiddlyHandler_View
    end if
 end tiddlyHandler_View
 
-function markdown_FromPageArray pageArray
-   put pageArray ["story"] into storyArray
-   repeat with itemNum = 1 to item 2 of the extents of storyArray
-      put storyArray [itemNum]["text"] into itemText
-      
-      switch storyArray [itemNum]["type"]
-         case "text"
-            put itemText & CR&CR after mdText
-            break
-         case "html"
-            put itemText & CR&CR after mdText
-            break
-         case "markdown"
-            put itemText & CR&CR after mdText
-            break
-      end switch
-   end repeat
-   return word 1 to -1 of mdText
-end markdown_FromPageArray
-
 
 --> Display
 -
@@ -354,18 +368,6 @@ command display_LocalWikis pDisplayView, pTitle, pFilter
    --
    return the result
 end display_LocalWikis
-
-command display_ScriptDependencyData sObject
-   put the script_HkeyArray of sObject into hKeyArray
-   put dep_ConstructData (hkeyArray, sObject) into depData
-   --
-   put the short name of sObject into sTitle
-   display_Tool depData, sTitle, "Dependency Data", "lcw_Script"
-   put the result into dView
-   --
-   set the displayed_Object of dView to sObject
-   return dView
-end display_ScriptDependencyData
 
 
 --> Display | Wiki | Garden
@@ -640,22 +642,17 @@ command launch_LocalWiki sDomain
 end launch_LocalWiki
 
 command launch_EtcHosts
-   put text_EditorApplicationPath() into applicationPath
-   launch "/etc/hosts" with applicationPath
-   put the result into launchResult
-   return launchResult
+   launch_TextEditor "/etc/hosts"
 end launch_EtcHosts
 
 command launch_WikiConfig
    put wikiFile_Config() into wikiConfigFile
-   put text_EditorApplicationPath() into applicationPath
-   launch wikiConfigFile with applicationPath
+   launch_TextEditor wikiConfigFile
 end launch_WikiConfig
 
 command launch_TunnelConfig
    put tunnel_GetYamlFile() into yamlFile
-   put text_EditorApplicationPath() into applicationPath
-   launch yamlFile with applicationPath
+   launch_TextEditor yamlFile
 end launch_TunnelConfig
 
 command launch_Fedwiki wikiDomain, pTitle, pProtocol
@@ -672,7 +669,7 @@ command fedwiki_Launch wikiDomain, pTitle, pProtocol
 end fedwiki_Launch
 
 command fedwiki_LaunchSlug wikiDomain, pSlug, pProtocol
-   put fedwiki_ConstructURLFromSlug (wikiDomain, pSlug, pProtocol) into wikiURL
+   put fedwiki_UrlFromSlug (wikiDomain, pSlug, pProtocol) into wikiURL
    launch url wikiURL
    return wikiURL
 end fedwiki_LaunchSlug
@@ -822,7 +819,7 @@ end display_EarthWikis
 --> Events
 -
 on drop_Wiki displayView, dData
-   -- http://roster.fedwiki.org/view/welcome-visitors/view/skunk-activity/michael.offersandwants.me/loveworker-project-scraps--introduction
+   -- http://roster.fedwiki.club/view/welcome-visitors/view/skunk-activity/michael.offersandwants.me/loveworker-project-scraps--introduction
    set the itemdelimiter to slash
    put dData ["text"] into droppedURL
    --
