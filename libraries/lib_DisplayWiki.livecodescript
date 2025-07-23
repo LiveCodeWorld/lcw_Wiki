@@ -14,7 +14,7 @@ function tiddlyHandler_PageArray hKey, pScriptHelp
    local pageArray
    
    put draft_HkeyPageArray (hKey) into pageArray
-   put help_ConstructHandlerTitle (hKey) into pageTitle
+   put help_HandlerTitle (hKey) into pageTitle
    put help_HkeyCurlyData (hKey) into curlyData
    put pageTitle into curlyData ["title"]
    
@@ -64,64 +64,6 @@ command launch_TextEditor sFile
    put text_EditorApplicationPath() into applicationPath
    launch sFile with applicationPath
 end launch_TextEditor
-
-function text_EditorApplicationPath
-   put "/Applications/Zed.app" into applicationPath
-   -- put "/Applications/Visual Studio Code.app" into applicationPath
-   return applicationPath
-end text_EditorApplicationPath
-
-
---> Draft
--
-command draft_WikiPage wikiDomain, pageArray, pLaunch
-   put pLaunch is not false into pLaunch
-   
-   # Display Ghost
-   put fedWiki_FindBrowser (wikiDomain, pLaunch) into wikiBrowser
-   if exists (wikiBrowser) is true then  
-      set the ghost_PageArray of wikiBrowser to pageArray
-   end if
-   return wikiBrowser
-end draft_WikiPage
-
-command draft_HandlerHelp hKey
-   put draft_HkeyPageArray(hKey) into pageArray
-   --
-   put handler_ConstructDomain() into handlerDomain
-   --
-   answer "Display draft, or create handler help.." with "Draft" or "Create"
-   if it is "Draft" then
-      draft_WikiPage handlerDomain, pageArray
-      put the result into wikiBrowser
-   else
-      put pageArray ["title"] into pageTitle
-      put fedwiki_ConstructSlug(pageTitle) into pageSlug
-      --
-      pageArray_Set handlerDomain, pageSlug, pageArray, true
-      --
-      put fedWiki_FindBrowser (handlerDomain, true) into wikiBrowser
-      if exists (wikiBrowser) is true then  
-         set the page_Title of wikiBrowser to pageTitle
-      end if
-   end if
-   return wikiBrowser
-end draft_HandlerHelp
-
-function handler_ConstructDomain
-   put "handler." & platform_LivecodeDomain() into handlerDomain
-   return handlerDomain
-end handler_ConstructDomain
-
-function draft_HkeyPageArray hKey
-   put hkey_ArrayFile (hKey) into hkeyArrayFile
-   if there is not a file hkeyArrayFile then
-      graph_Hkey hKey
-   end if
-   --
-   put help_FromHkey (hKey) into pageArray
-   return pageArray
-end draft_HkeyPageArray
 
 
 --> Wiki | Browser
@@ -458,7 +400,7 @@ command display_WikiPage wikiDomain, pSlug
       wait 30 ticks
    end if
    set the page_Slug of wikiView to pSlug
-   return displayView
+   return wikiView
 end display_WikiPage
 
 command display_WikiPrefArray
@@ -673,33 +615,6 @@ command fedwiki_LaunchSlug wikiDomain, pSlug, pProtocol
    launch url wikiURL
    return wikiURL
 end fedwiki_LaunchSlug
-
-
---> Display | Wiki | Astral
--
-command display_WikiCommonsPhotos
-   put wikiFolder_ConstructCommons() into wikiCommonsFolder
-   put file_ListShort (wikiCommonsFolder) into shortFiles
-   --
-   display_Data shortFiles, "Commons", "Photos", pDisplayView
-   put the result into displayView
-   --
-   set the photo_Folder of displayView to wikiCommonsFolder
-   display_SetMouseAndMenu displayView, "Wiki | Photos"
-   return displayView
-end display_WikiCommonsPhotos
-
-command display_AstralMediaPhotos pDisplayView
-   put wiki_MediaAssetFolder() into wikiMediaAssetFolder
-   put file_ListShort (wikiMediaAssetFolder) into shortFiles
-   --
-   display_Data shortFiles, "media.localhost", "Photos", pDisplayView
-   put the result into displayView
-   --
-   set the photo_Folder of displayView to wikiMediaAssetFolder
-   display_SetMouseAndMenu displayView, "Wiki | Photos"
-   return displayView
-end display_AstralMediaPhotos
 
 
 --> Display | Wiki | List

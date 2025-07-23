@@ -44,22 +44,6 @@ end wikipedia_FixText
 
 --> Working on
 -
-function handler_AssetFolder pShortFolder
-   put handler_ConstructDomain() into handlerDomain 
-   put wikiFolder_ConstructAssets (handlerDomain, pShortFolder) into handlerAssetFolder
-   return handlerAssetFolder
-end handler_AssetFolder
-
-function wikiFolder_ConstructAssets wikiDomain, pShortFolder
-   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
-   put wikiFolder & "assets/" into assetsFolder
-   --
-   if pShortFolder is not empty then
-      text_AddTrailing pShortFolder, slash
-      put pShortFolder after assetsFolder
-   end if
-   return assetsFolder
-end wikiFolder_ConstructAssets
 
 
 --> WikiFarm | Default | Model
@@ -90,6 +74,102 @@ command wikiFarm_SetDefaultFolder farmFolder
    --
    return ecoData
 end wikiFarm_SetDefaultFolder
+
+
+--> WikiUrl
+-
+function wikiUrl_Asset relAssetPath, wikiDomain
+   -- http://podcast.anarchive.earth/assets/audio/Astral%20Cinema.m4a
+   put "http://" & wikiDomain & "/assets/" into assetsURL
+   put urlEncode (relAssetPath) after assetsURL
+   return assetsURL
+end wikiUrl_Asset
+
+command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineUpNum
+   -- http://snack.myth.garden/view/welcome-visitors
+   if pLineUpNum is not a number then put 1 into pLineUpNum
+   --
+   set the itemdelimiter to slash
+   put item 3 of wikiURL into wikiDomain
+   
+   -- 1 => 1, 2 => 3, -1 => -1, -2 => -3
+   --
+   delete item 1 to 3 of wikiURL
+   if pLineUpNum > 0 then
+      put 2 * (pLineUpNum - 1) + 1 into slugDomainItemNum
+      put slugDomainItemNum + 1 into slugItemNum 
+   else
+      put 2 * pLineUpNum into slugDomainItemNum 
+      put slugDomainItemNum + 1 into slugItemNum 
+   end if
+   
+   put item slugDomainItemNum  of wikiURL into slugDomain
+   put item slugItemNum of wikiURL into pageSlug
+   if slugDomain = "view" then put wikiDomain into slugDomain
+end wikiUrl_Deconstruct
+
+
+
+--> WikiFolder
+-
+function text_EditorApplicationPath
+   put "/Applications/Zed.app" into applicationPath
+   -- put "/Applications/Visual Studio Code.app" into applicationPath
+   return applicationPath
+end text_EditorApplicationPath
+
+function wikiFolder_HandlerAssets handlerName
+   put help_HandlerDomain() into handlerDomain 
+   put wikiFolder_ConstructAssets (handlerDomain, handlerName) into handlerAssetFolder
+   return handlerAssetFolder
+end wikiFolder_HandlerAssets
+
+function wikiFolder_ConstructAssets wikiDomain, pShortFolder
+   put wikiFolder_FromRouter (wikiDomain) into wikiFolder
+   put wikiFolder & "assets/" into assetsFolder
+   --
+   if pShortFolder is not empty then
+      text_AddTrailing pShortFolder, slash
+      put pShortFolder after assetsFolder
+   end if
+   return assetsFolder
+end wikiFolder_ConstructAssets
+
+function wikiFolder_ConstructStatus wikiDomain, pWikiFolder
+   if pWikiFolder is empty then
+      put wikiFolder_FromRouter (wikiDomain) into pWikiFolder
+      put pWikiFolder & "status/" into statusFolder
+   else
+      text_AddTrailing pWikiFolder, slash
+      text_AddTrailing wikiDomain, slash
+      put pWikiFolder & wikiDomain & "status/" into statusFolder
+   end if
+   return statusFolder
+end wikiFolder_ConstructStatus
+
+function wikiFolder_ConstructRecycled wikiDomain, pWikiFolder
+   if pWikiFolder is empty then
+      put wikiFolder_FromRouter (wikiDomain) into pWikiFolder
+   end if
+   put pWikiFolder & "recycle/" into recycleFolder
+   return recycleFolder
+end wikiFolder_ConstructRecycled
+
+function wikiFolder_Modules
+   if Wiki_ModulesFolder is empty then
+      -- it's inside the node modules /wiki/node-modules" folder
+      put node_GetModulesFolder() into nodeModulesFolder   
+      put nodeModulesFolder & "wiki/node_modules/" into wikiModulesFolder
+      --
+      put wikiModulesFolder into Wiki_ModulesFolder
+      --
+      if there is not a folder wikiModulesFolder then
+         return "Error, folder" && wikiModulesFolder && "does not exist"
+      end if
+   end if
+   
+   return Wiki_ModulesFolder
+end wikiFolder_Modules
 
 
 --> WikiFolder | Model | Local

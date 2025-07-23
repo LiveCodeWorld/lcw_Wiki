@@ -31,6 +31,10 @@ getprop checked_LiveServer
    return wikiServer_IsRunning()
 end checked_LiveServer
 
+getprop checked_NodeFarm
+   return wikiServer_NodeIsRunning()
+end checked_NodeFarm
+
 getprop checked_NodeServer
    return wikiServer_NodeIsRunning()
 end checked_NodeServer
@@ -69,11 +73,11 @@ getprop checked_ToggleLiveServer
 end checked_ToggleLiveServer
 
 -- on menu_SwitchServers
-   toggleServer_BetweenLiveAndNode
+toggleServer_BetweenLiveAndNode
 end menu_SwitchServers
 
 -- on menu_StartLiveServer
-   wikiServer_StartLocalProxy
+wikiServer_StartLocalProxy
 end menu_StartLiveServer
 
 private on _____
@@ -84,8 +88,17 @@ on menu_LiveServer
 end menu_LiveServer
 
 on menu_NodeServer wikiView
-   toggleServer_Node
+   if wikiServer_NodeIsRunning() then
+      wikiServer_StopNode
+   else
+      wikiServer_StartNode
+      display_Wiki "localhost"
+   end if
 end menu_NodeServer
+
+on menu_NodeFarm wikiView
+   toggleServer_Node
+end menu_NodeFarm
 
 on menu_StartCaddy
    caddy_ToggleProxy

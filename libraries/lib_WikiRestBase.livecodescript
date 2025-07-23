@@ -9,99 +9,147 @@ deps: lib_MediaWiki, lib_Fedwiki, lib_FedwikiPedia, lib_FedwikiCreate
 
 
 /*
-The main handler for the mediawiki.lc transporter is "mediawiki_FetchPageArray"
-It's now probably in the wrong library and should be factored out into a new librarys with only clean code.
-
---
-This library is for interfacing with the Wikimedia REST API - https://en.wikipedia.org/api/rest_v1/
-This (newer) API provides cacheable and straightforward access to Wikimedia content and data, in machine-readable formats.
-See - https://en.wikipedia.org/api/rest_v1/#!/Page_content/get_page_summary_title for swagger test bed
-
-See also - https://www.mediawiki.org/wiki/REST_API
-
-# Examples:
--- https://rest.wikimedia.org/en.wikipedia.org/v1/page/summary/wiki -- old
--- https://en.wikipedia.org/api/rest_v1/page/summary/ANT
--- put url "https://en.wikipedia.org/api/rest_v1/page/summary/Ant"
+The main handler for the mediawiki.lc transporter is "mediawiki_FetchPageArray".
+It provides CORS headers, and is suitable for use with wiki.
 */
-
---> Display
--
-command display_ListWikipediaImages pageSlug, pLang
-   put restbase_FetchImageArray (pageSlug, pLang) into imageArray
-   --
-   display_Data imageArray, pageSlug, "restbase_FetchImageArray()"
-   return the result
-end display_ListWikipediaImages
-
-function restbase_ListImages pageSlug, pLang
-   put restbase_FetchImageArray (pageSlug, pLang) into imageArray
-   put keys (imageArray) into imageTitles
-   return imageTitles
-end restbase_ListImages
-
-function restbase_FetchImageArray pageSlug, pLang
-   put restbase_FetchMediaArray (pageSlug, pLang) into mediaIndexArray
-   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
-      put mediaIndexArray [itemNum]["title"] into shortImageFile
-      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
-      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
-      put imageURL into imageArray [shortImageFile]
-   end repeat
-   return imageArray
-end restbase_FetchImageArray
-
-command display_RestBase pageSlug, pLang
-   put restbase_FetchSummaryArray (pageSlug, pLang) into sArray
-   display_Data sArray, pageSlug, "restbase_FetchSummaryArray()"
-   return the result
-end display_RestBase
 
 
 --> Working on
 -
-function mediaWiki_ConstructSlug pageTitle
+function mw_MarkdownTOC wSlug, pAddCors, pSectionNum, pApiStem
+   put sandbox_ParseInfoArray (wSlug, pSectionNum, pApiStem, pAddCors) into sArray
+   put sandbox_PageTocArray (sArray) into tocArray
+   sandbox_TocData tocArray, lookUpArray, markdownTOC
+   return markdownTOC
+end mw_MarkdownTOC
+
+function mw_WikiBaseNum pageSlug, pLang
+   put mw_SummaryArray (pageSlug, pLang) into sArray
+   put sArray ["wikibase_item"] into wbNum
+   return wbNum
+end mw_WikiBaseNum
+
+function mw_SummaryThumb pageSlug, pLang
+   put mw_SummaryArray (pageSlug, pLang) into sArray
+   put sArray ["thumbnail"]["height"] into thumbHeight
+   put sArray ["thumbnail"]["height"] into thumbWidth
+   put sArray ["thumbnail"]["source"] into thumbURL
+   return thumbURL
+end mw_SummaryThumb
+
+function mw_SummaryHtml pageSlug, pLang
+   put mw_SummaryArray (pageSlug, pLang) into sArray
+   put sArray ["extract_html"] into sHtml
+   return sHtml
+end mw_SummaryHtml
+
+function mw_SummaryText pageSlug, pLang
+   put mw_SummaryArray (pageSlug, pLang) into sArray
+   put sArray ["extract"] into sText
+   return sText
+end mw_SummaryText
+
+function mw_SummaryArray pageSlug, pLang
+   put restbase_FetchSummaryJSON (pageSlug, pLang) into sJSON
+   put json_ToArray (sJSON) into sArray
+   return sArray
+end mw_SummaryArray
+
+function mw_PageExtract pageSlug, pFormat, pIntroOnly, pPlain, pAddCors, pLang
+   put pAddCors is not false into pAddCors
+   put mw_PageData (pageSlug, pFormat, pIntroOnly, pPlain, pAddCors, pLang) into pageData
+   put pageData ["extract"] into pageExtract
+   return pageExtract
+end mw_PageExtract
+
+function mw_PageData pageSlug, pFormat, pIntroOnly, pPlain, pAddCors, pLang
+   put pIntroOnly is true into pIntroOnly
+   put pPlain is not false into pPlain
+   put "wiki" into pFormat -- "plain or html""
+   
+   put mw_ApiRoot (pLang) into apiRoot
+   put sandbox_ConstructPageQueryFragment (pageSlug, pFormat, pIntroOnly, pPlain) into sandBoxFragment
+   put sandbox_FetchData (sandBoxFragment, apiRoot, pAddCors) into sandData
+   --
+   put sandData ["query"]["pages"][1] into pageData
+   return pageData
+end mw_PageData
+
+function mw_PageExtractUrl pageSlug, pFormat, pIntroOnly, pPlain, pLang
+   -- for testing
+   put pIntroOnly is true into pIntroOnly
+   put pPlain is not false into pPlain
+   put "wiki" into pFormat -- "plain or html""
+   
+   put mw_ApiRoot (pLang) into apiRoot
+   put sandbox_ConstructPageQueryFragment (pageSlug, pFormat, pIntroOnly, pPlain) into sandBoxFragment
+   put sandbox_ConstructUrl (sandBoxFragment, apiRoot) into restURL
+   return restURL
+end mw_PageExtractUrl
+
+
+--> MediaWiki | Rest
+-
+function mw_ConstructSlug pageTitle
    -- Page title. Use underscores instead of spaces. Use percent-encoding. Example: Main_Page.
    replace space with "_" in pageTitle
    put textEncode (pageTitle, "UTF-8") into utf8Title
    put urlencode (utf8Title) into pageSlug
    return pageSlug
-end mediaWiki_ConstructSlug
+end mw_ConstructSlug
 
-function restbase_FetchWikipediaSectionPageArray pageSlug, sectionNum, someLang
-   -- Retrieve the latest HTML for a page title optimised for viewing with native mobile applications. 
-   -- Note that the output is split by sections.
-   -- also uses wikicommons_ConstructTwoImagePageArray
-   
-   -- put restbase_FetchMobileSectionArray (pageSlug, someLang) into sectionPageArray
-   
-   put sectionPageArray ["lead"]["description"] into pageDescription
-   put sectionPageArray ["lead"]["displayTitle"] into pageTitle
-   put sectionPageArray ["lead"]["image"] into imageArray
-   put imageArray ["file"] into shortImageFile
-   put "https:" & imageArray ["640"] into imageURL
-   put sectionPageArray ["lead"]["sections"]["1"]["text"] into htmlPageDescription
-   
-   put sectionPageArray ["remaining"]["sections"] into sectionArray
-   put sectionArray [sectionNum]["line"] into sectionTitle
-   put sectionArray [sectionNum]["tocLevel"] into tocLevel
-   put sectionArray [sectionNum]["text"] into sectionHTML
-   
-   put empty into wikipediaUrl
-   put wikicommons_ConstructTwoImagePageArray (pageTitle, pageDescription, shortImageFile, wikipediaUrl) into fedwikiPageArray
-   
-   return fedwikiPageArray
-end restbase_FetchWikipediaSectionPageArray
+command mw_SetHeaders
+   put "accept: application/json; charset=utf-8" into mwHeaders
+   put CR & "profile=" & quote & "https://www.mediawiki.org/wiki/Specs/Media/1.3.1" & quote after userHeader
+   put CR & "User-Agent: WikiApp/0.1 (http://fedwiki.club; david.bovill@gmail.com) MacOS Livecode/9.03" after userHeader -- mw_SetUserAgent
+   set the httpheaders to mwHeaders
+end mw_SetHeaders
+
+function mw_FetchJSON restURL, pAddCors
+   -- libURLFollowHttpRedirects true -- redirect does not seem to work, and not available on server
+   if pAddCors is true then
+      put url_AddCorsProxy (restURL) into restURL
+   end if
+   mw_SetHeaders
+   put url restURL into sJSON
+   return sJSON
+end mw_FetchJSON
+
+command mw_SetUserAgent
+   -- https://www.mediawiki.org/wiki/API:Main_page#Identifying_your_client
+   put "User-Agent: WikiApp/0.1 (http://fedwiki.club; david.bovill@gmail.com) MacOS Livecode/9.03" into userHeader
+   set the httpheaders to userHeader
+end mw_SetUserAgent
+
+function mw_ApiStemFromUrl wikipediaURL
+   -- was "mw_ApiRoot"
+   if wikipediaURL is empty then
+      return "https://en.wikipedia.org/w/api.php"
+   else
+      -- https://de.wikipedia.org/wiki/Jo_Fabian
+      set the itemdelimiter to "/"
+      put item 1 to 3 of wikipediaURL into apiRoot
+      put "/w/api.php" after apiRoot
+      return apiRoot
+   end if
+end mw_ApiStemFromUrl
+
+function mw_ApiRoot pLang
+   -- was "mw_ApiStemFromUrl"
+   -- https://de.wikipedia.org/wiki/Jo_Fabian
+   if pLang is empty then put "en" into pLang
+   put "https://" & pLang & ".wikipedia.org" into apiRoot
+   return apiRoot
+end mw_ApiRoot
 
 
---> Restbase | Fetch
+--> Restbase | List
 -
-function restbase_FetchRelated pageTitle, pLang
-   put restbase_FetchData (pageTitle, "page/related/", pLang) into rData
-   --
-   put rData ["pages"] into pageIndexArray
-   return pageIndexArray
-end restbase_FetchRelated
+function restbase_ListImages pageSlug, pLang
+   put restbase_FetchImageArray (pageSlug, pLang) into imageArray
+   put keys (imageArray) into imageTitles
+   return imageTitles
+end restbase_ListImages
 
 function restbase_ListImageUrls pageTitle, pLang  
    put restbase_FetchMediaArray (pageTitle, pLang) into mediaIndexArray
@@ -115,23 +163,33 @@ function restbase_ListImageUrls pageTitle, pLang
    return imageUrls
 end restbase_ListImageUrls
 
-function restbase_FetchMediaArray pageTitle, pLang
-   -- https://en.wikipedia.org/api/rest_v1/page/media-list/Ant?redirect=false
+function restbase_FetchImageArray pageSlug, pLang
+   put restbase_FetchMediaArray (pageSlug, pLang) into mediaIndexArray
+   repeat with itemNum = 1 to item 2 of the extents of mediaIndexArray
+      put mediaIndexArray [itemNum]["title"] into shortImageFile
+      put mediaIndexArray [itemNum]["srcSet"][1]["src"] into imageURL
+      put mediaIndexArray [itemNum]["srcSet"][1]["scale"] into srcScale
+      put imageURL into imageArray [shortImageFile]
+   end repeat
+   return imageArray
+end restbase_FetchImageArray
+
+
+--> Restbase | Fetch
+-
+function restbase_FetchMediaArray pageTitle, pLang 
    put restbase_FetchData (pageTitle, "page/media-list/", pLang) into rData
    put rData ["items"] into mediaItemArray
    return mediaItemArray
 end restbase_FetchMediaArray
 
 function restbase_FetchData pageTitle, restPath, pLang
-   put mediaWiki_ConstructSlug (pageTitle) into pageSlug
+   put mw_ConstructSlug (pageTitle) into pageSlug
    put restbase_FetchSlugJSON (pageSlug, restPath, pLang) into someJSON
    put json_ToArray (someJSON) into rData
    return rData
 end restbase_FetchData
 
-
---> Restbase | REST
--
 function restbase_FetchMobileLeadArray pageSlug
    put restbase_FetchMobileLeadJSON (pageSlug) into someJSON
    put json_ToArray (someJSON) into mobileSectionArray
@@ -146,12 +204,6 @@ function restbase_FetchMobileLeadJSON pageSlug, pLang
    return someJSON
 end restbase_FetchMobileLeadJSON
 
-function restbase_FetchSummaryArray pageSlug, pLang
-   put restbase_FetchSummaryJSON (pageSlug, pLang) into someJSON
-   put json_ToArray (someJSON) into mobileSectionArray
-   return mobileSectionArray
-end restbase_FetchSummaryArray
-
 function restbase_FetchSummaryJSON pageSlug, pLang
    -- The summary response includes a text extract of the first several sentences, as well as information about a thumbnail that represents the page.
    -- https://en.wikipedia.org/api/rest_v1/page/summary/ANT?redirect=false
@@ -163,11 +215,11 @@ end restbase_FetchSummaryJSON
 
 --> Restbase | Rest
 -
-function restbase_FetchSlugJSON pageSlug, restPath, pLang, pRestbaseEndpoint   
+function restbase_FetchSlugJSON pageSlug, restPath, pLang, pRestbaseEndpoint, pAddCors
    put restbase_ConstructSlugRestURL (pageSlug, restPath, pLang, pRestbaseEndpoint) into restURL
-   put mediawiki_FetchJSON (restURL) into someJSON
+   put mw_FetchJSON (restURL, pAddCors) into someJSON
    
-   -- manual handling of redirects
+   # manual handling of redirects
    if the environment = "server" then return someJSON -- need to use libUrlLastRHHeaders() on the server
    put libUrlLastRHHeaders() into receivedHeaders
    if word 2 of receivedHeaders is among the items of "301,302" then
@@ -197,6 +249,10 @@ end restbase_ConstructSlugRestURL
 
 --> Deps
 -
+function url_AddCorsProxy sURL
+   return "https://corsproxy.io/?" & sURL
+end url_AddCorsProxy
+
 function http_ConstructHeaderArray receivedHeaders
    delete line 1 of receivedHeaders
    set the itemdelimiter to ":"
@@ -207,20 +263,13 @@ function http_ConstructHeaderArray receivedHeaders
    return headerArray
 end http_ConstructHeaderArray
 
-function http_GetReceivedHeaderArray
-   -- does not work with server
-   -- does not work with repeated values like 2 or more "cookie:"
-   put libUrlLastRHHeaders() into receivedHeaders
-   
-   put word -2 of line 1 of receivedHeaders into statusNum
-   switch statusNum
-      case 503
-         put "Error, service unavailable" into someError
-         return someError
-      case 200
-         put http_ConstructheaderArray (receivedHeaders) into headerArray
-         return headerArray
-      default
-         return "Error," && word 2 to -1 of statusLine
-   end switch
-end http_GetReceivedHeaderArray
+function json_ToArray pJSON
+   -- jsonImport version
+   if pJSON is empty then return false
+   try
+      put jsonImport (pJSON) into tArray -- not the same
+      return tArray
+   catch e
+      return empty
+   end try
+end json_ToArray

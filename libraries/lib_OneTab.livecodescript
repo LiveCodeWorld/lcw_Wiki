@@ -15,6 +15,14 @@ local MarkDownLinks
 
 --> Working on
 -
+function oneTab_Parse oneTabURL
+   local markDownIndex, divSection, tabTitle
+   put url oneTabURL into someHTML
+   _ParseOneTabHtml someHtml, empty, markDownIndex, divSection, tabTitle
+   put the result into parseArray
+   return parseArray
+end oneTab_Parse
+
 private function _BasicMarkDownLink someTextURL, someTextLink
    put _GetTldBit (someTextURL) into tldBit
    --

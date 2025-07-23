@@ -17,19 +17,15 @@ This library is all about interfacing with the Explain XKCD comic mediawiki.
 function test_WikipediaAntSummary
    put "ant" into pageSlug
    
-   put wikipedia_ConstructApiStem() into pApiStem
+   put mw_ApiStemFromUrl() into pApiStem
    
    put false into pIntroOnly
    put true into pPlain
    put "wiki" into pFormat
    
-   put sandbox_ConstructPageQueryFragment (pageSlug, pFormat, pIntroOnly, pPlain) into sandBoxFragment
-   
-   -- put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   -- put sandbox_FetchJSON (sandBoxFragment, pApiStem) into someJSON -- use restbase_FetchSlugJSON() if possible
-   
+   put sandbox_ConstructPageQueryFragment (pageSlug, pFormat, pIntroOnly, pPlain) into sandBoxFragment   
    put sandbox_ConstructUrl (sandBoxFragment, pApiStem) into restURL
-   put mediawiki_FetchJSON (restURL) into someJSON
+   put mw_FetchJSON (restURL, true) into someJSON
    put json_ToArray (someJSON) into sandboxArray
    
    return sandboxArray
@@ -37,7 +33,7 @@ end test_WikipediaAntSummary
 
 function test_WikipediaAntJson
    put test_WikipediaAntUrl() into restURL
-   put mediawiki_FetchJSON (restURL) into someJSON
+   put mw_FetchJSON (restURL, true) into someJSON
    return someJSON
 end test_WikipediaAntJson
 

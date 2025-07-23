@@ -45,6 +45,132 @@ command display_Fiveconcepts wDomain, pSlug
 end display_Fiveconcepts
 
 
+--> WikiPage | Elements
+-
+function wikiPage_TocButtons pageTitle, pFirstPara
+   if pFirstPara is empty then
+      put fedwiki_InternalLink (pageTitle) into linkedTitle
+      put "Here is a table of contents for the Wikipedia Page" && linkedTitle into pFirstPara
+   end if
+   put pageArray_Construct ("Table of Contents", pFirstPara) into pageArray
+   
+   put mw_ConstructSlug (pageTitle) into pageSlug
+   --
+   sandbox_ParseInfo pageSlug, pageDescription, pageTitle, shortImageFile, infoBoxArray
+   put the result into sandboxArray
+   put sandbox_PageTocArray (sandboxArray) into tocArray
+   
+   delete variable tocArray ["index"]
+   repeat with itemNum = 1 to item 2 of the extents of tocArray
+      put tocArray [itemNum]["meta"] into metaTocArray
+      --
+      put metaTocArray ["title"] into sectionTitle
+      if _SkipSection (sectionTitle, pAddAll) then next repeat
+      --
+      put metaTocArray [section_number]  into sectionNum
+      
+      put wikicommons_ConstructSectionForm (pageSlug, sectionNum, sectionTitle) into formHTML
+      pageArray_AddHtml pageArray, formHTML
+   end repeat
+   --
+   pageArray_AddMarkdown pageArray, "# Media"
+   --
+   put platform_RestUrl ("mediawiki/gallery") into restURL
+   pageArray_AddForm pageArray, "Find Images", restURL, pageTitle, "title", "lightpink", "Mediawiki", 22
+   --
+   put platform_RestUrl("mediawiki/related") into restURL
+   pageArray_AddForm pageArray, "Pages", restURL, pageTitle, "title", "lightgreen", "Find Related", 24
+   --
+   put platform_RestUrl ("openverse") into restURL
+   pageArray_AddForm pageArray, "Openverse", restURL, pageTitle, "search_Term", "orange", "Find Image", 24
+   --
+   sandbox_TocData tocArray, lookUpArray, markdownTOC
+   put "# See also" && CR&CR before markdownTOC
+   pageArray_AddMarkdown pageArray, markdownTOC
+   --
+   pageArray_StripJournal pageArray
+   return pageArray
+end wikiPage_TocButtons
+
+function wikiPage_RelatedWikipedia searchTitle, pPageTitle, pFirstPara, pLang
+   if pFirstPara is empty then
+      put fedwiki_InternalLink (searchTitle) into linkedTitle
+      put "Search results for related pages of:" && linkedTitle into pFirstPara
+   end if
+   put pageArray_Construct (pPageTitle, pFirstPara) into pageArray
+   
+   # Fetch pageArray
+   put restbase_FetchRelated (searchTitle, pLang) into pageIndexArray
+   
+   put item 2 of the extents of pageIndexArray into maxNum
+   repeat with itemNum = 1 to maxNum
+      put pageIndexArray [itemNum] into itemArray
+      
+      # Get Titles
+      put itemArray ["title"] into imageSlug
+      put itemArray ["titles"]["normalized"] into imageTitle
+      
+      # Get Metadata
+      put itemArray ["revision"] into revisionID
+      put itemArray ["pageid"] into pageID
+      
+      # Get Links
+      put itemArray ["content_urls"]["desktop"]["page"] into linkURL
+      put itemArray ["content_urls"]["mobile"]["page"] into mobileLinkURL
+      
+      # Get Description
+      put line 1 of itemArray ["description"] into shortDescription
+      put itemArray ["extract"] into imageDescription
+      put itemArray ["extract_Html"] into htmlDescription
+      -- put textDecode (htmlDescription, "UTF-8") into htmlDescription
+      
+      # Get Image
+      put itemArray ["originalimage"]["source"] into imageURL
+      put itemArray ["originalimage"]["height"] into imageHeight
+      put itemArray ["originalimage"]["width"] into imageWidth
+      
+      # Get Thumbnail
+      put itemArray ["thumbnail"]["source"] into thumbURL
+      put itemArray ["thumbnail"]["height"] into thumbHeight
+      put itemArray ["thumbnail"]["width"] into thumbWidth
+      
+      # Construct image caption
+      -- put imageTitle & "." && sAttribution into imageCaption
+      if char 1 to 3 of htmlDescription = "<p>" then delete char 1 to 3 of htmlDescription
+      if char -4 to -1 of htmlDescription = "</p>" then delete char -4 to -1 of htmlDescription
+      repeat while char -1 of htmlDescription = "."
+         delete char -1 of htmlDescription
+      end repeat
+      --
+      put fedwiki_InternalLink (imageTitle) into linkedTitle
+      put linkedTitle & "." && imageDescription & " - [" & linkURL && "wikimedia]" into imageCaption
+      
+      # Add Coordinates
+      put itemArray ["coordinates"]["lat"] into iLat
+      put itemArray ["coordinates"]["lon"] into iLong
+      if iLat is not empty then
+         put imageTitle & "." && shortDescription into pinDescription
+         put iLat & comma && iLong && pinDescription & CR after pinText
+      end if
+      
+      # Add Image
+      pageArray_AddImage pageArray, imageURL, imageCaption, linkURL, iLat, iLong, "wide"
+   end repeat
+   delete char -1 of pinText
+   --
+   if pinText is not empty then
+      put "PAGE" & CR into mapText
+      put "Map of" && pPageTitle & CR after mapText
+      put pinText after mapText
+      --
+      pageArray_AddMap pageArray, mapText
+   end if
+   --
+   pageArray_CleanJournal pageArray, false
+   return pageArray
+end wikiPage_RelatedWikipedia
+
+
 --> WikiPage | OpenAI
 -
 function wikiPage_ConceptGraph wDomain, pSlug, pModel, pProtocol, pPort
@@ -242,35 +368,6 @@ function wikiPage_EditPage pageSlug, wikiDomain, pPageArrayTitle
    
    return pageArray
 end wikiPage_EditPage
-
-function wikiPage_Help subDomain, curlyData, pScriptHelp, pForkDomains
-   -- subDomain = scriptType
-   put curlyData ["title"] into pageTitle
-   put help_ConstructDomain (subDomain) into wikiDomain
-   
-   # Fetch Template
-   put wikiTemplate_GetHelp (subDomain) into pageArray
-   if pageArray ["plugin"] = "Error" then return pageArray -- could use "title"
-   if pageArray_Check (pageArray) is false then return pageArray_Construct  ("Error", "Some error with wikiTemplate_GetHelp()", "Error")
-   
-   # Rename
-   help_RenameTemplate pageArray, pageTitle, wikiDomain
-   
-   # Curly Merge
-   curly_MergePageArray pageArray, curlyData
-   if pScriptHelp is not empty then
-      put pageArray ["story"][1]["text"] into oText
-      put pScriptHelp & CR&CR & oText into newFirstPara
-      put newFirstPara into pageArray ["story"][1]["text"]
-   end if
-   
-   # Add Fork
-   pageArray_StripJournal pageArray
-   put wikiPage_ForkDomains (wikiDomain, pForkDomains) into forkDomains
-   pageArray_AddFork pageArray, forkDomains
-   --
-   return pageArray
-end wikiPage_Help
 
 function wikiPage_WelcomeVisitors wikiDomain
    put url_GetTLD (wikiDomain) into tldDomain
@@ -679,132 +776,6 @@ function wikiPage_GalleryPedia pageTitle, pFirstPara, pLang
    pageArray_StripJournal pageArray
    return pageArray
 end wikiPage_GalleryPedia
-
-
---> WikiPage | Elements
--
-function wikiPage_TocButtons pageTitle, pFirstPara
-   if pFirstPara is empty then
-      put fedwiki_InternalLink (pageTitle) into linkedTitle
-      put "Here is a table of contents for the Wikipedia Page" && linkedTitle into pFirstPara
-   end if
-   put pageArray_Construct ("Table of Contents", pFirstPara) into pageArray
-   
-   put mediaWiki_ConstructSlug (pageTitle) into pageSlug
-   --
-   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, shortImageFile, infoBoxArray
-   put the result into sandboxArray
-   put fedwikipedia_ConstructPageTocArray (sandboxArray) into tocArray
-   
-   delete variable tocArray ["index"]
-   repeat with itemNum = 1 to item 2 of the extents of tocArray
-      put tocArray [itemNum]["meta"] into metaTocArray
-      --
-      put metaTocArray ["title"] into sectionTitle
-      if _SkipSection (sectionTitle, pAddAll) then next repeat
-      --
-      put metaTocArray [section_number]  into sectionNum
-      
-      put wikicommons_ConstructSectionForm (pageSlug, sectionNum, sectionTitle) into formHTML
-      pageArray_AddHtml pageArray, formHTML
-   end repeat
-   --
-   pageArray_AddMarkdown pageArray, "# Media"
-   --
-   put platform_RestUrl ("mediawiki/gallery") into restURL
-   pageArray_AddForm pageArray, "Find Images", restURL, pageTitle, "title", "lightpink", "Mediawiki", 22
-   --
-   put platform_RestUrl("mediawiki/related") into restURL
-   pageArray_AddForm pageArray, "Pages", restURL, pageTitle, "title", "lightgreen", "Find Related", 24
-   --
-   put platform_RestUrl ("openverse") into restURL
-   pageArray_AddForm pageArray, "Openverse", restURL, pageTitle, "search_Term", "orange", "Find Image", 24
-   --
-   fedwikipedia_ConstructTocLookupArray tocArray, lookUpArray, markdownTOC
-   put "# See also" && CR&CR before markdownTOC
-   pageArray_AddMarkdown pageArray, markdownTOC
-   --
-   pageArray_StripJournal pageArray
-   return pageArray
-end wikiPage_TocButtons
-
-function wikiPage_RelatedWikipedia searchTitle, pPageTitle, pFirstPara, pLang
-   if pFirstPara is empty then
-      put fedwiki_InternalLink (searchTitle) into linkedTitle
-      put "Search results for related pages of:" && linkedTitle into pFirstPara
-   end if
-   put pageArray_Construct (pPageTitle, pFirstPara) into pageArray
-   
-   # Fetch pageArray
-   put restbase_FetchRelated (searchTitle, pLang) into pageIndexArray
-   
-   put item 2 of the extents of pageIndexArray into maxNum
-   repeat with itemNum = 1 to maxNum
-      put pageIndexArray [itemNum] into itemArray
-      
-      # Get Titles
-      put itemArray ["title"] into imageSlug
-      put itemArray ["titles"]["normalized"] into imageTitle
-      
-      # Get Metadata
-      put itemArray ["revision"] into revisionID
-      put itemArray ["pageid"] into pageID
-      
-      # Get Links
-      put itemArray ["content_urls"]["desktop"]["page"] into linkURL
-      put itemArray ["content_urls"]["mobile"]["page"] into mobileLinkURL
-      
-      # Get Description
-      put line 1 of itemArray ["description"] into shortDescription
-      put itemArray ["extract"] into imageDescription
-      put itemArray ["extract_Html"] into htmlDescription
-      -- put textDecode (htmlDescription, "UTF-8") into htmlDescription
-      
-      # Get Image
-      put itemArray ["originalimage"]["source"] into imageURL
-      put itemArray ["originalimage"]["height"] into imageHeight
-      put itemArray ["originalimage"]["width"] into imageWidth
-      
-      # Get Thumbnail
-      put itemArray ["thumbnail"]["source"] into thumbURL
-      put itemArray ["thumbnail"]["height"] into thumbHeight
-      put itemArray ["thumbnail"]["width"] into thumbWidth
-      
-      # Construct image caption
-      -- put imageTitle & "." && sAttribution into imageCaption
-      if char 1 to 3 of htmlDescription = "<p>" then delete char 1 to 3 of htmlDescription
-      if char -4 to -1 of htmlDescription = "</p>" then delete char -4 to -1 of htmlDescription
-      repeat while char -1 of htmlDescription = "."
-         delete char -1 of htmlDescription
-      end repeat
-      --
-      put fedwiki_InternalLink (imageTitle) into linkedTitle
-      put linkedTitle & "." && imageDescription & " - [" & linkURL && "wikimedia]" into imageCaption
-      
-      # Add Coordinates
-      put itemArray ["coordinates"]["lat"] into iLat
-      put itemArray ["coordinates"]["lon"] into iLong
-      if iLat is not empty then
-         put imageTitle & "." && shortDescription into pinDescription
-         put iLat & comma && iLong && pinDescription & CR after pinText
-      end if
-      
-      # Add Image
-      pageArray_AddImage pageArray, imageURL, imageCaption, linkURL, iLat, iLong, "wide"
-   end repeat
-   delete char -1 of pinText
-   --
-   if pinText is not empty then
-      put "PAGE" & CR into mapText
-      put "Map of" && pPageTitle & CR after mapText
-      put pinText after mapText
-      --
-      pageArray_AddMap pageArray, mapText
-   end if
-   --
-   pageArray_CleanJournal pageArray, false
-   return pageArray
-end wikiPage_RelatedWikipedia
 
 
 --> PageArray | Image

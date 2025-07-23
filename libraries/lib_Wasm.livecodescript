@@ -8,6 +8,67 @@ type: library
 version: 0.2
 
 
+--> Controller
+-
+command controller_Dispatch dUrl, cStackName, pHandlerName
+   put controller_GetPageArray (dUrl, cStackName, pHandlerName) into pArray
+   --
+   ghost_PageArray pArray
+   return the result
+end controller_Dispatch
+
+function controller_GetPageArray dUrl, cStackName, pHandlerName
+   controller_LoadIfMissing cStackName
+   if the result is an array then
+      put the result into errorPageArray
+      return errorPageArray
+   end if
+   
+   # Loaded stack (or existed already)
+   if pHandlerName is not empty then
+      set the default_Handler of stack cStackName to pHandlerName
+   end if
+   put the page_Array [dUrl] of stack cStackName into pArray
+   return pArray
+end controller_GetPageArray
+
+command controller_LoadIfMissing cStackName
+   if exists (stack cStackName) is false then
+      if the platform is "web" then
+         ghurl_GoController cStackName
+         if the result is not empty then
+            put "Cannot fetch stack" && kwote (cStackName) & "!" into mdText
+            put pageArray_Construct ("Error", mdText) into pArray
+            return pArray
+         end if
+      else
+         put "Cannot find stack" && kwote (cStackName) & "!" into mdText
+         put pageArray_Construct ("Error", mdText) into pArray
+         return pArray
+      end if
+   end if
+   return empty
+end controller_LoadIfMissing
+
+function controller_MatchedPageArray dUrl, matchData, pHandlerName
+   get rex_MatchUrl (dURL, matchData)
+   put it ["title"] into cStackName
+   put controller_GetPageArray (dUrl, cStackName, pHandlerName) into pageArray
+   return pageArray
+end controller_MatchedPageArray
+
+function controller_FetchMatchData pProt, pPort
+   put "controller.livecode.wiki" into wDom
+   
+   # Construct regExp
+   put regExp_fromLinkKey ("Rex") into rExp
+   
+   put wikiSite_MatchData (rExp, wDom, pProt, pPort) into matchData
+   return matchData
+end controller_FetchMatchData
+
+
+
 --> Working on
 -
 function fedwiki_UrlFromPath wDomain, sPath, pProtocol, pPort
@@ -36,62 +97,6 @@ function fedwiki_JsonSiteMapUrl wDomain, pProtocol, pPort
    return sURL
 end fedwiki_JsonSiteMapUrl
 
-function pageArray_Fetch wikiDomain, pSlug, pPort, pProtocol, pDecode
-   put pageJson_Fetch (wikiDomain, pSlug, pPort, pDecode, pProtocol) into pageJson
-   --
-   if pageJson is empty then return empty
-   try
-      put JsonImport (pageJSON) into pageArray
-      -- put pageArray_FromJson (pageJson) into pageArray
-      return pageArray
-   catch e
-      return empty
-   end try
-end pageArray_Fetch
-
-function pageArray_ToJson pageArray
-   put pageArray ["title"] into pageTitle
-   --
-   put pageArray ["story"] into storyArray
-   put pageArray ["journal"] into journalArray
-   --
-   put indexArray_ToJson (storyArray) into storyJSON
-   put indexArray_ToJson (journalArray) into journalJSON
-   
-   # Start JSON
-   put "{" into pageJSON
-   
-   # Title
-   put kwote ("title") & ":" && kwote (pageTitle) & comma after pageJSON
-   
-   # Story
-   put kwote ("story") & ":" && "[" & storyJSON & "]" & comma after pageJSON
-   
-   # Journal 
-   put kwote ("journal") & ":" && "[" & journalJSON & "]" after pageJSON
-   
-   # End JSON
-   put "}" after pageJSON
-   --
-   return pageJSON
-end pageArray_ToJson
-
-function pageJson_ConstructUrl wDomain, pSlug, pPort, pProtocol
-   local sPath
-   
-   # Construct path
-   if pSlug is empty then
-      put "welcome-visitors" into pSlug
-   end if
-   put "/" & pSlug & ".json" into sPath
-   
-   # For Caching
-   put "?random=" & the milliseconds after sPath
-   
-   put fedwiki_UrlFromPath (wDomain, sPath, pProtocol, pPort) into wikiURL
-   return wikiURL
-end pageJson_ConstructUrl
-
 
 --> Display
 -
@@ -102,17 +107,6 @@ command wikiFrame_DisplayPage pageTitle, pWikiDomain
       return sJavascript
    end if
 end wikiFrame_DisplayPage
-
-command controller_Dispatch dUrl, cStackName, pHandlerName
-   put controller_GetPageArray (dUrl, cStackName, pHandlerName) into pArray
-   --
-   if the platform is "web" then
-      ghost_PageArray pArray
-   else
-      display_PageArray pArray
-   end if
-   return the result
-end controller_Dispatch
 
 command ghost_PageArray pageArray
    if the platform is "web" then
@@ -127,7 +121,7 @@ command ghost_PageArray pageArray
       do sJavascript as "JavaScript" -- do "document.location" as "JavaScript"
       return sJavascript
    else
-      display_Data pageArray, "ghost_PageArray"
+      dispatch "display_PageArray" with pageArray
    end if
 end ghost_PageArray
 
@@ -251,45 +245,8 @@ function rex_MatchUrl dURL, mData
 end rex_MatchUrl
 
 
---> Controller | MatchData
+--> WikiSite
 -
-function controller_MatchedPageArray dUrl, matchData, pHandlerName
-   get rex_MatchUrl (dURL, matchData)
-   put it ["title"] into cStackName
-   put controller_GetPageArray (dUrl, cStackName, pHandlerName) into pageArray
-   return pageArray
-end controller_MatchedPageArray
-
-function controller_FetchMatchData pProt, pPort
-   put "controller.livecode.wiki" into wDom
-   
-   # Construct regExp
-   put regExp_fromLinkKey ("Rex") into rExp
-   
-   put wikiSite_MatchData (rExp, wDom, pProt, pPort) into matchData
-   return matchData
-end controller_FetchMatchData
-
-
---> Controler
--
-function controller_GetPageArray dUrl, cStackName, pHandlerName
-   if exists (stack cStackName) is false then
-      gitHub_LaunchStack
-   end if
-   
-   if exists (stack cStackName) is false then
-      if pHandlerName is not empty then
-         set the default_Handler of stack cStackName to pHandlerName
-      end if
-      put the page_Array [dUrl] of stack cStackName into pArray
-   else
-      put "Cannot load stack" && kwote (cStackName) & "!" into mdText
-      put pageArray_Construct ("Error", mdText) into pArray
-   end if
-   return pArray
-end controller_GetPageArray
-
 function wikiSite_FirstLinkedKeyTitles linkKey, wDomain, pProtocol, pPort
    # Construct regExp
    put regExp_fromLinkKey (linkKey) into regExp
@@ -346,44 +303,6 @@ function wikiSite_FirstMatchArray regExp, wDomain, pProtocol, pPort
 end wikiSite_FirstMatchArray
 
 
---> WikiFrame
--
-function wikiFrame_GetContextData
-   switch the platform
-      case "web"
-         put wikiFrame_GetContextJson() into contextJson
-         put JsonImport (contextJson) into contextArray
-         return contextArray
-         break
-      default
-         return empty
-   end switch
-end wikiFrame_GetContextData
-
-function wikiFrame_FetchPageArray
-   put wikiFrame_FetchPageJson() into pageJSON
-   put JsonImport (pageJSON) into pageArray
-   return pageArray
-end wikiFrame_FetchPageArray
-
-function wikiFrame_FetchPageArray
-   put wikiFrame_FetchPageJson() into pageJSON
-   put JsonImport (pageJSON) into pageArray
-   return pageArray
-end wikiFrame_FetchPageArray
-
-function wikiFrame_GetItemArray itemID
-   put wikiFrame_GetPageArray() into pageArray
-   get pageArray_GetItemArray (pageArray, itemID) 
-   if it is an array then
-      return it
-   else
-      wikiFrame_DisplayHelp "fix-item-id"
-      return empty
-   end if
-end wikiFrame_GetItemArray
-
-
 --> Fedwiki | Url | Working on
 -
 function favicon_FetchPng wDomain, pProtocol
@@ -418,7 +337,9 @@ function fedwiki_ConstructAssetUrl shortFile, wDomain, pSubFolder, pProtocol
    put "/assets/" after assetURL
    --
    if pSubFolder is not empty then
-      text_AddTrailing pSubFolder, slash
+      if char -1 of pSubFolder is not slash then
+         put slash after pSubFolder
+      end if
       put pSubFolder after assetURL
    end if
    --
@@ -618,8 +539,70 @@ function favicon_ConstructFolder
 end favicon_ConstructFolder
 
 
+--> File
+-
+command file_Deconstruct someFile, @someRoot, @shortName, @fileExtension
+   -- was "deconstruct_File"
+   -- should turn someRoot into someFolder and add "/" to end
+   
+   if someFile is empty then
+      put the effective filename of this stack into someFile
+   end if
+   put someFile into someRoot
+   put the itemdelimiter into originalDelim
+   
+   set the itemdelimiter to "/"
+   put last item of someFile into shortName
+   delete last item of someRoot
+   
+   if shortName contains "." then
+      set the itemdelimiter to "."
+      put last item of shortName into fileExtension
+      delete last item of shortName
+   else
+      put empty into fileExtension
+   end if
+   set the itemdelimiter to originalDelim
+end file_Deconstruct
+
+
 --> WikiFrame
 -
+function wikiFrame_GetContextData
+   switch the platform
+      case "web"
+         put wikiFrame_GetContextJson() into contextJson
+         put JsonImport (contextJson) into contextArray
+         return contextArray
+         break
+      default
+         return empty
+   end switch
+end wikiFrame_GetContextData
+
+function wikiFrame_FetchPageArray
+   put wikiFrame_FetchPageJson() into pageJSON
+   put JsonImport (pageJSON) into pageArray
+   return pageArray
+end wikiFrame_FetchPageArray
+
+function wikiFrame_FetchPageArray
+   put wikiFrame_FetchPageJson() into pageJSON
+   put JsonImport (pageJSON) into pageArray
+   return pageArray
+end wikiFrame_FetchPageArray
+
+function wikiFrame_GetItemArray itemID
+   put wikiFrame_GetPageArray() into pageArray
+   get pageArray_GetItemArray (pageArray, itemID) 
+   if it is an array then
+      return it
+   else
+      wikiFrame_DisplayHelp "fix-item-id"
+      return empty
+   end if
+end wikiFrame_GetItemArray
+
 command wikiFrame_Resize pHeight
    put wikiFrame_ConstructResizeMessage (pHeight) into sJavascript
    if the platform is not "web" then  return sJavascript
@@ -688,8 +671,82 @@ function wikiFrame_GetPageArray
 end wikiFrame_GetPageArray
 
 
---> pageArray
--=
+--> PageArray
+-
+function pageArray_GetItemArray pageArray, itemID
+   put pageArray_FindItemID (itemID, pageArray) into itemNum
+   put pageArray ["story"][itemNum] into itemArray
+   return itemArray
+end pageArray_GetItemArray
+
+function pageArray_FindItemID itemID, pageArray
+   put pageArray ["story"] into storyArray
+   put item 2 of the extents of storyArray into maxItem
+   repeat with itemNum = 1 to maxItem
+      put storyArray [itemNum]["id"] into testID
+      if testID = itemID then
+         return itemNum
+      end if
+   end repeat
+   return 0
+end pageArray_FindItemID
+
+function pageArray_Fetch wikiDomain, pSlug, pPort, pProtocol, pDecode
+   put pageJson_Fetch (wikiDomain, pSlug, pPort, pDecode, pProtocol) into pageJson
+   --
+   if pageJson is empty then return empty
+   try
+      put JsonImport (pageJSON) into pageArray
+      -- put pageArray_FromJson (pageJson) into pageArray
+      return pageArray
+   catch e
+      return empty
+   end try
+end pageArray_Fetch
+
+function pageArray_ToJson pageArray
+   put pageArray ["title"] into pageTitle
+   --
+   put pageArray ["story"] into storyArray
+   put pageArray ["journal"] into journalArray
+   --
+   put indexArray_ToJson (storyArray) into storyJSON
+   put indexArray_ToJson (journalArray) into journalJSON
+   
+   # Start JSON
+   put "{" into pageJSON
+   
+   # Title
+   put kwote ("title") & ":" && kwote (pageTitle) & comma after pageJSON
+   
+   # Story
+   put kwote ("story") & ":" && "[" & storyJSON & "]" & comma after pageJSON
+   
+   # Journal 
+   put kwote ("journal") & ":" && "[" & journalJSON & "]" after pageJSON
+   
+   # End JSON
+   put "}" after pageJSON
+   --
+   return pageJSON
+end pageArray_ToJson
+
+function pageJson_ConstructUrl wDomain, pSlug, pPort, pProtocol
+   local sPath
+   
+   # Construct path
+   if pSlug is empty then
+      put "welcome-visitors" into pSlug
+   end if
+   put "/" & pSlug & ".json" into sPath
+   
+   # For Caching
+   put "?random=" & the milliseconds after sPath
+   
+   put fedwiki_UrlFromPath (wDomain, sPath, pProtocol, pPort) into wikiURL
+   return wikiURL
+end pageJson_ConstructUrl
+
 function pageArray_GetFirstCode pageArray
    put pageArray ["story"] into storyArray
    repeat with itemNum = 1 to item 2 of the extents of storyArray
@@ -702,9 +759,6 @@ function pageArray_GetFirstCode pageArray
    return empty
 end pageArray_GetFirstCode
 
-
---> PageArray
--
 command pageArray_StripJournal @pageArray, pSourceArray, pMilliseconds
    put pageArray ["title"] into pageTitle
    put pageArray ["story"] into storyArray
@@ -859,6 +913,46 @@ function journalArray_Construct pageTitle, pSourceArray, pMilliseconds, pStoryAr
    put createArray into journalArray [1]
    return journalArray
 end journalArray_Construct
+
+
+--> Url
+-
+command url_Deconstruct someUrl, @someProtocol, @urlDomain, @urlPath, @shortName, @fileExtension, @userName, @pissWord
+   set the itemDelimiter to ":"
+   put item 1 of someUrl into someProtocol
+   if someProtocol is among the items of "file:binFile:ftp:http:https" then
+      put someUrl into someFile
+      delete item 1 of someFile
+      if char 1 to 2 of someFile = "//" then delete char 1 to 2 of someFile
+      
+      get offset("@", someFile)
+      if it = 0 then
+         put empty into userName
+         put empty into pissWord
+      else
+         put char 1 to (it - 1) of someFile into authBit
+         repeat while char 1 of authBit is "/"
+            delete char 1 of authBit
+         end repeat
+         delete char 1 to it of someFile
+         put item 1 of authBit into userName
+         put item 2 of authBit into pissWord
+      end if
+      file_Deconstruct someFile, someRoot, shortName, fileExtension
+      
+      set the itemDelimiter to "/"
+      put item 1 of someRoot into urlDomain
+      put item 2 to -1 of someRoot into urlPath
+      return true
+   else
+      put empty into someProtocol
+      put empty into urlDomain
+      put empty into urlPath
+      put empty into shortName
+      put empty into fileExtension
+      return false
+   end if
+end url_Deconstruct
 
 
 --> Frame | Construct

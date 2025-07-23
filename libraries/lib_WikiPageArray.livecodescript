@@ -93,19 +93,19 @@ end _AddMapSection
 
 --> Mediawiki | Titles
 -
-command mediawiki_NormaliseTitle searchTitleString, @pageTitle, @pageID, pLang
+command mediawiki_NormaliseTitle searchTitleString, @pageTitle, @pageID, pLang, pAddCors
    -- searches everything, not just title and finds best match
    put mediawiki_FindPageID (searchTitleString, true, pLang) into pageID
    
    -- /w/api.php?action=query&format=json&pageids=51071416&redirects=1&converttitles=1
-   put wikipedia_GetApiRoot (pLang) & "/w/api.php" into apiRoot
+   put mw_ApiRoot (pLang) & "/w/api.php" into apiRoot
    --
    put "?action=query&format=json" into apiPath
    put "&pageids=" & pageID after apiPath
    put "&redirects=1&converttitles=1" after apiPath
    put apiRoot & apiPath into restURL
    --
-   put mediawiki_FetchJSON (restURL) into someJSON
+   put mw_FetchJSON (restURL, pAddCors) into someJSON
    put json_ToArray (someJSON) into batchResultArray
    --
    put batchResultArray ["query"] into queryArray
@@ -136,7 +136,7 @@ function mediawiki_FindPageID titleString, pNearMatch, pLang
    return pageIDs
 end mediawiki_FindPageID
 
-function mediawiki_FetchSearchJson titleString, pNearMatch, pLang
+function mediawiki_FetchSearchJson titleString, pNearMatch, pLang, pAddCors
    -- title search no longer works (using "nearmatch")
    -- /w/api.php?action=query&format=json&list=search&utf8=1&srsearch=Nelson%20Mandela
    -- /w/api.php?action=query&format=json&list=search&redirects=1&converttitles=1&utf8=1&srsearch=British%20Archaeological%20Awards&srlimit=50&srwhat=nearmatch
@@ -154,10 +154,10 @@ function mediawiki_FetchSearchJson titleString, pNearMatch, pLang
    --
    put "&srsearch=" & encodedSearchString after apiPath
    --
-   put wikipedia_GetApiRoot(pLang) & "/w/api.php" into apiStem
+   put mw_ApiRoot(pLang) & "/w/api.php" into apiStem
    put apiStem & apiPath into restURL
    
-   put mediawiki_FetchJSON (restURL) into someJSON
+   put mw_FetchJSON (restURL, pAddCors) into someJSON
    return someJSON
 end mediawiki_FetchSearchJson
 
@@ -191,13 +191,13 @@ command mediawiki_DeconstructURL mediawikiURL, @pageSlug, @apiStem, @wikiLanguag
          put "https://sterbalssundrystudies.miraheze.org/w/api.php?" into apiStem
          break
       case matchText (mediawikiURL, "https://(.+).wikipedia.org/wiki/(.+)", wikiLanguage, pageSlug)
-         -- bug: think "wikipedia_ConstructApiStem" should return "https://en.wikipedia.org/w/api.php?" ???
-         put wikipedia_ConstructApiStem() into apiStem -- -- https://en.wikipedia.org/w/api.php
+         -- bug: think "mw_ApiStemFromUrl" should return "https://en.wikipedia.org/w/api.php?" ???
+         put mw_ApiStemFromUrl() into apiStem -- -- https://en.wikipedia.org/w/api.php
          break
       default
          -- "Not a Wikipedia page!"
          put "en" into wikiLanguage
-         put wikipedia_ConstructApiStem() into apiStem -- -- https://en.wikipedia.org/w/api.php
+         put mw_ApiStemFromUrl() into apiStem -- -- https://en.wikipedia.org/w/api.php
          return false
    end switch
    return true
@@ -229,9 +229,9 @@ end mediawiki_FetchPageArray
 function mediawiki_GetPageArrayFromSlug pageSlug, wikiLang, pApiStem, pFirstSectionOnly
    -- fetch some metadata
    put pFirstSectionOnly is not false into pFirstSectionOnly
-   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem
+   if pApiStem is empty then put mw_ApiStemFromUrl() into pApiStem
    --
-   put restbase_FetchSummaryArray (pageSlug, wikiLang) into summaryArray -- pageSlug updated if redirect
+   put mw_SummaryArray (pageSlug, wikiLang) into summaryArray -- pageSlug updated if redirect
    if summaryArray is not an array then
       -- don't think this happens. Not found???
       put _MediawikiTryAgain (pageSlug, pFirstSectionOnly, empty, wikiLang, pApiStem) into notFoundPageArray
@@ -279,10 +279,10 @@ function mediawiki_FetchPageArrayWithParse wikiSlug, pSectionNum, pApiRoot, pWik
    return fedwikiPageArray
 end mediawiki_FetchPageArrayWithParse
 
-function mediawiki_FetchParseArray wikiSlug, pSectionNum, pApiRoot
+function mediawiki_FetchParseArray wikiSlug, pSectionNum, pApiRoot, pAddCors
    -- used by "mediawiki_FetchPageArrayWithParse" and "xkcd_FetchPageArray"
    put sandbox_AddSectionFragment (wikiSlug, pSectionNum, "action=parse&format=json&page=") into sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiRoot) into sandboxArray
+   put sandbox_FetchArray (sandBoxFragment, pApiRoot, pAddCors) into sandboxArray
    put sandboxArray ["parse"] into parseArray
    return parseArray
 end mediawiki_FetchParseArray

@@ -103,6 +103,16 @@ end image_FromDataImageUrl
 
 --> Working on
 -
+function fedwiki_ConstructSlug pageTitle
+   -- it is very annoying that "_" is not an allowed character
+   replace space with "-" in pageTitle
+   repeat for each char someChar in  "()_|.,:;'" & quote
+      replace someChar with empty in pageTitle
+   end repeat
+   put tolower (pageTitle) into pageSlug
+   return pageSlug
+end fedwiki_ConstructSlug
+
 function json_FromArray pArray, pForceRootType, pPretty
    -- return jsonExport (pArray) -- not the same and does not work for pgeArray => pageJSON
    
@@ -554,16 +564,6 @@ function fedwiki_HtmlToMarkdown htmlSnippet
    put json_Utf8Encode (refText) into refText
    return refText
 end fedwiki_HtmlToMarkdown
-
-function fedwiki_ConstructSlug pageTitle
-   -- it is very annoying that "_" is not an allowed character
-   replace space with "-" in pageTitle
-   repeat for each char someChar in  "()_|.,:;'"
-      replace someChar with empty in pageTitle
-   end repeat
-   put tolower (pageTitle) into pageSlug
-   return pageSlug
-end fedwiki_ConstructSlug
 
 function fedwiki_ConstructTitle pageSlug
    replace "-" with space in pageSlug

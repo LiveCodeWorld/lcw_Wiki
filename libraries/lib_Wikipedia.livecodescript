@@ -39,7 +39,7 @@ function wikipedia_ExtractSummary someTitles
    -- /w/api.php?action=query&prop=extracts&format=json&exintro=&explaintext=&exsectionformat=wiki&titles=North%20Africa&uselang=de
    if pFormat is empty then put "json" into pFormat
    
-   put wikipedia_ConstructApiStem() & "?action=query&prop=extracts&exintro=&titles=" into apiStem
+   put mw_ApiStemFromUrl() & "?action=query&prop=extracts&exintro=&titles=" into apiStem
    put apiStem & urlEncode(someTitles) into someURL
    put "&format=" & pFormat after someURL
    put url someURL into someValue
@@ -81,7 +81,7 @@ function wikipedia_ExtractInfo someTitles
    if pFormat is empty then put "json" into pFormat
    
    -- prop=info for basic page info 
-   put wikipedia_ConstructApiStem() & "?action=query&prop=info&titles=" into apiStem
+   put mw_ApiStemFromUrl() & "?action=query&prop=info&titles=" into apiStem
    
    put apiStem & urlEncode(someTitles) into someURL
    put "&format=" & pFormat after someURL

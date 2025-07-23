@@ -140,6 +140,8 @@ function markdown_ToText itemText
 end markdown_ToText
 
 function markdown_LinkedBullets sIndex
+   if line 1 of sIndex = "-" then delete line 1 of sIndex
+   if line -1 of sIndex = "-" then delete line -1 of sIndex
    repeat for each line sLine in sIndex
       put "-" && markdown_Link(sLine) & CR after sMarkdown
    end repeat

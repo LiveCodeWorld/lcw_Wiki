@@ -17,90 +17,9 @@ A library for interfacing with MediaWiki instances.
 --> Working on
 -
 
---> MediaWiki
--
-command mediawiki_FetchPageQueryInfo pageSlug, @plainDescription, @pageTitle, @shortImageFile, @lastRevisionID, pIntroOnly, pPlain, pApiStem
-   -- no longer shortImageFile, lastRevisionID
-   # Construct
-   -- put true into pIntroOnly
-   -- put false into pPlain
-   put sandbox_ConstructPageQueryFragment (pageSlug, "wiki", pIntroOnly, pPlain) into sandBoxFragment
-   
-   # Fecth
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   sandbox_DeconstructPageArray sandboxArray, pageTitle, plainDescription, shortImageFile, lastRevisionID
-   put the result into sandboxPageArray
-   return sandboxPageArray
-end mediawiki_FetchPageQueryInfo
-
-
---> Sandbox | REST
--
-function sandbox_FetchArray sandBoxFragment, pApiRoot
-   put sandbox_FetchJSON (sandBoxFragment, pApiRoot) into someJSON -- use restbase_FetchSlugJSON() if possible
-   put json_ToArray (someJSON) into someArray
-   return someArray 
-end sandbox_FetchArray
-
-function sandbox_FetchJSON sandBoxFragment, pApiRoot
-   put sandbox_ConstructUrl (sandBoxFragment, pApiRoot) into restURL
-   put mediawiki_FetchJSON (restURL) into someJSON
-   return someJSON
-end sandbox_FetchJSON
-
-function sandbox_ConstructUrl sandBoxFragment, pApiRoot
-   if pApiRoot is empty then put "https://en.wikipedia.org" into pApiRoot
-   text_AddTrailing pApiRoot, slash
-   put pApiRoot & sandBoxFragment into restURL
-   return restURL
-end sandbox_ConstructUrl
-
-
---> Wikipedia | API
--
-function wikipedia_ConstructApiStem wikipediaURL
-   -- was "wikipedia_GetApiRoot"
-   if wikipediaURL is empty then
-      return "https://en.wikipedia.org/w/api.php"
-   else
-      -- https://de.wikipedia.org/wiki/Jo_Fabian
-      set the itemdelimiter to "/"
-      put item 1 to 3 of wikipediaURL into apiRoot
-      put "/w/api.php" after apiRoot
-      return apiRoot
-   end if
-end wikipedia_ConstructApiStem
-
-function wikipedia_GetApiRoot pLang
-   -- was "wikipedia_ConstructApiStem"
-   -- https://de.wikipedia.org/wiki/Jo_Fabian
-   if pLang is empty then put "en" into pLang
-   put "https://" & pLang & ".wikipedia.org" into apiRoot
-   return apiRoot
-end wikipedia_GetApiRoot
-
-
---> Wikipedia | REST
--
-function mediawiki_FetchJSON restURL
-   -- libURLFollowHttpRedirects true -- redirect does not seem to work, and not available on server
-   
-   mediawiki_SetUserAgent
-   set the httpheaders to "Accept: application/json"
-   put url restURL into someJSON
-   return someJSON
-end mediawiki_FetchJSON
-
-command mediawiki_SetUserAgent
-   -- https://www.mediawiki.org/wiki/API:Main_page#Identifying_your_client
-   put "User-Agent: WikiApp/0.1 (http://fedwiki.club; david.bovill@gmail.com) MacOS Livecode/9.03" into userHeader
-   set the httpheaders to userHeader
-end mediawiki_SetUserAgent
-
-
 --> Mediawiki | Fetch
 -
-function mediawiki_FetchPageImage pageTitle, pApiStem
+function mediawiki_FetchPageImage pageTitle, pApiStem, pAddCors
    -- does not seem to work with some wiki's
    -- works for wikipedia
    -- https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=original&titles=India
@@ -109,7 +28,7 @@ function mediawiki_FetchPageImage pageTitle, pApiStem
    if pApiStem is empty then put wikicommons_GetApiStem() into pApiStem
    --
    put "action=query&prop=pageimages&format=json&piprop=original&titles=" & urlencode (pageTitle) after sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   put sandbox_FetchData (sandBoxFragment, pApiStem, pAddCors) into sandboxArray
    --
    put sandboxArray ["query"]["pages"] into pagesArray   
    put line 1 of keys(pagesArray) into someID -- should only return one entry
@@ -117,11 +36,11 @@ function mediawiki_FetchPageImage pageTitle, pApiStem
    return imageURL
 end mediawiki_FetchPageImage
 
-function mediawiki_FetchListImagesArray pageTitle, pApiStem
+function mediawiki_FetchListImagesArray pageTitle, pApiStem, pAddCors
    if pApiStem is empty then put wikicommons_GetApiStem() into pApiStem
    --
    put "action=query&prop=images&format=json&imlimit=100&titles=" & urlencode (pageTitle) after sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   put sandbox_FetchData (sandBoxFragment, pApiStem, pAddCors) into sandboxArray
    --
    put sandboxArray ["query"]["pages"] into pagesArray
    return pagesArray
@@ -132,7 +51,7 @@ function mediawiki_FetchWikiText pageTitle, pApiStem
    -- https://www.mediawiki.org/wiki/API:Parsing_wikitext
    
    -- put mediawiki_FetchPage (pageTitle, "revisions", "content", empty, pApiStem) into someJSON
-   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem -- wikpedia
+   if pApiStem is empty then put mw_ApiStemFromUrl() into pApiStem -- wikpedia
    put urlencode(pageTitle) into pageTitle
    -- action=expandtemplates&
    put merge("[[pApiStem]]?action=query&titles=[[pageTitle]]&prop=revisions&rvprop=content&format=json") into someURL
@@ -151,33 +70,11 @@ function mediawiki_FetchWikiText pageTitle, pApiStem
    return wikiText
 end mediawiki_FetchWikiText
 
-function mediawiki_FetchSummaryDescription pageSlug, pIntroOnly, pPlain
-   put wikipedia_ConstructApiStem() into pApiStem
-   
-   -- either html, or plain with wiki titles (default)
-   /*
-   -- does't seem to work
-   wiki — e.g., == Wikitext ==
-   plain — no special decoration
-   raw — this extension's internal representation
-   */
-   put pIntroOnly is true into pIntroOnly
-   put pPlain is not false into pPlain
-   put "wiki" into pFormat
-   -- put "plain" into pFormat -- html
-   
-   put sandbox_ConstructPageQueryFragment (pageSlug, pFormat, pIntroOnly, pPlain) into sandBoxFragment
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   sandbox_DeconstructPageArray sandboxArray, pageTitle, pageDescription, shortImageFile, lastRevisionID
-   
-   return pageDescription
-end mediawiki_FetchSummaryDescription
-
 function mediawiki_FetchPage pageTitle, pProps, pReturnChunks, pOtherBits, pApiStem, pFormat
    if pProps is empty then put "revisions" into pProps
    if pReturnChunks is empty then put "content" into pReturnChunks
    if pFormat is empty then put "json" into pFormat
-   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem -- wikpedia
+   if pApiStem is empty then put mw_ApiStemFromUrl() into pApiStem -- wikpedia
    
    put urlencode(pageTitle) into pageTitle
    put merge("[[pApiStem]]?action=query&prop=[[pProps]]&titles=[[pageTitle]]&rvprop=[[pReturnChunks]]&format=[[pFormat]]") into someURL
@@ -189,7 +86,7 @@ end mediawiki_FetchPage
 function mediawiki_FetchPageBits pageTitle, pProps, pOtherBits, pApiStem, pFormat
    if pProps is empty then put "revisions" into pProps
    if pFormat is empty then put "json" into pFormat
-   if pApiStem is empty then put wikipedia_ConstructApiStem() into pApiStem -- wikpedia
+   if pApiStem is empty then put mw_ApiStemFromUrl() into pApiStem -- wikpedia
    
    put urlencode(pageTitle) into pageTitle
    put merge("[[pApiStem]]?action=query&prop=[[pProps]]&titles=[[pageTitle]]&format=[[pFormat]]") into someURL

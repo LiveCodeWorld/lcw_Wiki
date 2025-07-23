@@ -70,7 +70,7 @@ command ecoData_SetFarmAndGardens pEcoData
    
    # Garden_DomainData (used by "wikiFolder_FromRouter" and "wikiDomain_List")
    wikiGarden_SetDomainData gardenDomainData
-    
+   
    ecoData_Set pEcoData
    return pEcoData
 end ecoData_SetFarmAndGardens
@@ -199,10 +199,21 @@ end wikiGarden_AddEcoFolder
 
 --> WikiGarden | List
 -
-function wikiGarden_ListShortFolders gardenName
-   put wikiGarden_FindGardenFolder (gardenName) into gardenFolder
-   put folder_ListShort (gardenFolder) into wikiFolders
-   return wikiFolders
+function wikiGarden_ListShortFolders pGardenName
+   if pGardenName is empty then
+      set the itemdelimiter to slash
+      put wikiGarden_GetDomainData() into domainData
+      repeat for each key domainName in domainData
+         put domainData [domainName]["folder"] into wikiFolder
+         put item -1 of wikiFolder into shortFolder
+         put shortFolder & CR after shortFolders
+      end repeat
+      delete char -1 of shortFolders
+   else
+      put wikiGarden_FindGardenFolder (gardenName) into gardenFolder
+      put folder_ListShort (gardenFolder) into shortFolders
+   end if
+   return shortFolders
 end wikiGarden_ListShortFolders
 
 function wikiGarden_ListFolders pGardenName

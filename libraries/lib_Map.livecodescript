@@ -214,7 +214,7 @@ function openStreetMap_ConstructUrl mLat, mLon, mZoom
 end openStreetMap_ConstructUrl
 
 function openStreetMap_FetchWikipediaMapPageArray wikiSlug, pMapDescription
-   put wikipedia_FetchPageGeolocation (wikiSlug) into geoCoords
+   put sandbox_PageGeoData (wikiSlug) into geoCoords
    if geoCoords is empty then
       transport_ReturnError "Error", "Wikipedia page has no map coordinates!"
    end if

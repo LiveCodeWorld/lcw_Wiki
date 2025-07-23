@@ -199,15 +199,8 @@ end wikiServer_RestartNode
 
 command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
    -- use "wikiServer_StartNodeFarm" instead
-   put wikiServer_ListProcessIds() into wikiProcessIDs
-   if wikiProcessIDs is not empty then return empty -- so we know already started
+   put wikiServer_StartNodeShellCommand (pDataFolder, pSecurityType, pFarm, pPort) into someShell
    --
-   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
-   --
-   wiki_NormailzePort pPort
-   if pPort is empty then put 80 into pPort
-   --
-   put wikiServer_ShellCommand (pSecurityType, pFarm, pPort, pDataFolder) into someShell
    put shell (someShell) into shellResult
    put word 2 of shellResult into wikiProcessID
    
@@ -218,6 +211,19 @@ command wikiServer_StartNode pDataFolder, pSecurityType, pFarm, pPort
    # Indicate wiki starting up
    return wikiProcessID
 end wikiServer_StartNode
+
+function wikiServer_StartNodeShellCommand pDataFolder, pSecurityType, pFarm, pPort
+   put wikiServer_ListProcessIds() into wikiProcessIDs
+   if wikiProcessIDs is not empty then return empty -- so we know already started
+   --
+   if pSecurityType is empty then put wikiServer_GetSecurityType() into pSecurityType
+   --
+   wiki_NormailzePort pPort
+   if pPort is empty then put 80 into pPort
+   --
+   put wikiServer_ShellCommand (pSecurityType, pFarm, pPort, pDataFolder) into someShell
+   return someShell
+end wikiServer_StartNodeShellCommand
 
 function wikiServer_GetNodePort
    put WikiServer_NodePort into sPort

@@ -321,34 +321,6 @@ function fedwikipedia_FetchSectionSummaryPageArray pageSlug, sectionNum
 end fedwikipedia_FetchSectionSummaryPageArray
 
 
---> FedWikipedia | TOC
--
-function mediawiki_FetchMarkdownTOC pageSlug
-   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, shortImageFile, infoBoxArray
-   put the result into sandboxArray
-   put fedwikipedia_ConstructPageTocArray (sandboxArray) into tocArray
-   fedwikipedia_ConstructTocLookupArray tocArray, lookUpArray, markdownTOC
-   return markdownTOC
-end mediawiki_FetchMarkdownTOC
-
-command fedwikipedia_ConstructTocLookupArray tocArray, @lookUpArray, @markdownTOC, pAddAll
-   delete variable tocArray ["index"]
-   repeat with itemNum = (the number of lines of the keys of tocArray) down to 1
-      put tocArray [itemNum]["meta"] into metaTocArray
-      put metaTocArray ["title"] into sectionTitle
-      delete variable metaTocArray ["title"]
-      --
-      if pAddAll is not true AND sectionTitle is among the items of "See also,Notes,Further Reading,References,Sources,External links" then
-         next repeat
-      end if
-      --
-      put metaTocArray into lookUpArray ["wiki_links"][sectionTitle]
-      put "- [[" & sectionTitle & "]]" & CR before markdownTOC
-   end repeat
-   delete char -1 of markdownTOC
-end fedwikipedia_ConstructTocLookupArray
-
-
 --> Private
 -
 private command toc_LookupArrayFromDotNum tocArray, dotNum, @lookUpArray, @markdownTOC
@@ -356,11 +328,11 @@ private command toc_LookupArrayFromDotNum tocArray, dotNum, @lookUpArray, @markd
    split dotNum by "."
    put tocArray [dotNum] into sectionTocArray
    delete variable sectionTocArray ["meta"]
-   fedwikipedia_ConstructTocLookupArray sectionTocArray, lookUpArray, markdownTOC
+   sandbox_TocData sectionTocArray, lookUpArray, markdownTOC
 end toc_LookupArrayFromDotNum
 
 private command fedwikipedia_ConstructSectionTocArray sectionArray, sectionNum, @sectionTocArray, @sectionTitle
-   -- see similar "fedwikipedia_ConstructPageTocArray"
+   -- see similar "sandbox_PageTocArray"
    put sectionArray [1]["fromTitle"] into tocTitle
    put sectionArray [1]["line"] into sectionTitle
    

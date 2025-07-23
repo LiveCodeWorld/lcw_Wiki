@@ -21,6 +21,33 @@ The wikiText "clean" functions are in "lib_FedwikiPedia"
 --> Working on
 -
 
+--> WikiCommons
+-
+function restbase_FetchWikipediaSectionPageArray pageSlug, sectionNum, someLang
+   -- Retrieve the latest HTML for a page title optimised for viewing with native mobile applications. 
+   -- Note that the output is split by sections.
+   -- also uses wikicommons_ConstructTwoImagePageArray
+   -- put restbase_FetchMobileSectionArray (pageSlug, someLang) into sectionPageArray
+   
+   put sectionPageArray ["lead"]["description"] into pageDescription
+   put sectionPageArray ["lead"]["displayTitle"] into pageTitle
+   put sectionPageArray ["lead"]["image"] into imageArray
+   put imageArray ["file"] into shortImageFile
+   put "https:" & imageArray ["640"] into imageURL
+   put sectionPageArray ["lead"]["sections"]["1"]["text"] into htmlPageDescription
+   
+   put sectionPageArray ["remaining"]["sections"] into sectionArray
+   put sectionArray [sectionNum]["line"] into sectionTitle
+   put sectionArray [sectionNum]["tocLevel"] into tocLevel
+   put sectionArray [sectionNum]["text"] into sectionHTML
+   
+   put empty into wikipediaUrl
+   put wikicommons_ConstructTwoImagePageArray (pageTitle, pageDescription, shortImageFile, wikipediaUrl) into fedwikiPageArray
+   
+   return fedwikiPageArray
+end restbase_FetchWikipediaSectionPageArray
+
+
 --> Wikicommons
 -
 function wikicommons_ConstructBasicSummaryPageArray pageTitle, pageDescription, pWikiURL, pSourceArray
@@ -39,7 +66,7 @@ function wikicommons_ConstructBasicSummaryPageArray pageTitle, pageDescription, 
    return fedwikiPageArray
 end wikicommons_ConstructBasicSummaryPageArray
 
-function wikicommons_FetchImageArray shortImageFile, pApiStem
+function wikicommons_FetchImageArray shortImageFile, pApiStem, pAddCors
    -- simlified and generalised from "wikicommons_FetchImageSandboxArray"
    
    if pApiStem is empty then
@@ -52,11 +79,11 @@ function wikicommons_FetchImageArray shortImageFile, pApiStem
    put "&iiprop=" & "comment|url|dimensions|size|sha1|metadata|extmetadata|thumbmime" after sandBoxFragment
    put "&iiurlwidth=420" after sandBoxFragment
    
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   put sandbox_FetchData (sandBoxFragment, pApiStem, pAddCors) into sandboxArray
    return sandboxArray
 end wikicommons_FetchImageArray
 
-function wikicommons_FetchImageSandboxArray shortImageFile, pApiStem
+function wikicommons_FetchImageSandboxArray shortImageFile, pApiStem, pAddCors
    if pApiStem is empty then put wikicommons_GetApiStem() into pApiStem
    if not (shortImageFile begins with "File:") then put "File:" before shortImageFile
    
@@ -67,7 +94,7 @@ function wikicommons_FetchImageSandboxArray shortImageFile, pApiStem
    put "&iiprop=" & "comment|url|dimensions|size|sha1|metadata|extmetadata|thumbmime" after sandBoxFragment
    put "&iiurlwidth=420" after sandBoxFragment
    
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
+   put sandbox_FetchData (sandBoxFragment, pApiStem, pAddCors) into sandboxArray
    return sandboxArray
 end wikicommons_FetchImageSandboxArray
 
@@ -267,7 +294,7 @@ function wikicommons_FetchNearbyFiles someLat, someLong, pRadius, pFormat
    put "&ggscoord=" & someLat & "|" & someLong after someUrl -- 51.5|11.95
    put "&prop=imageinfo&iiprop=url&iiurlwidth=200" after someUrl
    
-   mediawiki_SetUserAgent
+   mw_SetUserAgent
    put url someURL into someJSON
    return someJSON
 end wikicommons_FetchNearbyFiles
@@ -279,7 +306,7 @@ function wikicommons_FetchFilesInCategory someCategory, pFormat
    get merge ("action=query&list=categorymembers&cmtype=file&cmtitle=Category:[[someCategory]]&format=[[pFormat]]")
    put wikicommons_GetApiStem() & it into someUrl
    
-   mediawiki_SetUserAgent
+   mw_SetUserAgent
    put url someURL into someJSON
    return someJSON
 end wikicommons_FetchFilesInCategory
@@ -294,7 +321,7 @@ end wikicommons_FetchFileCategories
 --> Wikicommons | Image
 -
 function wikicommons_ListImageRepos pApiStem
-   put wikpedia_FetchPageImageSandboxArray ("File:Twttr_sketch-Dorsey-2006.jpg", pApiStem) into queryArray
+   put sandbox_PageImageData ("File:Twttr_sketch-Dorsey-2006.jpg", pApiStem) into queryArray
    put queryArray ["query"]["pages"] into pageListArray
    put line 1 of the keys of pageListArray into pageID
    put pageListArray [pageID] into pageArray
@@ -381,7 +408,7 @@ function wikicommons_FetchImageJson shortImageFile, pProps, pExtraProps, pFormat
    if pExtraProps is not empty then put "&" & pExtraProps after it
    put wikicommons_GetApiStem() & it into someURL
    
-   mediawiki_SetUserAgent
+   mw_SetUserAgent
    put url someURL into someJSON
    if the number of words of someJSON = 0 then
       return someURL

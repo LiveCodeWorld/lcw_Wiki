@@ -40,45 +40,6 @@ end fedwikipedia_ConstructSourceArray
 
 --> Working On
 -  
-function mw_SummaryPageArray mwTitle, pLang, pAddToc
-   -- used by "summary" of "mediawiki.lc"
-   -- see also "fedwiki_FetchWikipediaSummaryPageArray"
-   -- very similar to "mediawiki_FetchPageArray"
-   /*   
-   -- consider using "put mediawiki_FetchWikiText("Ant")"
-   -- also uses old "mediawiki_FetchSummaryDescription" to fetch multiple first lines
-   -- as restbase won't do that except in html
-   -- would be great to enable links in first paragraphs like "wikicommons_ConstructSectionPageArray" does
-   -- using sectionnum = 0 does not work with "wikicommons_ConstructSectionPageArray"
-   */
-   
-   put mediaWiki_ConstructSlug (mwTitle) into mwSlug
-   put mediawiki_FetchSummaryDescription (mwSlug, true, true, pLang) into firstSection -- uses old stuff anyway to get more than one line
-   put restbase_FetchSummaryArray (mwSlug, pLang) into summaryArray -- fetch some metadata
-   put mediawiki_ConstructSummaryPageArray (firstSection, summaryArray) into pageArray
-   
-   # Add TOC Button
-   put platform_RestURL ("mediawiki/tocButtons") into postURL
-   
-   put empty into bgColor
-   put mwTitle into valueArray ["pageTitle"]
-   pageArray_AddButton pageArray, "Table of Contents", postURL, valueArray, "", "right", bgColor
-   
-   if pAddToc is true then
-      # Add TOC Section
-      put mediawiki_FetchMarkdownTOC (mwSlug) into markdownTOC
-      if markdownTOC is not empty then
-         put "# See also" && CR&CR before markdownTOC
-         pageArray_AddMarkdown pageArray, markdownTOC
-      end if
-   end if
-   --
-   pageArray_StripJournal pageArray
-   pageArray_AddWikipediaCred pageArray, mwTitle, mwSlug
-   --
-   return pageArray
-end mw_SummaryPageArray
-
 
 --> Wikipedia
 -
@@ -125,7 +86,7 @@ end dropbox_Folder
 
 --> Wikipedia | List
 -
-function wikicommons_ListImages shortImageFile
+function wikicommons_ListImages shortImageFile, pAddCors
    -- this does not seem to return good lists of images
    -- lot's of dodgy characters = spam? in file names etc?
    -- api.php?action=query&list=allimages&ailimit=5&aifrom=Albert&aiprop=dimensions|mime [try in ApiSandbox]
@@ -137,7 +98,7 @@ function wikicommons_ListImages shortImageFile
    put "&titles=[[shortImageFile]]" after urlPattern
    put wikicommons_GetApiStem() & merge (urlPattern) into restURL
    
-   put mediawiki_FetchJSON (restURL) into someJSON
+   put mw_FetchJSON (restURL, pAddCors) into someJSON
    return someJSON
 end wikicommons_ListImages
 
@@ -163,17 +124,17 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    -- need to make a "parse" call to get TOC
    local pSectionNum
    
-   mediawiki_FetchPageParseInfo pageSlug, pageDescription, pageTitle, pageImageFile, infoBoxArray, pSectionNum, pApiStem
+   sandbox_ParseInfo pageSlug, pageDescription, pageTitle, pageImageFile, infoBoxArray, pSectionNum, pApiStem
    put the result into sandboxArray
-   put fedwikipedia_ConstructPageTocArray (sandboxArray) into tocArray
+   put sandbox_PageTocArray (sandboxArray) into tocArray
    
-   fedwikipedia_ConstructTocLookupArray tocArray, lookUpArray, markdownTOC
+   sandbox_TocData tocArray, lookUpArray, markdownTOC
    if lookUpArray is an array then
       put platform_RestURL ("mediawiki/importSection") into lookUpArray ["default"]["transport"]
    end if
    
    -- need to make a "query" call to get a nice clean text
-   mediawiki_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, true, true, pApiStem
+   sandbox_FetchPageQueryInfo pageSlug, simplePageDescription, pageTitleAgain, shortImageFile, wikipediaRevisionID, true, true, pApiStem
    put the result into sandboxPageArray
    
    if shortImageFile is empty then
@@ -202,33 +163,6 @@ function fedwiki_FetchWikipediaSummaryPageArray pageSlug, pApiStem
    pageArray_StripJournal fedwikiPageArray
    return fedwikiPageArray
 end fedwiki_FetchWikipediaSummaryPageArray
-
-
---> Mediawiki | Fetch | Alternative
--
-command mediawiki_FetchPageParseInfo pageSlug, @pageDescription, @pageTitle, @shortImageFile, @infoBoxArray, pSectionNum, pApiStem
-   -- Uses "parse" to extract wiktext sections. Lot's of fiddling with text. Messy as it returns lots of page templates that need cleaning. But we get wiki links
-   
-   if pSectionNum is empty then
-      put sandbox_ConstructSectionFragment (pageSlug) into sandBoxFragment
-   else
-      put sandbox_ConstructSectionFragment (pageSlug, pSectionNum) into sandBoxFragment
-   end if
-   
-   put sandbox_FetchArray (sandBoxFragment, pApiStem) into sandboxArray
-   
-   put sandboxArray ["parse"] into pageArray
-   put pageArray ["title"] into pageTitle
-   put pageArray ["wikitext"]["*"] into pageDescription
-   mediawiki_CleanPageDescription pageDescription, infoBoxArray
-   if infoBoxArray is an array then
-      put infoBoxArray ["image"] into shortImageFile
-   else
-      put pageArray ["images"] into imageArray
-      put mediawiki_ExtractFirstInterestingImage (imageArray) into shortImageFile
-   end if
-   return sandboxArray
-end mediawiki_FetchPageParseInfo
 
 
 --> Fedwiki | Clean
@@ -272,28 +206,6 @@ function fedwiki_FetchWikipediaSummaryPageJson pageSlug, pApiStem
    put json_FromArray (fedwikiPageArray) into pageJSON
    return pageJSON
 end fedwiki_FetchWikipediaSummaryPageJson
-
-function fedwikipedia_ConstructPageTocArray sandboxArray
-   put sandboxArray ["parse"]["sections"] into sectionArray
-   put sectionArray [1]["fromTitle"] into tocTitle
-   
-   repeat for each key tocNum in sectionArray
-      put sectionArray [tocNum]["level"] into tocLevel
-      put sectionArray [tocNum]["line"] into tocLine
-      put sectionArray [tocNum]["number"] into tocNumber
-      
-      put tocNumber into tocArray ["index"][tocLine]["dot_number"]
-      put tocNum into tocArray ["index"][tocLine]["section_number"]
-      
-      put tocNumber into dotKeyArray
-      split dotKeyArray by "."
-      put tocLine into tocArray [dotKeyArray]["meta"]["title"]
-      put tocNumber into tocArray [dotKeyArray]["meta"]["dot_number"]
-      put tocNum into tocArray [dotKeyArray]["meta"]["section_number"]
-      put tocLevel into tocArray [dotKeyArray]["meta"]["section_level"]
-   end repeat
-   return tocArray
-end fedwikipedia_ConstructPageTocArray
 
 
 --> Fedwiki | Fetch

@@ -18,8 +18,14 @@ end project_Deps
 --> Custom
 -
 command project_PostInit
-   # Needed for wiki browser javascript
-   revIDEToggle "Suppress Errors"
+   revIDEToggle "Suppress Errors" -- Needed for wiki browser javascript
+   
+   try
+      display_Project "lcw_Wiki"
+      display_ModuleTools "View|Wiki|Panel"
+   catch e
+      -- breakpoint
+   end try
 end project_PostInit
 
 

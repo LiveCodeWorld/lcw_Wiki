@@ -16,25 +16,21 @@ local Wiki_ModulesFolder
 
 --> Working on
 -
-function wikiFolder_ConstructStatus wikiDomain, pWikiFolder
-   if pWikiFolder is empty then
-      put wikiFolder_FromRouter (wikiDomain) into pWikiFolder
-      put pWikiFolder & "status/" into statusFolder
+function hkeyFile_GetWikiPage hKey
+   put hkeyFile_ConstructWikiPage (hKey) into wFile
+   if there is a file wFile then
+      return wFile
    else
-      text_AddTrailing pWikiFolder, slash
-      text_AddTrailing wikiDomain, slash
-      put pWikiFolder & wikiDomain & "status/" into statusFolder
+      return empty
    end if
-   return statusFolder
-end wikiFolder_ConstructStatus
+end hkeyFile_GetWikiPage
 
-function wikiFolder_ConstructRecycled wikiDomain, pWikiFolder
-   if pWikiFolder is empty then
-      put wikiFolder_FromRouter (wikiDomain) into pWikiFolder
-   end if
-   put pWikiFolder & "recycle/" into recycleFolder
-   return recycleFolder
-end wikiFolder_ConstructRecycled
+function hkeyFile_ConstructWikiPage hKey
+   hkey_Deconstruct hKey, hName, hType, hObject, hNum
+   put fedwiki_ConstructSlug (hName) into pSlug
+   put wikiFile_Construct (wikiDomain, pSlug) into wFile
+   return wFile
+end hkeyFile_ConstructWikiPage
 
 
 --> WikiFile | Assets
@@ -58,39 +54,6 @@ function wikiFile_ConstructImageAsset shortFile, wikiDomain
    return imageFile
 end wikiFile_ConstructImageAsset
 
-
---> WikiUrl
--
-function wikiUrl_Asset relAssetPath, wikiDomain
-   -- http://podcast.anarchive.earth/assets/audio/Astral%20Cinema.m4a
-   put "http://" & wikiDomain & "/assets/" into assetsURL
-   put urlEncode (relAssetPath) after assetsURL
-   return assetsURL
-end wikiUrl_Asset
-
-command wikiUrl_Deconstruct wikiURL, @wikiDomain, @slugDomain, @pageSlug, pLineUpNum
-   -- http://snack.myth.garden/view/welcome-visitors
-   if pLineUpNum is not a number then put 1 into pLineUpNum
-   --
-   set the itemdelimiter to slash
-   put item 3 of wikiURL into wikiDomain
-   
-   -- 1 => 1, 2 => 3, -1 => -1, -2 => -3
-   --
-   delete item 1 to 3 of wikiURL
-   if pLineUpNum > 0 then
-      put 2 * (pLineUpNum - 1) + 1 into slugDomainItemNum
-      put slugDomainItemNum + 1 into slugItemNum 
-   else
-      put 2 * pLineUpNum into slugDomainItemNum 
-      put slugDomainItemNum + 1 into slugItemNum 
-   end if
-   
-   put item slugDomainItemNum  of wikiURL into slugDomain
-   put item slugItemNum of wikiURL into pageSlug
-   if slugDomain = "view" then put wikiDomain into slugDomain
-end wikiUrl_Deconstruct
-
 function wikiFile_ConstructLocalHost pSlug
    put wikiFolder_ConstructLocalPages() into localPagesFolder
    if there is not a folder localPagesFolder then return empty
@@ -107,22 +70,6 @@ function wikiFile_ConstructOwner wikiDomain, pWikiFolder
    put statusFolder & "owner.json" into faviconFile
    return faviconFile
 end wikiFile_ConstructOwner
-
-function wikiFolder_Modules
-   if Wiki_ModulesFolder is empty then
-      -- it's inside the node modules /wiki/node-modules" folder
-      put node_GetModulesFolder() into nodeModulesFolder   
-      put nodeModulesFolder & "wiki/node_modules/" into wikiModulesFolder
-      --
-      put wikiModulesFolder into Wiki_ModulesFolder
-      --
-      if there is not a folder wikiModulesFolder then
-         return "Error, folder" && wikiModulesFolder && "does not exist"
-      end if
-   end if
-   
-   return Wiki_ModulesFolder
-end wikiFolder_Modules
 
 
 --> WikiFile | List
